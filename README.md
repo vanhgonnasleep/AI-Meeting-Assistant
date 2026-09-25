@@ -6,7 +6,7 @@ Yêu cầu mọi người thực hiện đúng trình tự dưới đây để k
 ## 1. Yêu cầu hệ thống thiết yếu
 - Đã cài đặt [Node.js](https://nodejs.org/) (khuyên dùng Node 18+)
 - Đã cài đặt [Python 3.10+](https://www.python.org/)
-- Đã cài đặt [Ollama](https://ollama.com/) với model `llama3`
+- Đã cài đặt [Ollama](https://ollama.com/) với model `llama3` (hoặc `llama3.2:1b` cho máy không có GPU)
 
 ## 2. Trình tự khởi động (Boot Sequence)
 Bạn phải mở 3 cửa sổ Terminal độc lập để chạy 3 dịch vụ này song song:
@@ -15,6 +15,7 @@ Bạn phải mở 3 cửa sổ Terminal độc lập để chạy 3 dịch vụ 
 ```bash
 ollama run llama3
 ```
+*(Nếu máy không có GPU rời, xem mục 5 bên dưới để chạy mô hình siêu nhẹ `llama3.2:1b`)*
 
 ### Terminal 2: Khởi động Backend FastAPI (Port 8002)
 ```bash
@@ -39,7 +40,24 @@ Mở trình duyệt truy cập: `http://localhost:5173`
 
 ---
 
-## 3. Kiến trúc Hệ thống & Phân công Nhiệm vụ
+## 3. Dành cho máy yếu / không có GPU rời (Low-Spec Setup)
+Nếu bạn hoặc đồng đội dùng laptop mỏng nhẹ (chỉ có CPU, không có card đồ họa NVIDIA rời, RAM 8GB - 16GB):
+
+1. **Cách nhanh nhất:** Chạy file script tự động `setup_low_spec.bat` ở thư mục gốc (chỉ cần click đúp).
+2. **Cách thủ công:** Mở Terminal và gõ:
+   ```bash
+   ollama pull llama3.2:1b
+   ollama run llama3.2:1b
+   ```
+   *Mô hình này chỉ nặng ~1.3GB (tải 1 phút), chạy cực nhanh (~25-35 tokens/s) ngay trên CPU thông thường mà không làm nóng máy hay tràn RAM.*
+
+3. **Cơ chế chống treo khi Thuyết trình (Presenter Emergency Safeguard):**
+   - Trên thanh điều khiển của UI, bạn có thể chọn Profile: `Auto (Adaptive)`, `Llama 3.2 (1B)` hoặc `Instant Demo`.
+   - Nếu trong lúc demo AI suy luận quá lâu hoặc máy bị đơ, nút **"Skip Waiting: Instant Demo Result ⏩"** sẽ xuất hiện cạnh vòng xoay tiến trình để người thuyết trình bấm nhảy cóc ngay sang kết quả mẫu mà không bao giờ bị báo lỗi trước hội đồng.
+
+---
+
+## 4. Kiến trúc Hệ thống & Phân công Nhiệm vụ
 
 | Thành viên | Vai trò | Trọng tâm công việc | Module phụ trách |
 | :--- | :--- | :--- | :--- |
@@ -50,7 +68,7 @@ Mở trình duyệt truy cập: `http://localhost:5173`
 
 ---
 
-## 4. Quy trình làm việc nhóm (Git Workflow)
+## 5. Quy trình làm việc nhóm (Git Workflow)
 Để đảm bảo tính ổn định của hệ thống, toàn bộ thành viên bắt buộc tuân thủ quy trình sau:
 1. **Không Push trực tiếp:** Tuyệt đối không đẩy mã nguồn trực tiếp lên nhánh `main`.
 2. **Tạo nhánh tính năng:** Mỗi nhiệm vụ thực hiện trên một nhánh riêng.

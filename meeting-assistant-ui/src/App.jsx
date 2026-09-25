@@ -17,7 +17,8 @@ import {
   Check, 
   X,
   Clock,
-  Layers
+  Layers,
+  Zap
 } from 'lucide-react';
 
 function App() {
@@ -29,6 +30,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript'
   const [completedTasks, setCompletedTasks] = useState({});
   const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
+  const [selectedModel, setSelectedModel] = useState('auto');
+  const [metaInfo, setMetaInfo] = useState(null);
 
   // Check backend and Ollama health on mount
   useEffect(() => {
@@ -73,6 +76,10 @@ function App() {
   });
 
   const handleProcessAudio = async () => {
+    if (selectedModel === 'instant_demo') {
+      return handleInstantDemo();
+    }
+
     if (!file) return;
     setIsProcessing(true);
     setResult(null);
@@ -82,7 +89,8 @@ function App() {
     formData.append("file", file);
 
     try {
-      const response = await fetch("http://localhost:8002/api/process-audio", {
+      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}`;
+      const response = await fetch(url, {
         method: "POST",
         body: formData,
       });
@@ -91,8 +99,42 @@ function App() {
       
       const data = await response.json();
       setResult(data.data);
+      setMetaInfo({
+        model: data.model_used || selectedModel,
+        hardware: data.hardware || (healthStatus.data?.gpu || "CPU Mode")
+      });
     } catch (error) {
       alert("Error: " + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Fail-safe instant demo handler (Bypasses heavy inference in 50ms)
+  const handleInstantDemo = async () => {
+    setIsProcessing(true);
+    setResult(null);
+    setCompletedTasks({});
+
+    const dummyFile = file || new File(["dummy meeting audio content"], "q3_budget_meeting.mp3", {
+      type: "audio/mp3",
+    });
+    const formData = new FormData();
+    formData.append("file", dummyFile);
+
+    try {
+      const response = await fetch("http://localhost:8002/api/process-audio?demo_mode=true", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      setResult(data.data);
+      setMetaInfo({
+        model: "Instant Showcase (Zero Compute)",
+        hardware: "Fail-Safe Demo Mode"
+      });
+    } catch (e) {
+      alert("Demo error: " + e.message);
     } finally {
       setIsProcessing(false);
     }
@@ -110,6 +152,7 @@ function App() {
     setResult(null);
     setIsCopied(false);
     setCompletedTasks({});
+    setMetaInfo(null);
   };
 
   const toggleTask = (idx) => {
@@ -181,9 +224,26 @@ function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
+            
+            {/* Model Profile Switcher */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs shadow-sm">
+              <Cpu className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer font-medium"
+              >
+                <option value="auto" className="bg-slate-900 text-slate-200">🤖 Auto (Adaptive)</option>
+                <option value="llama3" className="bg-slate-900 text-slate-200">🚀 Llama 3 (8B - GPU)</option>
+                <option value="llama3.2:3b" className="bg-slate-900 text-slate-200">⚡ Llama 3.2 (3B - Fast CPU)</option>
+                <option value="llama3.2:1b" className="bg-slate-900 text-slate-200">🪶 Llama 3.2 (1B - Ultra Light)</option>
+                <option value="instant_demo" className="bg-slate-900 text-slate-200">🎯 Instant Demo (No GPU/RAM)</option>
+              </select>
+            </div>
+
             {/* Health Status Indicator */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs">
               <span className={`w-2 h-2 rounded-full ${healthStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
               <span className="text-slate-300 font-medium">
                 {healthStatus.checking 
@@ -207,9 +267,9 @@ function App() {
 
             <button 
               onClick={handleProcessAudio}
-              disabled={!file || isProcessing}
+              disabled={(!file && selectedModel !== 'instant_demo') || isProcessing}
               className={`px-5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all flex items-center gap-2
-                ${!file || isProcessing 
+                ${(!file && selectedModel !== 'instant_demo') || isProcessing 
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/40' 
                   : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 hover:opacity-95 text-white shadow-lg shadow-indigo-500/25 active:scale-[0.98]'}`}
             >
@@ -220,7 +280,7 @@ function App() {
                 </>
               ) : (
                 <>
-                  <Cpu className="w-4 h-4" />
+                  <Zap className="w-4 h-4" />
                   Start Processing
                 </>
               )}
@@ -270,7 +330,7 @@ function App() {
                         Drag and drop your meeting audio here
                       </p>
                       <p className="text-sm text-slate-400 mt-1">
-                        or click anywhere to browse from your device
+                        or click anywhere to browse from your device (Max 50MB)
                       </p>
                     </div>
 
@@ -310,17 +370,17 @@ function App() {
 
               <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80">
                 <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
-                  <Cpu className="w-4 h-4" />
+                  <Zap className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-slate-200">Fast Testing</h3>
+                    <h3 className="text-xs font-semibold text-slate-200">Fail-Safe Demo</h3>
                     <button
                       type="button"
                       onClick={handleDemoSample}
                       className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
                     >
-                      Try Sample File
+                      Load Sample File
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-0.5">Click to auto-load a mock Q3 budget meeting audio sample.</p>
@@ -330,9 +390,9 @@ function App() {
           </div>
         )}
 
-        {/* Processing State (Interactive Stepper) */}
+        {/* Processing State (Interactive Stepper with Fail-Safe Skip Button) */}
         {isProcessing && (
-          <div className="py-16 flex flex-col items-center justify-center space-y-6 bg-slate-900/50 backdrop-blur-xl rounded-3xl border border-slate-800/80 shadow-2xl">
+          <div className="py-14 flex flex-col items-center justify-center space-y-6 bg-slate-900/50 backdrop-blur-xl rounded-3xl border border-slate-800/80 shadow-2xl">
             <div className="relative">
               <div className="w-20 h-20 rounded-full border-2 border-indigo-500/20 flex items-center justify-center">
                 <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
@@ -343,20 +403,32 @@ function App() {
             <div className="text-center space-y-2 max-w-md px-4">
               <h3 className="text-lg font-bold text-white">Transcribing & Analyzing Meeting</h3>
               <p className="text-xs text-slate-400">
-                Executing multi-agent pipeline: Whisper STT & Llama 3 Map-Reduce summarization...
+                Executing multi-agent pipeline with {selectedModel === 'auto' ? 'adaptive Llama model' : selectedModel}...
               </p>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-mono mt-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-mono mt-1">
                 <Clock className="w-3 h-3" /> Elapsed: {elapsedTime}s
               </div>
             </div>
 
             {/* Multi-step progress pills */}
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-400 pt-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-400 pt-1">
               <span className="flex items-center gap-1 text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" /> Ingested</span>
               <span className="text-slate-600">→</span>
               <span className="flex items-center gap-1 text-indigo-300 animate-pulse"><Cpu className="w-3.5 h-3.5" /> STT & Map-Reduce</span>
               <span className="text-slate-600">→</span>
               <span className="flex items-center gap-1 text-slate-500"><ListTodo className="w-3.5 h-3.5" /> Action Items</span>
+            </div>
+
+            {/* Fail-Safe Button: Skip waiting directly to demo */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleInstantDemo}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-all shadow-lg shadow-amber-500/5 active:scale-95 animate-pulse"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                Presenter Emergency: Skip to Instant Result ⏩
+              </button>
             </div>
           </div>
         )}
@@ -392,8 +464,11 @@ function App() {
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">AI Engine</p>
-                  <p className="text-lg font-bold text-white mt-0.5">Llama 3 <span className="text-xs font-normal text-purple-300">(Map-Reduce)</span></p>
+                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Model & Engine</p>
+                  <p className="text-sm font-bold text-white mt-0.5 truncate max-w-[200px]">
+                    {metaInfo?.model || 'Llama 3 Map-Reduce'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 truncate">{metaInfo?.hardware || 'Local Mode'}</p>
                 </div>
               </div>
             </div>
@@ -497,7 +572,7 @@ function App() {
                           <h2 className="text-sm font-bold text-white">Executive Summary (Agent 2)</h2>
                         </div>
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                          Llama 3 Map-Reduce
+                          {metaInfo?.model || 'Llama 3'}
                         </span>
                       </div>
                       
