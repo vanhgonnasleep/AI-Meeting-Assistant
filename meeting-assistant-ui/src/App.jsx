@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, FileAudio, Loader2, CheckCircle2 } from 'lucide-react';
+import { UploadCloud, FileAudio, Loader2, CheckCircle2, Copy } from 'lucide-react';
 
 function App() {
   const [file, setFile] = useState(null);
@@ -42,6 +42,13 @@ function App() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleCopyResult = () => {
+    if (!result) return;
+    const copyText = `MEETING SUMMARY\n\n${result.summary}\n\nACTION ITEMS\n${result.action_items.map(item => `- [ ] ${item.task} (Assignee:${item.assignee})`).join('\n')}`;
+    navigator.clipboard.writeText(copyText);
+    alert("Đã copy toàn bộ nội dung vào Clipboard!");
   };
 
   return (
@@ -113,10 +120,20 @@ function App() {
 
             {/* Cột phải: Tóm tắt & Action Items */}
             <div className="space-y-6">
+              {/* Nút Copy */}
+              <div className="flex justify-end mb-4">
+                <button 
+                  onClick={handleCopyResult}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors bg-white px-3 py-1.5 rounded border shadow-sm"
+                >
+                  <Copy className="w-4 h-4" /> Copy kết quả
+                </button>
+              </div>
+
               {/* Tóm tắt */}
               <div className="bg-purple-50 p-6 rounded-xl border border-purple-100">
                 <h2 className="text-lg font-bold text-purple-900 mb-3">Tóm tắt Tổng quan (Agent 2)</h2>
-                <p className="text-purple-800">{result.summary}</p>
+                <p className="text-purple-800 whitespace-pre-wrap">{result.summary}</p>
               </div>
 
               {/* Action Items */}
