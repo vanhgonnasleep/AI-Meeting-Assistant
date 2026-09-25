@@ -186,7 +186,11 @@ function App() {
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs">
               <span className={`w-2 h-2 rounded-full ${healthStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
               <span className="text-slate-300 font-medium">
-                {healthStatus.checking ? 'Checking...' : healthStatus.online ? 'Llama 3 Local (Ready)' : 'Ollama Offline'}
+                {healthStatus.checking 
+                  ? 'Checking...' 
+                  : healthStatus.online 
+                    ? `Llama 3 (${healthStatus.data?.gpu || 'GPU Ready'})` 
+                    : 'Ollama Offline'}
               </span>
             </div>
 
