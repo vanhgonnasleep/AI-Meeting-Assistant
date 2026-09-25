@@ -70,9 +70,10 @@ def summarize_with_llama(transcript: str) -> str:
     3. Prohibitions: Do NOT hallucinate. Do NOT use introductory phrases like "Here is the summary". Output directly.
     """
     
-    # 1. Word-based chunking to protect context window
+    # 1. Word-based chunking with sliding-window overlap
     words = transcript.split()
     MAX_WORDS_PER_CHUNK = 1200 # Safe boundary to prevent hallucinations
+    CHUNK_OVERLAP = 150        # Preserve conversational context across boundaries
     
     # Scenario 1: Short meeting (<= 1200 words) -> Direct summarization
     if len(words) <= MAX_WORDS_PER_CHUNK:
@@ -80,14 +81,16 @@ def summarize_with_llama(transcript: str) -> str:
         full_prompt = f"{system_prompt}\n\nMeeting Transcript:\n{transcript}\n\nSummary:"
         return call_ollama(full_prompt)
         
-    # Scenario 2: Long meeting -> Map-Reduce chunking
-    print(f"Long transcript detected ({len(words)} words). Starting Map-Reduce process...")
+    # Scenario 2: Long meeting -> Map-Reduce chunking with sliding window
+    print(f"Long transcript detected ({len(words)} words). Starting Map-Reduce with {CHUNK_OVERLAP}-word overlap...")
     chunks = []
     
-    # Slice text into word-intact blocks
-    for i in range(0, len(words), MAX_WORDS_PER_CHUNK):
+    step = MAX_WORDS_PER_CHUNK - CHUNK_OVERLAP
+    for i in range(0, len(words), step):
         chunk_words = words[i:i + MAX_WORDS_PER_CHUNK]
         chunks.append(" ".join(chunk_words))
+        if i + MAX_WORDS_PER_CHUNK >= len(words):
+            break
         
     partial_summaries = []
     
@@ -110,6 +113,36 @@ def summarize_with_llama(transcript: str) -> str:
     )
     
     return call_ollama(final_prompt)
+
+# ==========================================
+# SYSTEM TELEMETRY & HEALTH
+# ==========================================
+@app.get("/api/health")
+async def health_check():
+    """Checks Ollama connection and agent status for frontend indicator."""
+    ollama_online = False
+    model_available = False
+    try:
+        res = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if res.status_code == 200:
+            ollama_online = True
+            models = [m.get("name", "").split(":")[0] for m in res.json().get("models", [])]
+            model_available = "llama3" in models or any("llama3" in m for m in models)
+    except Exception:
+        pass
+
+    return {
+        "status": "ok",
+        "ollama_online": ollama_online,
+        "model": "llama3",
+        "model_available": model_available,
+        "agents": {
+            "agent1_stt": transcribe_audio is not None,
+            "agent2_summary": True,
+            "agent3_action_items": extract_action_items is not None,
+            "database_ready": MeetingRecord is not None
+        }
+    }
 
 # ==========================================
 # ORCHESTRATION PIPELINE
