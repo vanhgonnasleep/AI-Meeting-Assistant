@@ -4,8 +4,32 @@ import requests
 import json
 import time
 import math
+import sys
+from pathlib import Path
 
-app = FastAPI()
+# Setup sys.path to allow importing from database package at project root
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
+# Dynamic Integration with Team Modules (Plug-and-Play)
+try:
+    from agent1_transcribe import transcribe_audio
+except (ImportError, AttributeError):
+    transcribe_audio = None
+
+try:
+    from agent3_action_items import extract_action_items
+except (ImportError, AttributeError):
+    extract_action_items = None
+
+try:
+    from database.models import MeetingRecord, ActionItem
+except (ImportError, AttributeError):
+    MeetingRecord = None
+    ActionItem = None
+
+app = FastAPI(title="AI Meeting Assistant API", version="1.0.0")
 
 # Enable CORS for React Frontend
 app.add_middleware(
@@ -98,25 +122,62 @@ async def process_audio(file: UploadFile = File(...)):
     try:
         print(f"Processing audio file: {file.filename}")
         
-        # 1. AGENT 1: Speech-to-Text (Mock - Waiting for Teammate 1)
-        time.sleep(1) # Simulating processing time
-        transcript = (
-            "Speaker A: We need to finalize the marketing budget for Q3. "
-            "I propose $50,000 for social media ads.\n"
-            "Speaker B: That sounds reasonable. Let's lock it in. Can you prepare the financial report by Friday, John?\n"
-            "Speaker A: Will do."
-        )
+        # 1. AGENT 1: Speech-to-Text (Member 1)
+        transcript = None
+        if transcribe_audio is not None:
+            try:
+                transcript = transcribe_audio(file)
+            except NotImplementedError:
+                print("[Info] Agent 1 STT is under development by Member 1. Using fallback mock.")
+            except Exception as e:
+                print(f"[Warning] Agent 1 error: {e}. Falling back to mock transcript.")
         
-        # 2. AGENT 2: Summarization (Actual Llama 3 Call)
+        if not transcript:
+            time.sleep(1) # Simulating processing time
+            transcript = (
+                "Speaker A: We need to finalize the marketing budget for Q3. "
+                "I propose $50,000 for social media ads.\n"
+                "Speaker B: That sounds reasonable. Let's lock it in. Can you prepare the financial report by Friday, John?\n"
+                "Speaker A: Will do."
+            )
+        
+        # 2. AGENT 2: Summarization (Member 2 - Core Llama 3 Map-Reduce)
         print("Agent 2 is summarizing via Llama 3...")
         summary = summarize_with_llama(transcript)
         
-        # 3. AGENT 3: Action Items (Mock - Waiting for Teammate 3)
-        action_items = [
-            {"task": "Prepare Q3 financial report", "assignee": "John (Speaker A)"}
-        ]
+        # 3. AGENT 3: Action Items (Member 3)
+        action_items = None
+        if extract_action_items is not None:
+            try:
+                action_items = extract_action_items(transcript)
+            except NotImplementedError:
+                print("[Info] Agent 3 is under development by Member 3. Using fallback mock.")
+            except Exception as e:
+                print(f"[Warning] Agent 3 error: {e}. Falling back to mock action items.")
         
-        # 4. Package and Return Data to React UI
+        if not action_items:
+            action_items = [
+                {"task": "Prepare Q3 financial report", "assignee": "John (Speaker A)"}
+            ]
+        
+        # 4. DATABASE: Schema Validation & Pre-storage Check (Member 4)
+        if MeetingRecord and ActionItem:
+            try:
+                parsed_items = [
+                    ActionItem(task=item.get("task", ""), assignee=item.get("assignee", ""))
+                    for item in action_items
+                ]
+                record = MeetingRecord(
+                    filename=file.filename,
+                    raw_transcript=transcript,
+                    executive_summary=summary,
+                    action_items=parsed_items
+                )
+                print(f"[DB] MeetingRecord validated successfully for '{record.filename}'")
+            except Exception as e:
+                print(f"[Warning] DB validation failed: {e}")
+
+        # 5. Package and Return Data to React UI
         return {
             "status": "success",
             "data": {
@@ -130,3 +191,8 @@ async def process_audio(file: UploadFile = File(...)):
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    # Chạy trên port 8002 tương thích hoàn toàn với React Frontend
+    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)

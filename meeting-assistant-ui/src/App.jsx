@@ -6,6 +6,7 @@ function App() {
   const [file, setFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   const onDrop = (acceptedFiles) => {
     if (acceptedFiles?.length > 0) setFile(acceptedFiles[0]);
@@ -44,11 +45,18 @@ function App() {
     }
   };
 
+  const handleReset = () => {
+    setFile(null);
+    setResult(null);
+    setIsCopied(false);
+  };
+
   const handleCopyResult = () => {
     if (!result) return;
-    const copyText = `MEETING SUMMARY\n\n${result.summary}\n\nACTION ITEMS\n${result.action_items.map(item => `- [ ] ${item.task} (Assignee:${item.assignee})`).join('\n')}`;
+    const copyText = `MEETING SUMMARY\n\n${result.summary}\n\nACTION ITEMS\n${result.action_items.map(item => `- [ ] ${item.task} (Assignee: ${item.assignee})`).join('\n')}`;
     navigator.clipboard.writeText(copyText);
-    alert("Đã copy toàn bộ nội dung vào Clipboard!");
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
   };
 
   return (
@@ -57,17 +65,30 @@ function App() {
         
         {/* Header */}
         <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-800">AI Meeting Assistant</h1>
-          <button 
-            onClick={handleProcessAudio}
-            disabled={!file || isProcessing}
-            className={`px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2
-              ${!file || isProcessing 
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}
-          >
-            {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Bắt đầu Xử lý'}
-          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">AI Meeting Assistant</h1>
+            <p className="text-xs text-gray-500 mt-1">Hệ thống trợ lý cuộc họp thông minh (Whisper & Llama 3)</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {result && !isProcessing && (
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 rounded-lg font-medium text-sm text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Tải file khác
+              </button>
+            )}
+            <button 
+              onClick={handleProcessAudio}
+              disabled={!file || isProcessing}
+              className={`px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2
+                ${!file || isProcessing 
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}
+            >
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Bắt đầu Xử lý'}
+            </button>
+          </div>
         </div>
 
         {/* Khu vực Upload (Sẽ ẩn đi khi đang chạy AI hoặc khi đã có kết quả) */}
@@ -124,9 +145,21 @@ function App() {
               <div className="flex justify-end mb-4">
                 <button 
                   onClick={handleCopyResult}
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors bg-white px-3 py-1.5 rounded border shadow-sm"
+                  className={`flex items-center gap-2 text-sm font-medium transition-all px-3 py-1.5 rounded border shadow-sm ${
+                    isCopied 
+                      ? 'bg-green-50 border-green-200 text-green-700' 
+                      : 'bg-white text-gray-600 hover:text-blue-600 border-gray-200'
+                  }`}
                 >
-                  <Copy className="w-4 h-4" /> Copy kết quả
+                  {isCopied ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-green-600" /> Đã copy vào Clipboard!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" /> Copy kết quả
+                    </>
+                  )}
                 </button>
               </div>
 
