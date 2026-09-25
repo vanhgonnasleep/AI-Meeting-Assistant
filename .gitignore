@@ -9,6 +9,7 @@ venv/
 .venv/
 ENV/
 *.env
+.pytest_cache/
 
 # Node
 node_modules/
