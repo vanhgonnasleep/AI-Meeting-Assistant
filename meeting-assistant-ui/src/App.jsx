@@ -1,97 +1,148 @@
 import { useState } from 'react';
-import { MOCK_DATA } from './mockData';
+import { useDropzone } from 'react-dropzone';
+import { UploadCloud, FileAudio, Loader2, CheckCircle2 } from 'lucide-react';
 
 function App() {
-  // 1. Quản lý trạng thái UI: Ban đầu hiển thị dữ liệu giả, thêm biến isLoading để khóa nút bấm
-  const [summary, setSummary] = useState(MOCK_DATA.summary_agent);
-  const [isLoading, setIsLoading] = useState(false);
+  const [file, setFile] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [result, setResult] = useState(null);
 
-  // 2. Hàm gọi API sang Backend Python (cổng 8002)
-  const handleCallAI = async () => {
-    setIsLoading(true);
-    setSummary("Đang gửi dữ liệu sang Python... (Nếu Llama3 chưa tải xong, sẽ báo lỗi ở đây)");
+  const onDrop = (acceptedFiles) => {
+    if (acceptedFiles?.length > 0) setFile(acceptedFiles[0]);
+  };
+  
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'audio/*': ['.mp3', '.wav', '.m4a'] },
+    maxFiles: 1
+  });
+
+  const handleProcessAudio = async () => {
+    if (!file) return;
+    setIsProcessing(true);
+    setResult(null);
+
+    // 1. Đóng gói file âm thanh vào FormData (Bắt buộc đối với file vật lý)
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
-      // Gom đoạn hội thoại giả lập thành 1 đoạn văn bản dài để nhồi vào cho AI
-      const rawText = MOCK_DATA.transcript.map(item => `${item.speaker}: ${item.text}`).join(" ");
-
-      // Bắn luồng dữ liệu sang API của bạn bằng Fetch
-      const response = await fetch("http://127.0.0.1:8002/api/summarize", {
+      // 2. Bắn dữ liệu sang cổng 8002 của FastAPI Backend
+      const response = await fetch("http://localhost:8002/api/process-audio", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ raw_text: rawText })
+        body: formData, // KHÔNG dùng JSON.stringify ở đây
       });
-
-      if (!response.ok) {
-        throw new Error(`Lỗi server: ${response.status}`);
-      }
-
-      // Nhận kết quả và ghi đè nội dung lên UI
+      
+      if (!response.ok) throw new Error("Lỗi kết nối hoặc định dạng file từ máy chủ");
+      
       const data = await response.json();
-      setSummary(data.summary); 
-
+      setResult(data.data); // 3. Hứng dữ liệu trả về và đẩy vào State
     } catch (error) {
-      console.error("Lỗi:", error);
-      setSummary("Lỗi kết nối. Có thể Python chưa chạy hoặc Llama 3 chưa tải xong.");
+      alert("Lỗi: " + error.message);
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <header className="h-20 bg-white shadow flex items-center justify-between px-8">
-        <h1 className="text-xl font-bold text-gray-800">AI Meeting Assistant</h1>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
         
-        {/* 3. Nút bấm giờ đã được gắn hàm handleCallAI */}
-        <button 
-          onClick={handleCallAI} 
-          disabled={isLoading}
-          className={`transition text-white px-4 py-2 rounded font-medium shadow ${isLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
-        >
-          {isLoading ? "Đang xử lý..." : "Test gọi AI Tóm tắt"}
-        </button>
-      </header>
-
-      <div className="flex-1 flex overflow-hidden p-4 gap-4">
-        
-        <div className="w-1/2 bg-white rounded shadow p-6 overflow-y-auto border-t-4 border-blue-500">
-          <h2 className="font-bold text-lg mb-4 text-gray-700 border-b pb-2">Văn bản gốc (Transcript)</h2>
-          {MOCK_DATA.transcript.map((item, index) => (
-             <p key={index} className="mb-3 leading-relaxed">
-               <span className="text-gray-400 text-sm font-mono bg-gray-100 px-1 rounded">[{item.time}]</span> 
-               <strong className="text-blue-600 ml-2">{item.speaker}:</strong> 
-               <span className="ml-1 text-gray-700">{item.text}</span>
-             </p>
-          ))}
+        {/* Header */}
+        <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h1 className="text-2xl font-bold text-gray-800">AI Meeting Assistant</h1>
+          <button 
+            onClick={handleProcessAudio}
+            disabled={!file || isProcessing}
+            className={`px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2
+              ${!file || isProcessing 
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}
+          >
+            {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Bắt đầu Xử lý'}
+          </button>
         </div>
 
-        <div className="w-1/2 flex flex-col gap-4">
-           <div className="flex-1 bg-white rounded shadow p-6 overflow-y-auto border-t-4 border-purple-500">
-              <h2 className="font-bold text-lg mb-3 text-purple-700 border-b pb-2">Tóm tắt Tổng quan (Agent 2)</h2>
-              
-              {/* 4. Hiển thị biến summary thay vì text tĩnh tĩnh */}
-              <p className="text-gray-700 leading-relaxed bg-purple-50 p-3 rounded">{summary}</p>
-           </div>
-           
-           <div className="flex-1 bg-white rounded shadow p-6 overflow-y-auto border-t-4 border-green-500">
-              <h2 className="font-bold text-lg mb-3 text-green-700 border-b pb-2">Công việc trích xuất (Agent 3)</h2>
-              <ul className="flex flex-col gap-2">
-                 {MOCK_DATA.action_item_agent.map((item, index) => (
-                    <li key={index} className="border border-gray-100 bg-gray-50 p-3 flex justify-between items-center rounded hover:shadow-sm transition">
-                       <span className="font-medium text-gray-800">{item.task}</span>
-                       <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">{item.assignee}</span>
+        {/* Khu vực Upload (Sẽ ẩn đi khi đang chạy AI hoặc khi đã có kết quả) */}
+        {!isProcessing && !result && (
+          <div 
+            {...getRootProps()} 
+            className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all
+              ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+          >
+            <input {...getInputProps()} />
+            <div className="flex flex-col items-center gap-4">
+              {file ? (
+                <>
+                  <div className="p-4 bg-green-100 text-green-600 rounded-full">
+                    <FileAudio className="w-8 h-8" />
+                  </div>
+                  <p className="text-gray-700 font-medium">Đã chọn: {file.name}</p>
+                </>
+              ) : (
+                <>
+                  <div className="p-4 bg-blue-100 text-blue-600 rounded-full">
+                    <UploadCloud className="w-8 h-8" />
+                  </div>
+                  <p className="text-gray-700 font-medium text-lg">Kéo thả file âm thanh vào đây</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Trạng thái đang tải */}
+        {isProcessing && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+            <p className="text-gray-600 font-medium animate-pulse">Hệ thống đang bóc băng và phân tích nội dung...</p>
+          </div>
+        )}
+
+        {/* Hiển thị Kết quả từ Backend */}
+        {result && !isProcessing && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Cột trái: Văn bản gốc */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">Văn bản gốc (Transcript)</h2>
+              <div className="prose text-gray-600 whitespace-pre-wrap">
+                {result.transcript}
+              </div>
+            </div>
+
+            {/* Cột phải: Tóm tắt & Action Items */}
+            <div className="space-y-6">
+              {/* Tóm tắt */}
+              <div className="bg-purple-50 p-6 rounded-xl border border-purple-100">
+                <h2 className="text-lg font-bold text-purple-900 mb-3">Tóm tắt Tổng quan (Agent 2)</h2>
+                <p className="text-purple-800">{result.summary}</p>
+              </div>
+
+              {/* Action Items */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h2 className="text-lg font-bold text-green-700 mb-4 pb-2 border-b border-green-100">Công việc trích xuất (Agent 3)</h2>
+                <ul className="space-y-3">
+                  {result.action_items.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-gray-800 font-medium">{item.task}</p>
+                        <span className="inline-block mt-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
+                          {item.assignee}
+                        </span>
+                      </div>
                     </li>
-                 ))}
-              </ul>
-           </div>
-        </div>
+                  ))}
+                </ul>
+              </div>
+            </div>
 
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }
 
 export default App;
