@@ -46,7 +46,7 @@ app.add_middleware(
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
 def call_ollama(prompt: str) -> str:
-    """Hàm phụ trợ để gọi API Llama 3, giúp code không bị lặp lại."""
+    """Helper function to call Llama 3 API without repeating code."""
     payload = {
         "model": "llama3",
         "prompt": prompt,
@@ -70,36 +70,36 @@ def summarize_with_llama(transcript: str) -> str:
     3. Prohibitions: Do NOT hallucinate. Do NOT use introductory phrases like "Here is the summary". Output directly.
     """
     
-    # 1. Đo lường độ dài (Đếm số từ)
+    # 1. Word-based chunking to protect context window
     words = transcript.split()
-    MAX_WORDS_PER_CHUNK = 1200 # Giới hạn an toàn để AI không bị quên logic
+    MAX_WORDS_PER_CHUNK = 1200 # Safe boundary to prevent hallucinations
     
-    # Kịch bản 1: Cuộc họp ngắn (Dưới 1200 từ) -> Tóm tắt luôn 1 lần
+    # Scenario 1: Short meeting (<= 1200 words) -> Direct summarization
     if len(words) <= MAX_WORDS_PER_CHUNK:
-        print("Văn bản ngắn, xử lý trực tiếp...")
+        print("Short transcript detected. Processing directly...")
         full_prompt = f"{system_prompt}\n\nMeeting Transcript:\n{transcript}\n\nSummary:"
         return call_ollama(full_prompt)
         
-    # Kịch bản 2: Cuộc họp dài -> Băm nhỏ (Chunking)
-    print(f"Văn bản quá dài ({len(words)} từ). Khởi động tiến trình Map-Reduce...")
+    # Scenario 2: Long meeting -> Map-Reduce chunking
+    print(f"Long transcript detected ({len(words)} words). Starting Map-Reduce process...")
     chunks = []
     
-    # Cắt văn bản thành các khối nhỏ nguyên vẹn từ
+    # Slice text into word-intact blocks
     for i in range(0, len(words), MAX_WORDS_PER_CHUNK):
         chunk_words = words[i:i + MAX_WORDS_PER_CHUNK]
         chunks.append(" ".join(chunk_words))
         
     partial_summaries = []
     
-    # MAP: Gọi Llama 3 tóm tắt từng phần một
+    # MAP: Summarize each chunk independently
     for i, chunk in enumerate(chunks):
-        print(f"- Đang tóm tắt phần {i+1}/{len(chunks)}...")
+        print(f"- Summarizing chunk {i+1}/{len(chunks)}...")
         chunk_prompt = f"{system_prompt}\n\nPlease summarize this specific part of the meeting transcript:\n{chunk}\n\nSummary:"
         partial_summary = call_ollama(chunk_prompt)
         partial_summaries.append(partial_summary)
         
-    # REDUCE: Gộp các tóm tắt nhỏ lại và tóm tắt chung cuộc
-    print("- Đang tổng hợp Executive Summary cuối cùng...")
+    # REDUCE: Combine partial summaries into unified Executive Summary
+    print("- Synthesizing final Executive Summary...")
     combined_text = "\n\n---\n\n".join(partial_summaries)
     
     final_prompt = (
@@ -194,5 +194,5 @@ async def process_audio(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    # Chạy trên port 8002 tương thích hoàn toàn với React Frontend
+    # Run server on port 8002, matching React frontend configuration
     uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)

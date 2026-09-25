@@ -1,9 +1,9 @@
 """
 =====================================================
 AGENT 3: ACTION ITEMS EXTRACTION
-Phụ trách: Thành viên 3
-Nhiệm vụ: Thiết kế Prompt chuyên biệt cho Llama 3 để trích xuất 
-         danh sách việc cần làm (Task & Assignee) theo chuẩn JSON.
+Owner: Member 3
+Task: Design specialized prompt for Llama 3 to extract
+      actionable tasks and assignees in standardized JSON format.
 =====================================================
 """
 
@@ -11,19 +11,19 @@ from typing import List, Dict
 
 def extract_action_items(transcript: str) -> List[Dict[str, str]]:
     """
-    Hàm nhận đầu vào là văn bản cuộc họp (transcript) và trích xuất danh sách công việc.
+    Receives raw meeting transcript and extracts actionable work items.
     
     Args:
-        transcript (str): Toàn bộ văn bản cuộc họp.
+        transcript (str): Raw meeting transcript text.
         
     Returns:
-        List[Dict[str, str]]: Danh sách công việc theo định dạng chuẩn:
+        List[Dict[str, str]]: Action items in standardized JSON format:
             [
-                {"task": "Chuẩn bị báo cáo tài chính Q3", "assignee": "John (Speaker A)"},
+                {"task": "Prepare Q3 financial report", "assignee": "John (Speaker A)"},
                 ...
             ]
     """
-    # TODO (Thành viên 3): Triển khai prompt Llama 3 trích xuất JSON công việc tại đây
-    # Gợi ý: Gọi Ollama API với format json và prompt ép Llama 3 trả về đúng schema.
+    # TODO (Member 3): Implement Llama 3 prompt to extract JSON action items here
+    # Tip: Call Ollama API with format="json" and structured prompt.
 
-    raise NotImplementedError("Thành viên 3 đang triển khai Agent 3 Action Items.")
+    raise NotImplementedError("Member 3 is implementing Agent 3 Action Items.")
