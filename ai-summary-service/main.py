@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 import json
 import time
+import math
 
 app = FastAPI()
 
@@ -20,34 +21,71 @@ app.add_middleware(
 # ==========================================
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
+def call_ollama(prompt: str) -> str:
+    """Hàm phụ trợ để gọi API Llama 3, giúp code không bị lặp lại."""
+    payload = {
+        "model": "llama3",
+        "prompt": prompt,
+        "stream": False
+    }
+    try:
+        response = requests.post(OLLAMA_API_URL, json=payload, timeout=120)
+        response.raise_for_status()
+        return response.json().get("response", "").strip()
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Ollama is not running. Please run 'ollama run llama3'.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI Processing Error: {str(e)}")
+
 def summarize_with_llama(transcript: str) -> str:
     system_prompt = """
     You are a Senior Executive Meeting Secretary. Your task is to summarize meeting transcripts accurately.
-    
     Strict Rules:
     1. Tone: Objective, professional, third-person perspective.
     2. Structure: Use concise bullet points to highlight key decisions and topics discussed.
-    3. Prohibitions: Do NOT hallucinate or add outside information. Do NOT use introductory phrases like "Here is the summary". Output the summary directly.
+    3. Prohibitions: Do NOT hallucinate. Do NOT use introductory phrases like "Here is the summary". Output directly.
     """
     
-    full_prompt = f"{system_prompt}\n\nMeeting Transcript:\n{transcript}\n\nSummary:"
+    # 1. Đo lường độ dài (Đếm số từ)
+    words = transcript.split()
+    MAX_WORDS_PER_CHUNK = 1200 # Giới hạn an toàn để AI không bị quên logic
     
-    payload = {
-        "model": "llama3",
-        "prompt": full_prompt,
-        "stream": False # Set to False to get the full response at once
-    }
+    # Kịch bản 1: Cuộc họp ngắn (Dưới 1200 từ) -> Tóm tắt luôn 1 lần
+    if len(words) <= MAX_WORDS_PER_CHUNK:
+        print("Văn bản ngắn, xử lý trực tiếp...")
+        full_prompt = f"{system_prompt}\n\nMeeting Transcript:\n{transcript}\n\nSummary:"
+        return call_ollama(full_prompt)
+        
+    # Kịch bản 2: Cuộc họp dài -> Băm nhỏ (Chunking)
+    print(f"Văn bản quá dài ({len(words)} từ). Khởi động tiến trình Map-Reduce...")
+    chunks = []
     
-    try:
-        # Call Local Ollama API
-        response = requests.post(OLLAMA_API_URL, json=payload, timeout=120)
-        response.raise_for_status()
-        result = response.json()
-        return result.get("response", "").strip()
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Ollama is not running. Please run 'ollama run llama3' in a separate terminal.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI Processing Error: {str(e)}")
+    # Cắt văn bản thành các khối nhỏ nguyên vẹn từ
+    for i in range(0, len(words), MAX_WORDS_PER_CHUNK):
+        chunk_words = words[i:i + MAX_WORDS_PER_CHUNK]
+        chunks.append(" ".join(chunk_words))
+        
+    partial_summaries = []
+    
+    # MAP: Gọi Llama 3 tóm tắt từng phần một
+    for i, chunk in enumerate(chunks):
+        print(f"- Đang tóm tắt phần {i+1}/{len(chunks)}...")
+        chunk_prompt = f"{system_prompt}\n\nPlease summarize this specific part of the meeting transcript:\n{chunk}\n\nSummary:"
+        partial_summary = call_ollama(chunk_prompt)
+        partial_summaries.append(partial_summary)
+        
+    # REDUCE: Gộp các tóm tắt nhỏ lại và tóm tắt chung cuộc
+    print("- Đang tổng hợp Executive Summary cuối cùng...")
+    combined_text = "\n\n---\n\n".join(partial_summaries)
+    
+    final_prompt = (
+        f"{system_prompt}\n\n"
+        f"Here are partial summaries from different segments of a long meeting. "
+        f"Please combine them into one coherent, final Executive Summary:\n\n{combined_text}\n\n"
+        f"Final Executive Summary:"
+    )
+    
+    return call_ollama(final_prompt)
 
 # ==========================================
 # ORCHESTRATION PIPELINE
