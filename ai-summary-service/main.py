@@ -17,9 +17,17 @@ if str(ROOT_DIR) not in sys.path:
 
 # Dynamic Integration with Team Modules (Plug-and-Play)
 try:
-    from agent1_transcribe import transcribe_audio
+    from agent1_transcribe import (
+        transcribe_audio,
+        transcribe_audio_detailed,
+        get_whisper_model_info,
+        get_whisper_device
+    )
 except (ImportError, AttributeError):
     transcribe_audio = None
+    transcribe_audio_detailed = None
+    get_whisper_model_info = None
+    get_whisper_device = None
 
 try:
     from agent3_action_items import extract_action_items
@@ -217,6 +225,8 @@ async def health_check():
     
     recommended_model = "llama3" if has_gpu else ("llama3.2:1b" if any("1b" in m for m in installed_models) else "llama3.2:3b")
 
+    stt_info = get_whisper_model_info() if get_whisper_model_info else {"available": False}
+
     return {
         "status": "ok",
         "ollama_online": ollama_online,
@@ -224,6 +234,7 @@ async def health_check():
         "recommended_model": recommended_model,
         "gpu": gpu_desc,
         "has_gpu": has_gpu,
+        "stt": stt_info,
         "agents": {
             "agent1_stt": transcribe_audio is not None,
             "agent2_summary": True,
@@ -233,9 +244,89 @@ async def health_check():
     }
 
 # ==========================================
-# ORCHESTRATION PIPELINE
+# CONSTANTS & CONFIGURATION
 # ==========================================
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 # 50 MB limit
+SUPPORTED_AUDIO_EXTENSIONS = ('.mp3', '.wav', '.m4a', '.ogg', '.flac')
+
+# ==========================================
+# AGENT 1 - SPEECH-TO-TEXT (STANDALONE STT)
+# ==========================================
+@app.post("/api/transcribe")
+async def transcribe_audio_endpoint(
+    file: UploadFile = File(...),
+    model: Optional[str] = Query(None, description="Whisper model: tiny, base, small, medium, large"),
+    language: Optional[str] = Query(None, description="Audio language code (e.g. 'vi', 'en') or auto-detect"),
+    timestamps: bool = Query(False, description="Whether to include segment timestamps")
+):
+    """
+    Dedicated Speech-to-Text endpoint powered by OpenAI Whisper (Agent 1).
+    Uploads an audio file and transcribes speech to clean text.
+    """
+    if transcribe_audio is None:
+        raise HTTPException(status_code=503, detail="Speech-to-Text module (Agent 1) is not available.")
+
+    safe_filename = Path(file.filename).name
+    if not safe_filename.lower().endswith(SUPPORTED_AUDIO_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Only .mp3, .wav, .m4a files are supported.")
+
+    # Enforce file size limit
+    try:
+        file.file.seek(0, 2)
+        file_size = file.file.tell()
+        file.file.seek(0)
+        if file_size > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail="File too large. Maximum supported audio file size is 50MB.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Warning] Could not check file size: {e}")
+
+    try:
+        file.file.seek(0)
+        if transcribe_audio_detailed:
+            result = transcribe_audio_detailed(
+                file,
+                model_name=model,
+                language=language
+            )
+            raw_text = result.get("text", "")
+            if timestamps and result.get("segments"):
+                lines = [
+                    f"{seg['timestamp']} {seg['text']}"
+                    for seg in result["segments"]
+                    if seg.get("text")
+                ]
+                formatted_transcript = "\n".join(lines)
+            else:
+                formatted_transcript = raw_text
+
+            return {
+                "status": "success",
+                "filename": safe_filename,
+                "transcript": formatted_transcript,
+                "language": result.get("language"),
+                "duration": result.get("duration"),
+                "segments": result.get("segments", [])
+            }
+        else:
+            text = transcribe_audio(
+                file,
+                model_name=model,
+                language=language,
+                include_timestamps=timestamps
+            )
+            return {
+                "status": "success",
+                "filename": safe_filename,
+                "transcript": text
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Speech transcription failed: {str(e)}")
+
+# ==========================================
+# ORCHESTRATION PIPELINE
+# ==========================================
 
 @app.post("/api/process-audio")
 async def process_audio(
@@ -271,7 +362,7 @@ async def process_audio(
 
     # 1. Sanitize filename against path traversal
     safe_filename = Path(file.filename).name
-    if not safe_filename.lower().endswith(('.mp3', '.wav', '.m4a')):
+    if not safe_filename.lower().endswith(SUPPORTED_AUDIO_EXTENSIONS):
         raise HTTPException(status_code=400, detail="Only .mp3, .wav, .m4a files are supported.")
     
     # 2. Enforce file size limit to prevent memory exhaustion
@@ -295,13 +386,15 @@ async def process_audio(
         transcript = None
         if transcribe_audio is not None:
             try:
+                file.file.seek(0)
                 transcript = transcribe_audio(file)
             except NotImplementedError:
                 print("[Info] Agent 1 STT is under development by Member 1. Using fallback mock.")
             except Exception as e:
                 print(f"[Warning] Agent 1 error: {e}. Falling back to mock transcript.")
         
-        if not transcript:
+        if not transcript or not transcript.strip():
+            print("[Info] No transcript produced by STT or empty audio. Using fallback meeting transcript.")
             time.sleep(1) # Simulating processing time
             transcript = (
                 "Speaker A: We need to finalize the marketing budget for Q3. "
