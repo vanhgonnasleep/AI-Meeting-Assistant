@@ -1,26 +1,22 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
-from datetime import datetime
+from dataclasses import dataclass, field
+from typing import Optional, List
 
-class ActionItem(BaseModel):
+
+@dataclass
+class ActionItem:
     task: str
-    assignee: str
+    assignee: Optional[str] = None
+    deadline: Optional[str] = None
+    status: str = "pending"
 
-class MeetingRecord(BaseModel):
-    id: Optional[str] = None
+
+@dataclass
+class MeetingRecord:
     filename: str
-    processed_at: datetime = Field(default_factory=datetime.now)
     raw_transcript: str
     executive_summary: str
-    action_items: List[ActionItem]
+    action_items: List[ActionItem] = field(default_factory=list)
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "filename": "q3_budget_meeting.mp3",
-                "raw_transcript": "Speaker A: Let's discuss the budget...",
-                "executive_summary": "- Discussed Q3 budget\n- Approved $50k",
-                "action_items": [{"task": "Prepare report", "assignee": "John"}]
-            }
-        }
-    )
+    id: Optional[int] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
