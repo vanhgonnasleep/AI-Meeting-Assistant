@@ -40,6 +40,7 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [meetingsHistory, setMeetingsHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null); // inline error banner (replaces alert())
 
   const fetchMeetingHistory = async () => {
     setLoadingHistory(true);
@@ -141,6 +142,7 @@ function App() {
     setMmrTelemetry(null);
     setTranscriptView('raw');
     setCompletedTasks({});
+    setErrorMessage(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -152,7 +154,10 @@ function App() {
         body: formData,
       });
       
-      if (!response.ok) throw new Error("Server connection error or unsupported file format");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server error (HTTP ${response.status})`);
+      }
       
       const data = await response.json();
       setResult(data.data);
@@ -163,7 +168,7 @@ function App() {
       });
       fetchMeetingHistory();
     } catch (error) {
-      alert("Error: " + error.message);
+      setErrorMessage(error.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -176,6 +181,7 @@ function App() {
     setMmrTelemetry(null);
     setTranscriptView('raw');
     setCompletedTasks({});
+    setErrorMessage(null);
 
     const dummyFile = file || new File(["dummy meeting audio content"], "q3_budget_meeting.mp3", {
       type: "audio/mp3",
@@ -204,11 +210,12 @@ function App() {
         hardware: "Fail-Safe Demo Mode"
       });
     } catch (e) {
-      alert("Demo error: " + e.message);
+      setErrorMessage("Backend not reachable. Please start the FastAPI server on port 8002.");
     } finally {
       setIsProcessing(false);
     }
   };
+
 
   const handleDemoSample = () => {
     const mockFile = new File(["sample meeting dummy binary content"], "q3_product_budget_review.mp3", {
@@ -225,6 +232,7 @@ function App() {
     setMetaInfo(null);
     setMmrTelemetry(null);
     setTranscriptView('raw');
+    setErrorMessage(null);
   };
 
   const toggleTask = (idx) => {
@@ -394,6 +402,40 @@ function App() {
             </button>
           </div>
         </header>
+
+        {/* Ollama Offline Warning Banner */}
+        {!healthStatus.checking && !healthStatus.online && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+            <span className="text-amber-400 text-base leading-none mt-0.5">⚠</span>
+            <div>
+              <p className="font-semibold text-amber-300">Ollama AI Engine Offline</p>
+              <p className="text-amber-400/80 mt-0.5">
+                Llama 3 is not running. Open a terminal and run:{" "}
+                <code className="px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 font-mono">ollama run llama3.2:1b</code>
+                {" "}— or use <strong>Instant Demo</strong> mode to bypass AI inference entirely.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Inline Error Banner (replaces browser alert) */}
+        {errorMessage && (
+          <div className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs">
+            <div className="flex items-start gap-2.5">
+              <span className="text-rose-400 text-base leading-none mt-0.5">✕</span>
+              <div>
+                <p className="font-semibold text-rose-300">Processing Error</p>
+                <p className="text-rose-400/80 mt-0.5">{errorMessage}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-rose-500 hover:text-rose-300 transition-colors shrink-0 mt-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Upload Hero Section (When no active result and not processing) */}
         {!isProcessing && !result && (

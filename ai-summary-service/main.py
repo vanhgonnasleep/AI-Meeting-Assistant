@@ -251,6 +251,64 @@ async def health_check():
         }
     }
 
+@app.get("/api/version")
+async def get_version():
+    """Returns system version, algorithmic components, and architecture overview."""
+    return {
+        "version": "2.0.0",
+        "name": "AI Meeting Assistant",
+        "description": "Local multi-agent pipeline: Whisper STT → MMR Filter → Llama 3 Map-Reduce → Action Items → SQLite",
+        "architecture": "Multi-Agent Orchestration (FastAPI)",
+        "agents": [
+            {
+                "id": 1,
+                "name": "Speech-to-Text (STT)",
+                "model": "OpenAI Whisper (tiny/base)",
+                "description": "Converts audio/video files into timestamped transcripts",
+                "available": transcribe_audio is not None
+            },
+            {
+                "id": "1.5",
+                "name": "MMR Redundancy Filter",
+                "algorithm": "Maximal Marginal Relevance + TF-IDF Cosine Similarity",
+                "lambda": 0.65,
+                "description": "Eliminates conversational redundancy before summarization (~35-45% compression)",
+                "available": filter_meeting_transcript is not None
+            },
+            {
+                "id": 2,
+                "name": "Executive Summarizer",
+                "model": "Llama 3 (via Ollama)",
+                "algorithm": "Sliding-Window Map-Reduce",
+                "description": "Produces professional executive summaries; supports multi-hour meetings via chunking",
+                "available": True
+            },
+            {
+                "id": 3,
+                "name": "Action Items Extractor",
+                "model": "Llama 3 JSON-constrained generation",
+                "description": "Extracts structured [{task, assignee, status}] from meeting context",
+                "available": extract_action_items is not None
+            },
+            {
+                "id": 4,
+                "name": "Persistent Storage",
+                "model": "SQLite + Pydantic v2",
+                "description": "Stores and retrieves full meeting records with CRUD API",
+                "available": crud is not None
+            }
+        ],
+        "fail_safe_mechanisms": [
+            "Adaptive model selection (GPU vs CPU auto-detect)",
+            "Ollama timeout with deterministic fallback summary",
+            "Instant demo mode (zero-compute, <50ms response)",
+            "Presenter emergency skip button on UI"
+        ],
+        "supported_formats": list(SUPPORTED_AUDIO_EXTENSIONS),
+        "max_file_size_mb": MAX_FILE_SIZE_BYTES // (1024 * 1024)
+    }
+
+
 # ==========================================
 # CONSTANTS & CONFIGURATION
 # ==========================================
