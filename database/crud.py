@@ -1,3 +1,11 @@
+"""
+=====================================================
+AGENT 4: DATABASE & STORAGE
+Owner: Đoàn Hoàng Long (Agent 4)
+Task: SQLite CRUD operations and meeting history management
+=====================================================
+"""
+
 import json
 from typing import Any, Optional
 

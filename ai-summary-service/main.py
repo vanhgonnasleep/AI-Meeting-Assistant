@@ -132,7 +132,7 @@ def generate_failsafe_summary() -> str:
     )
 
 # ==========================================
-# AGENT 2 - SUMMARIZATION (YOUR CORE LOGIC)
+# AGENT 2 - SUMMARIZATION (Lương Việt Anh)
 # ==========================================
 def call_ollama(prompt: str, model_name: str = "llama3", has_gpu: bool = False, timeout_sec: int = 35) -> str:
     """
@@ -316,7 +316,7 @@ MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 # 50 MB limit
 SUPPORTED_AUDIO_EXTENSIONS = ('.mp3', '.wav', '.m4a', '.ogg', '.flac', '.mp4', '.webm', '.mkv')
 
 # ==========================================
-# AGENT 1 - SPEECH-TO-TEXT (STANDALONE STT)
+# AGENT 1 - SPEECH-TO-TEXT (Triệu Quốc Thiện)
 # ==========================================
 @app.post("/api/transcribe")
 async def transcribe_audio_endpoint(
@@ -468,7 +468,7 @@ async def process_audio(
         selected_model = resolve_model(model, has_gpu=has_gpu)
         print(f"Processing audio: {safe_filename} using model: {selected_model} (Hardware: {gpu_desc})")
         
-        # 1. AGENT 1: Speech-to-Text (Member 1)
+        # 1. AGENT 1: Speech-to-Text (Triệu Quốc Thiện)
         transcript = None
         stt_error = None
         if transcribe_audio is not None:
@@ -478,7 +478,7 @@ async def process_audio(
                 print(f"[STT] Transcribing '{safe_filename}' with Whisper '{stt_model_name}'...")
                 transcript = transcribe_audio(file, model_name=stt_model_name)
             except NotImplementedError:
-                print("[Info] Agent 1 STT is under development by Member 1.")
+                print("[Info] Agent 1 STT is under development by Triệu Quốc Thiện.")
             except Exception as e:
                 stt_error = str(e)
                 print(f"[Warning] Agent 1 STT error: {e}")
@@ -499,12 +499,12 @@ async def process_audio(
             if mmr_telemetry.get("applied"):
                 print(f"[MMR] Redundancy filter reduced transcript from {mmr_telemetry['original_words']} to {mmr_telemetry['filtered_words']} words ({mmr_telemetry['reduction_percent']}% compression).")
         
-        # 2. AGENT 2: Summarization (Member 2 - Core Llama 3 Map-Reduce)
+        # 2. AGENT 2: Summarization (Lương Việt Anh - Core Llama 3 Map-Reduce)
         word_count = len(condensed_transcript.split())
         print(f"Agent 2 is summarizing {word_count} words via {selected_model}...")
         summary = summarize_with_llama(condensed_transcript, model_name=selected_model, has_gpu=has_gpu)
         
-        # 3. AGENT 3: Action Items (Member 3)
+        # 3. AGENT 3: Action Items (Nguyễn Quang Minh)
         action_items = None
         if extract_action_items is not None:
             try:
@@ -513,14 +513,14 @@ async def process_audio(
             except TypeError:
                 action_items = extract_action_items(transcript)
             except NotImplementedError:
-                print("[Info] Agent 3 is under development by Member 3.")
+                print("[Info] Agent 3 is under development by Nguyễn Quang Minh.")
             except Exception as e:
                 print(f"[Warning] Agent 3 error: {e}")
         
         if not action_items:
             action_items = []
         
-        # 4. DATABASE: Persist Meeting Record to SQLite (Member 4)
+        # 4. DATABASE: Persist Meeting Record to SQLite (Đoàn Hoàng Long)
         saved_meeting_id = None
         if crud is not None:
             try:
@@ -555,11 +555,11 @@ async def process_audio(
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==========================================
-# DATABASE - MEETING HISTORY ENDPOINTS (Member 4)
+# DATABASE - MEETING HISTORY ENDPOINTS (Đoàn Hoàng Long)
 # ==========================================
 @app.get("/api/meetings")
 async def get_all_meetings():
-    """Retrieves all past meetings from SQLite database (Member 4)."""
+    """Retrieves all past meetings from SQLite database (Đoàn Hoàng Long)."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
     records = crud.get_all_meetings()

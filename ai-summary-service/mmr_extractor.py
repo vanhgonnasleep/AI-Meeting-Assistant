@@ -2,7 +2,7 @@ r"""
 =============================================================================
 ALGORITHMIC COMPONENT: HYBRID EXTRACTIVE-ABSTRACTIVE SUMMARIZATION
 Algorithm: Maximal Marginal Relevance (MMR) with Vector Space Cosine Similarity
-Author: Member 2 (Lead AI & Orchestration)
+Author: Lương Việt Anh (Lead AI & Orchestration)
 
 Mathematical Formulation:
 -------------------------

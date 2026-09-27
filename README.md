@@ -3,7 +3,11 @@
 > **Course:** Emerging Topics in Information Technology  
 > **Project Track:** Final Capstone — AI Engineering  
 > **System Architecture:** Local Multi-Agent Pipeline  
-> **Team:** 4 Members  
+> **Team Members:**  
+> - **Lương Việt Anh** (Lead / Agent 2: Summarization & MMR Algorithm)  
+> - **Triệu Quốc Thiện** (Agent 1: Speech-to-Text Whisper)  
+> - **Nguyễn Quang Minh** (Agent 3: Action Items Extraction)  
+> - **Đoàn Hoàng Long** (Agent 4 / Database: SQLite & Integration)  
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI_0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React_19_+_Vite-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
@@ -77,10 +81,10 @@
 
 | Team Member | System Role | Primary Module | Core Contribution |
 |:---|:---|:---|:---|
-| **Member 1** | Agent 1: Speech-to-Text | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping. |
-| **Member 2 (Lead)** | Orchestrator & Agent 2 | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/` | Pipeline orchestration, MMR redundancy reduction algorithm, Llama 3 Map-Reduce engine, full React UI frontend. |
-| **Member 3** | Agent 3: Action Items | `ai-summary-service/agent3_action_items.py` | JSON-constrained task and assignee extraction, bracket-depth parsing, trailing comma and quote sanitizer. |
-| **Member 4** | Agent 4: Database | `database/models.py`<br>`database/crud.py`<br>`database/db.py` | Pydantic v2 schemas, SQLite CRUD operations, WAL concurrent connection management, history drawer API. |
+| **Triệu Quốc Thiện** | Agent 1: Speech-to-Text | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping. |
+| **Lương Việt Anh (Lead)** | Orchestrator & Agent 2 | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/` | Pipeline orchestration, MMR redundancy reduction algorithm, Llama 3 Map-Reduce engine, full React UI frontend. |
+| **Nguyễn Quang Minh** | Agent 3: Action Items | `ai-summary-service/agent3_action_items.py` | JSON-constrained task and assignee extraction, bracket-depth parsing, trailing comma and quote sanitizer. |
+| **Đoàn Hoàng Long** | Agent 4: Database | `database/models.py`<br>`database/crud.py`<br>`database/db.py` | Pydantic v2 schemas, SQLite CRUD operations, WAL concurrent connection management, history drawer API. |
 
 ---
 

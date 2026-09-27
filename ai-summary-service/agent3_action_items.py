@@ -1,7 +1,7 @@
 """
 =====================================================
 AGENT 3: ACTION ITEMS EXTRACTION
-Owner: Member 3
+Owner: Nguyễn Quang Minh (Agent 3)
 Task: Design specialized prompt for Llama 3 to extract
       actionable tasks and assignees in standardized JSON format.
 =====================================================
