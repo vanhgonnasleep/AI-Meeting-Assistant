@@ -257,11 +257,12 @@ async def transcribe_audio_endpoint(
     file: UploadFile = File(...),
     model: Optional[str] = Query(None, description="Whisper model: tiny, base, small, medium, large"),
     language: Optional[str] = Query(None, description="Audio language code (e.g. 'vi', 'en') or auto-detect"),
-    timestamps: bool = Query(False, description="Whether to include segment timestamps")
+    timestamps: bool = Query(False, description="Whether to include segment timestamps"),
+    initial_prompt: Optional[str] = Query(None, description="Specialized vocabulary hints, terms, or context prompt")
 ):
     """
     Dedicated Speech-to-Text endpoint powered by OpenAI Whisper (Agent 1).
-    Uploads an audio file and transcribes speech to clean text.
+    Uploads an audio file and transcribes speech to clean text with optional domain vocabulary hints.
     """
     if transcribe_audio is None:
         raise HTTPException(status_code=503, detail="Speech-to-Text module (Agent 1) is not available.")
@@ -288,7 +289,8 @@ async def transcribe_audio_endpoint(
             result = transcribe_audio_detailed(
                 file,
                 model_name=model,
-                language=language
+                language=language,
+                initial_prompt=initial_prompt
             )
             raw_text = result.get("text", "")
             if timestamps and result.get("segments"):
@@ -307,6 +309,7 @@ async def transcribe_audio_endpoint(
                 "transcript": formatted_transcript,
                 "language": result.get("language"),
                 "duration": result.get("duration"),
+                "initial_prompt": result.get("initial_prompt"),
                 "segments": result.get("segments", [])
             }
         else:
@@ -314,7 +317,8 @@ async def transcribe_audio_endpoint(
                 file,
                 model_name=model,
                 language=language,
-                include_timestamps=timestamps
+                include_timestamps=timestamps,
+                initial_prompt=initial_prompt
             )
             return {
                 "status": "success",
@@ -332,7 +336,8 @@ async def transcribe_audio_endpoint(
 async def process_audio(
     file: UploadFile = File(...),
     model: str = Query("auto", description="Requested AI model or 'auto'"),
-    demo_mode: bool = Query(False, description="Instant demo presentation mode")
+    demo_mode: bool = Query(False, description="Instant demo presentation mode"),
+    initial_prompt: Optional[str] = Query(None, description="Specialized vocabulary hints or context prompt for Whisper")
 ):
     # 0. Instant Demo Fail-Safe Trigger (Bypasses all heavy computation in 50ms)
     if demo_mode:
@@ -387,7 +392,7 @@ async def process_audio(
         if transcribe_audio is not None:
             try:
                 file.file.seek(0)
-                transcript = transcribe_audio(file)
+                transcript = transcribe_audio(file, initial_prompt=initial_prompt)
             except NotImplementedError:
                 print("[Info] Agent 1 STT is under development by Member 1. Using fallback mock.")
             except Exception as e:

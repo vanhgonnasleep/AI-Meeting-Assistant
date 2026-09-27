@@ -24,7 +24,8 @@ from agent1_transcribe import (
     get_whisper_model_info,
     get_whisper_device,
     format_timestamp,
-    ensure_ffmpeg
+    ensure_ffmpeg,
+    build_initial_prompt
 )
 
 client = TestClient(app)
@@ -114,3 +115,41 @@ def test_transcribe_endpoint_file_too_large():
     files = {"file": ("large_audio.wav", oversized_bytes, "audio/wav")}
     response = client.post("/api/transcribe", files=files)
     assert response.status_code == 413
+
+
+def test_build_initial_prompt():
+    """Verify building custom vocabulary prompt string."""
+    prompt = build_initial_prompt(
+        keywords=["FastAPI", "Docker", "Llama 3"],
+        context="Họp kỹ thuật dự án"
+    )
+    assert "Họp kỹ thuật dự án" in prompt
+    assert "FastAPI, Docker, Llama 3" in prompt
+
+
+def test_transcribe_with_initial_prompt():
+    """Verify Whisper transcribe accepts and uses initial_prompt."""
+    wav_bytes = generate_test_wav_bytes(duration_sec=0.3)
+    custom_prompt = "Thuật ngữ: Kubernetes, Microservices, CI/CD"
+    result = transcribe_audio_detailed(
+        wav_bytes,
+        model_name="tiny",
+        initial_prompt=custom_prompt
+    )
+    assert result["initial_prompt"] == custom_prompt
+    assert isinstance(result["text"], str)
+
+
+def test_transcribe_endpoint_with_initial_prompt():
+    """Verify POST /api/transcribe passes initial_prompt query parameter."""
+    wav_bytes = generate_test_wav_bytes(duration_sec=0.3)
+    files = {"file": ("demo.wav", wav_bytes, "audio/wav")}
+    custom_prompt = "Công ty ABC, dự án Meeting Assistant"
+    response = client.post(
+        f"/api/transcribe?model=tiny&initial_prompt={custom_prompt}",
+        files=files
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["initial_prompt"] == custom_prompt

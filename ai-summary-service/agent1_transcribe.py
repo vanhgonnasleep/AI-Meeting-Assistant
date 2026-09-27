@@ -177,11 +177,33 @@ def format_timestamp(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
+def build_initial_prompt(keywords: Optional[List[str]] = None, context: Optional[str] = None) -> str:
+    """
+    Constructs an initial prompt string to steer Whisper's domain vocabulary, spelling, and style.
+
+    Args:
+        keywords: Optional list of domain keywords/terms, e.g. ["FastAPI", "Docker", "Doanh thu Q3"].
+        context: Optional topic or meeting description.
+
+    Returns:
+        str: Combined initial prompt string for Whisper.
+    """
+    parts = []
+    if context:
+        parts.append(context.strip())
+    if keywords:
+        clean_keywords = [k.strip() for k in keywords if k and k.strip()]
+        if clean_keywords:
+            parts.append("Các thuật ngữ và từ khóa chuyên ngành: " + ", ".join(clean_keywords) + ".")
+    return " ".join(parts).strip()
+
+
 def transcribe_audio_detailed(
     file_input: Union[UploadFile, str, Path, bytes, BinaryIO],
     model_name: Optional[str] = None,
     language: Optional[str] = None,
     temperature: float = 0.0,
+    initial_prompt: Optional[str] = None,
     **whisper_kwargs
 ) -> Dict[str, Any]:
     """
@@ -192,6 +214,7 @@ def transcribe_audio_detailed(
         model_name: Whisper model ('tiny', 'base', 'small', 'medium', 'large').
         language: Language code (e.g. 'vi', 'en') or None for auto-detection.
         temperature: Sampling temperature (0.0 for deterministic output).
+        initial_prompt: Optional context or specialized vocabulary prompt (e.g. tech terms, names).
         **whisper_kwargs: Additional arguments passed to whisper.transcribe().
 
     Returns:
@@ -199,7 +222,8 @@ def transcribe_audio_detailed(
             "text": str,
             "language": str,
             "segments": List[dict],
-            "duration": float
+            "duration": float,
+            "initial_prompt": Optional[str]
         }
     """
     ensure_ffmpeg()
@@ -216,6 +240,8 @@ def transcribe_audio_detailed(
         }
         if language:
             transcribe_options["language"] = language
+        if initial_prompt:
+            transcribe_options["initial_prompt"] = initial_prompt
 
         result = model.transcribe(temp_path, **transcribe_options)
 
@@ -238,7 +264,8 @@ def transcribe_audio_detailed(
             "text": result.get("text", "").strip(),
             "language": result.get("language", ""),
             "duration": duration,
-            "segments": segments
+            "segments": segments,
+            "initial_prompt": initial_prompt
         }
     except Exception as e:
         raise RuntimeError(f"Transcription failed: {str(e)}") from e
@@ -255,6 +282,7 @@ def transcribe_audio(
     model_name: Optional[str] = None,
     language: Optional[str] = None,
     include_timestamps: bool = False,
+    initial_prompt: Optional[str] = None,
     **kwargs
 ) -> str:
     """
@@ -265,6 +293,7 @@ def transcribe_audio(
         model_name: Optional Whisper model size ('tiny', 'base', 'small', 'medium', 'large').
         language: Optional language code ('vi', 'en', etc.) or None for automatic detection.
         include_timestamps: If True, prefixes each segment with its timestamp [MM:SS - MM:SS].
+        initial_prompt: Optional specialized vocabulary hints or context prompt for Whisper.
 
     Returns:
         str: Transcribed meeting transcript text.
@@ -273,6 +302,7 @@ def transcribe_audio(
         file_input=file_input,
         model_name=model_name,
         language=language,
+        initial_prompt=initial_prompt,
         **kwargs
     )
 
