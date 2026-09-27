@@ -1,16 +1,49 @@
-# React + Vite
+# 💻 Meeting Assistant Web Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> Modern, responsive web dashboard for the **AI Meeting Assistant** platform, built with React 19, Vite, and Tailwind CSS.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Key Features
 
-## React Compiler
+- **Drag-and-Drop Ingestion:** Audio and video file drops with format validation (`.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac`, `.mp4`, `.webm`, `.mkv`) and size bounds.
+- **Adaptive Model Selection:** Dynamic profile switcher between Auto-detection, Llama 3 (8B GPU), Llama 3.2 (3B / 1B CPU), and Instant Demo mode.
+- **Algorithmic MMR Telemetry:** Live visualization of noise reduction percentage, sentence counts, word savings, and trade-off parameter $\lambda$.
+- **Dual Transcript Switcher:** Toggle smoothly between Raw Whisper transcription and MMR-filtered sentences.
+- **Interactive Action Item Checklist:** Check off extracted deliverables in real time with assignee tagging.
+- **Markdown Export & Clipboard Sync:** One-click copy or `.md` file download containing formatted executive summaries and task breakdowns.
+- **SQLite History Drawer:** Modal dialog to view, inspect, reload, or delete past meeting records persisted locally.
+- **Defensive Inline Error States:** In-context error and offline engine status banners with actionable resolution commands.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🛠️ Development & Build
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+- Node.js 18+ (tested on Node 20+)
+- npm or yarn
+
+### Quick Start
+```bash
+# Install dependencies
+npm install
+
+# Start development server (Port 5173)
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+---
+
+## 📦 Tech Stack
+
+- **Framework:** React 19
+- **Bundler & Dev Server:** Vite 8
+- **Styling:** Tailwind CSS 3
+- **Icons:** Lucide React
+- **File Handling:** react-dropzone
