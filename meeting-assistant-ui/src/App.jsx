@@ -65,6 +65,8 @@ function App() {
     });
     setMmrTelemetry(null);
     setTranscriptView('raw');
+    setCompletedTasks({});
+    setErrorMessage(null);
     setMetaInfo({
       model: "SQLite Stored Record",
       hardware: `Meeting #${item.id} • ${item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved Record'}`
@@ -244,14 +246,18 @@ function App() {
 
   const getFullMarkdown = () => {
     if (!result) return "";
-    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary}\n\n## ACTION ITEMS\n${result.action_items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task} (Assignee: ${item.assignee})`).join('\n')}\n\n## RAW TRANSCRIPT\n${result.transcript}`;
+    const items = result.action_items || [];
+    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"})`).join('\n')}\n\n## RAW TRANSCRIPT\n${result.transcript || ""}`;
   };
 
   const handleCopyResult = () => {
     if (!result) return;
-    navigator.clipboard.writeText(getFullMarkdown());
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2500);
+    navigator.clipboard.writeText(getFullMarkdown()).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2500);
+    }).catch((err) => {
+      console.error("Clipboard copy failed:", err);
+    });
   };
 
   const handleDownloadMarkdown = () => {
@@ -266,10 +272,10 @@ function App() {
   };
 
   const formatFileSize = (bytes) => {
-    if (!bytes) return "0 KB";
+    if (!bytes || bytes <= 0) return "0 KB";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 

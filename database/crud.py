@@ -22,17 +22,37 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
         try:
             raw_items = json.loads(row["action_items"])
 
-            action_items = [
-                ActionItem(
-                    task=item.get("task", ""),
-                    assignee=item.get("assignee"),
-                    deadline=item.get("deadline"),
-                    status=item.get("status", "pending"),
-                )
-                for item in raw_items
-            ]
+            # Normalize raw_items to a list if wrapped in a dict
+            if isinstance(raw_items, dict):
+                if "action_items" in raw_items and isinstance(raw_items["action_items"], list):
+                    raw_items = raw_items["action_items"]
+                elif "tasks" in raw_items and isinstance(raw_items["tasks"], list):
+                    raw_items = raw_items["tasks"]
+                else:
+                    raw_items = [raw_items]
+            elif not isinstance(raw_items, list):
+                raw_items = [raw_items]
 
-        except (json.JSONDecodeError, TypeError):
+            for item in raw_items:
+                if isinstance(item, dict):
+                    action_items.append(
+                        ActionItem(
+                            task=str(item.get("task", "")).strip(),
+                            assignee=item.get("assignee"),
+                            deadline=item.get("deadline"),
+                            status=item.get("status", "pending"),
+                        )
+                    )
+                elif isinstance(item, str) and item.strip():
+                    action_items.append(
+                        ActionItem(
+                            task=item.strip(),
+                            assignee="Unassigned",
+                            status="pending"
+                        )
+                    )
+
+        except Exception:
             action_items = []
 
     return MeetingRecord(
@@ -49,12 +69,26 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
 def action_items_to_json(action_items: Any) -> Optional[str]:
     """
     Convert action items to JSON string for SQLite storage.
+    Ensures output is always a standardized JSON array.
     """
     if action_items is None:
         return None
 
     if isinstance(action_items, str):
-        return action_items
+        # Validate that it is valid JSON, otherwise wrap as task string
+        try:
+            parsed = json.loads(action_items)
+            if isinstance(parsed, list):
+                return action_items
+            return json.dumps([parsed], ensure_ascii=False)
+        except Exception:
+            return json.dumps([{"task": action_items, "assignee": "Unassigned", "status": "pending"}], ensure_ascii=False)
+
+    if isinstance(action_items, ActionItem):
+        return json.dumps([action_items.model_dump()], ensure_ascii=False)
+
+    if isinstance(action_items, dict):
+        return json.dumps([action_items], ensure_ascii=False)
 
     if isinstance(action_items, list):
         result = []
@@ -69,10 +103,17 @@ def action_items_to_json(action_items: Any) -> Optional[str]:
                 })
             elif isinstance(item, dict):
                 result.append(item)
+            elif isinstance(item, str) and item.strip():
+                result.append({"task": item.strip(), "assignee": "Unassigned", "status": "pending"})
+            elif hasattr(item, "model_dump"):
+                result.append(item.model_dump())
 
         return json.dumps(result, ensure_ascii=False)
 
-    return json.dumps(action_items, ensure_ascii=False)
+    try:
+        return json.dumps(action_items, ensure_ascii=False)
+    except Exception:
+        return "[]"
 
 
 def create_meeting(

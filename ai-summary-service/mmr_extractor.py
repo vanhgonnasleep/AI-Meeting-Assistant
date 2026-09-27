@@ -51,9 +51,13 @@ class MMRExtractor:
         "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's",
         "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't",
         "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves",
-        # Common meeting filler words in conversational speech
+        # Common meeting filler words in conversational speech (English)
         "um", "uh", "like", "yeah", "okay", "right", "know", "well", "actually", "basically",
-        "uhm", "yep", "hmm", "gonna", "wanna", "sort", "kind"
+        "uhm", "yep", "hmm", "gonna", "wanna", "sort", "kind",
+        # Common meeting filler words & stopwords in conversational speech (Vietnamese)
+        "và", "là", "của", "cho", "trong", "với", "các", "có", "được", "này", "thì", "đã",
+        "khi", "sẽ", "đang", "như", "để", "nhưng", "tại", "một", "về", "ra", "vào", "lại",
+        "dạ", "vâng", "ạ", "ờ", "ừ", "mà", "nhỉ", "nhé", "nè", "thôi", "luôn", "rồi"
     }
 
     def __init__(self, lambda_param: float = 0.65, stopwords: Set[str] = None):
@@ -73,12 +77,12 @@ class MMRExtractor:
         """
         # Split on sentence terminals or newlines, ignoring abbreviations
         raw_sentences = re.split(r'(?<=[.?!])\s+|\n+', text)
-        sentences = [s.strip() for s in raw_sentences if len(s.strip()) > 10]
+        sentences = [s.strip() for s in raw_sentences if len(s.strip()) >= 8]
         return sentences
 
     def _tokenize(self, text: str) -> List[str]:
-        """Lowercases and cleans tokens, omitting non-alphanumeric noise."""
-        words = re.findall(r'\b[a-zA-Z0-9_\'-]+\b', text.lower())
+        """Lowercases and cleans tokens, supporting Unicode (Vietnamese, etc.) and English."""
+        words = re.findall(r'[\w\'-]+', text.lower())
         return [w for w in words if w not in self.stopwords and len(w) > 1]
 
     def _compute_tf_idf(self, sentences: List[str]) -> Tuple[List[Dict[str, float]], Dict[str, float]]:

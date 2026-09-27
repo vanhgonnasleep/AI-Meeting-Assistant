@@ -61,3 +61,24 @@ def test_mmr_redundancy_elimination():
     assert telemetry["reduction_percent"] > 20.0
     assert "budget" in filtered.lower()
     assert "Alice will prepare the compliance and audit checklist" in filtered
+
+
+def test_mmr_vietnamese_transcript():
+    """Verify that MMR tokenization properly supports Vietnamese accented characters and removes redundancy."""
+    vietnamese_transcript = (
+        "Người nói A: Xin chào mọi người, hôm nay chúng ta họp về tiến độ dự án AI Meeting Assistant.\n"
+        "Người nói B: Tôi đã hoàn thành module trích xuất văn bản từ âm thanh bằng Whisper.\n"
+        "Người nói A: Rất tốt, chúng ta cần hoàn thành báo cáo ngân sách dự án trước thứ sáu.\n"
+        "Người nói B: Báo cáo ngân sách dự án rất quan trọng, tôi đồng ý với ngân sách này.\n"
+        "Người nói C: Tôi sẽ hỗ trợ kiểm thử giao diện React và tích hợp SQLite vào thứ năm.\n"
+        "Người nói B: Vâng, ngân sách dự án và báo cáo cần được duyệt sớm như đã nói.\n"
+        "Người nói A: Cảm ơn mọi người, buổi họp kết thúc tại đây."
+    )
+    extractor = MMRExtractor(lambda_param=0.65)
+    filtered, telemetry = extractor.extract_key_sentences(vietnamese_transcript, target_ratio=0.6)
+
+    assert telemetry["applied"] is True
+    assert telemetry["filtered_words"] < telemetry["original_words"]
+    assert "Whisper" in filtered
+    assert "ngân sách" in filtered.lower()
+

@@ -104,3 +104,43 @@ def test_meeting_crud_endpoints():
     # Confirm 404 after deletion
     res_notfound = client.get(f"/api/meetings/{meeting_id}")
     assert res_notfound.status_code == 404
+
+
+def test_version_endpoint():
+    """Verify system architecture documentation endpoint /api/version."""
+    response = client.get("/api/version")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["version"] == "2.0.0"
+    assert "agents" in data
+    assert len(data["agents"]) >= 4
+    assert "fail_safe_mechanisms" in data
+
+
+def test_meeting_crud_edge_cases():
+    """Verify CRUD resilience when action_items is a single dict or list of strings."""
+    import database.crud as crud
+    # Test single dict input
+    m1 = crud.create_meeting(
+        filename="dict_actions.mp3",
+        raw_transcript="Meeting audio transcript",
+        executive_summary="- Summary",
+        action_items={"task": "Fix bug", "assignee": "Alice"}
+    )
+    assert m1 is not None
+    record1 = crud.get_meeting(m1)
+    assert len(record1.action_items) == 1
+    assert record1.action_items[0].task == "Fix bug"
+
+    # Test list of plain strings input
+    m2 = crud.create_meeting(
+        filename="str_actions.mp3",
+        raw_transcript="Meeting audio transcript",
+        executive_summary="- Summary",
+        action_items=["Task one", "Task two"]
+    )
+    assert m2 is not None
+    record2 = crud.get_meeting(m2)
+    assert len(record2.action_items) == 2
+    assert record2.action_items[0].task == "Task one"
+

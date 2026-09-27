@@ -7,7 +7,7 @@ DB_PATH = BASE_DIR / "meeting.db"
 
 
 def get_connection():
-    connection = sqlite3.connect(DB_PATH)
+    connection = sqlite3.connect(DB_PATH, timeout=15.0, check_same_thread=False)
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -15,6 +15,7 @@ def get_connection():
 def init_db():
     connection = get_connection()
 
+    connection.execute("PRAGMA journal_mode=WAL;")
     connection.execute("""
         CREATE TABLE IF NOT EXISTS meetings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

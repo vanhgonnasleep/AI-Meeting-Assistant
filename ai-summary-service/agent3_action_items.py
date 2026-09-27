@@ -105,8 +105,20 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
 
         clean_json_str = extract_first_json_array(raw_content)
 
-        # 4. Parse into Python List of Dicts with fallback tolerance
-        parsed = json.loads(clean_json_str)
+        # 4. Sanitize trailing commas before closing brackets/braces (common LLM glitch)
+        clean_json_str = re.sub(r',\s*([\]\}])', r'\1', clean_json_str)
+
+        # 5. Parse into Python List of Dicts with fallback tolerance
+        try:
+            parsed = json.loads(clean_json_str)
+        except Exception:
+            # Fallback: convert single quotes to double quotes if LLM used Python syntax
+            try:
+                single_to_double = re.sub(r"'([^'\\]*(?:\\.[^'\\]*)*)'", r'"\1"', clean_json_str)
+                parsed = json.loads(single_to_double)
+            except Exception:
+                parsed = []
+
         if isinstance(parsed, dict):
             if "action_items" in parsed and isinstance(parsed["action_items"], list):
                 items = parsed["action_items"]
