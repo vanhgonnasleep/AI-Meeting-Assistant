@@ -249,7 +249,7 @@ async def health_check():
 # CONSTANTS & CONFIGURATION
 # ==========================================
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 # 50 MB limit
-SUPPORTED_AUDIO_EXTENSIONS = ('.mp3', '.wav', '.m4a', '.ogg', '.flac')
+SUPPORTED_AUDIO_EXTENSIONS = ('.mp3', '.wav', '.m4a', '.ogg', '.flac', '.mp4', '.webm', '.mkv')
 
 # ==========================================
 # AGENT 1 - SPEECH-TO-TEXT (STANDALONE STT)
@@ -334,6 +334,7 @@ async def transcribe_audio_endpoint(
 async def process_audio(
     file: UploadFile = File(...),
     model: str = Query("auto", description="Requested AI model or 'auto'"),
+    whisper_model: Optional[str] = Query(None, description="Whisper model: tiny, base, small, medium"),
     demo_mode: bool = Query(False, description="Instant demo presentation mode")
 ):
     # 0. Instant Demo Fail-Safe Trigger (Bypasses all heavy computation in 50ms)
@@ -386,45 +387,47 @@ async def process_audio(
         
         # 1. AGENT 1: Speech-to-Text (Member 1)
         transcript = None
+        stt_error = None
         if transcribe_audio is not None:
             try:
                 file.file.seek(0)
-                transcript = transcribe_audio(file)
+                stt_model_name = whisper_model or ("tiny" if not has_gpu else "base")
+                print(f"[STT] Transcribing '{safe_filename}' with Whisper '{stt_model_name}'...")
+                transcript = transcribe_audio(file, model_name=stt_model_name)
             except NotImplementedError:
-                print("[Info] Agent 1 STT is under development by Member 1. Using fallback mock.")
+                print("[Info] Agent 1 STT is under development by Member 1.")
             except Exception as e:
-                print(f"[Warning] Agent 1 error: {e}. Falling back to mock transcript.")
+                stt_error = str(e)
+                print(f"[Warning] Agent 1 STT error: {e}")
         
         if not transcript or not transcript.strip():
-            print("[Info] No transcript produced by STT or empty audio. Using fallback meeting transcript.")
-            time.sleep(1) # Simulating processing time
-            transcript = (
-                "Speaker A: We need to finalize the marketing budget for Q3. "
-                "I propose $50,000 for social media ads.\n"
-                "Speaker B: That sounds reasonable. Let's lock it in. Can you prepare the financial report by Friday, John?\n"
-                "Speaker A: Will do."
+            if stt_error:
+                raise HTTPException(status_code=500, detail=f"Speech transcription failed: {stt_error}")
+            raise HTTPException(
+                status_code=400, 
+                detail="No clear speech could be transcribed from the uploaded audio file. Please check the file audio."
             )
         
         # 2. AGENT 2: Summarization (Member 2 - Core Llama 3 Map-Reduce)
-        print(f"Agent 2 is summarizing via {selected_model}...")
+        word_count = len(transcript.split())
+        print(f"Agent 2 is summarizing {word_count} words via {selected_model}...")
         summary = summarize_with_llama(transcript, model_name=selected_model, has_gpu=has_gpu)
         
         # 3. AGENT 3: Action Items (Member 3)
         action_items = None
         if extract_action_items is not None:
             try:
-                action_items = extract_action_items(transcript, model_name=selected_model)
+                agent3_context = f"Executive Meeting Summary:\n{summary}\n\nTranscript Excerpt:\n{' '.join(transcript.split()[:2000])}"
+                action_items = extract_action_items(agent3_context, model_name=selected_model)
             except TypeError:
                 action_items = extract_action_items(transcript)
             except NotImplementedError:
-                print("[Info] Agent 3 is under development by Member 3. Using fallback mock.")
+                print("[Info] Agent 3 is under development by Member 3.")
             except Exception as e:
-                print(f"[Warning] Agent 3 error: {e}. Falling back to mock action items.")
+                print(f"[Warning] Agent 3 error: {e}")
         
         if not action_items:
-            action_items = [
-                {"task": "Prepare Q3 financial report", "assignee": "John (Speaker A)"}
-            ]
+            action_items = []
         
         # 4. DATABASE: Persist Meeting Record to SQLite (Member 4)
         saved_meeting_id = None

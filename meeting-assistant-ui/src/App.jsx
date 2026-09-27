@@ -118,7 +118,10 @@ function App() {
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'audio/*': ['.mp3', '.wav', '.m4a', '.ogg', '.flac'] },
+    accept: { 
+      'audio/*': ['.mp3', '.wav', '.m4a', '.ogg', '.flac'],
+      'video/*': ['.mp4', '.webm', '.mkv']
+    },
     maxFiles: 1
   });
 
@@ -398,7 +401,7 @@ function App() {
                     </div>
 
                     <div className="flex items-center gap-2 mt-1">
-                      {['.MP3', '.WAV', '.M4A', '.OGG', '.FLAC'].map((ext) => (
+                      {['.MP3', '.WAV', '.M4A', '.MP4', '.WEBM', '.FLAC'].map((ext) => (
                         <span key={ext} className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
                           {ext}
                         </span>

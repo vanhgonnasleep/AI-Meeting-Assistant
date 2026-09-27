@@ -51,6 +51,13 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
         '[{"task": "Update database schema", "assignee": "John"}]'
     )
 
+    # Guard against context window overflow on long transcripts
+    words = transcript.split()
+    if len(words) > 2000:
+        clean_transcript = " ".join(words[:1200]) + "\n\n... [discussion continues] ...\n\n" + " ".join(words[-800:])
+    else:
+        clean_transcript = transcript
+
     try:
         # 2. Query local Llama 3 via Ollama package or direct HTTP fallback
         if OLLAMA_LIB_AVAILABLE and ollama is not None:
@@ -58,7 +65,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
                 model=target_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Extract action items from this transcript:\n{transcript}"}
+                    {"role": "user", "content": f"Extract action items from this transcript:\n{clean_transcript}"}
                 ],
                 format="json"  # Forces Ollama to constrain Llama 3 output to JSON
             )
@@ -70,7 +77,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
                     "model": target_model,
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Extract action items from this transcript:\n{transcript}"}
+                        {"role": "user", "content": f"Extract action items from this transcript:\n{clean_transcript}"}
                     ],
                     "format": "json",
                     "stream": False
