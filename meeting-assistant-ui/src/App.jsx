@@ -28,6 +28,9 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [result, setResult] = useState(null);
+  const [enableMmr, setEnableMmr] = useState(true);
+  const [mmrTelemetry, setMmrTelemetry] = useState(null);
+  const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'mmr'
   const [isCopied, setIsCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript'
   const [completedTasks, setCompletedTasks] = useState({});
@@ -59,6 +62,8 @@ function App() {
       summary: item.executive_summary,
       action_items: item.action_items || []
     });
+    setMmrTelemetry(null);
+    setTranscriptView('raw');
     setMetaInfo({
       model: "SQLite Stored Record",
       hardware: `Meeting #${item.id} • ${item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved Record'}`
@@ -133,13 +138,15 @@ function App() {
     if (!file) return;
     setIsProcessing(true);
     setResult(null);
+    setMmrTelemetry(null);
+    setTranscriptView('raw');
     setCompletedTasks({});
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}`;
+      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}`;
       const response = await fetch(url, {
         method: "POST",
         body: formData,
@@ -149,6 +156,7 @@ function App() {
       
       const data = await response.json();
       setResult(data.data);
+      setMmrTelemetry(data.mmr_telemetry || null);
       setMetaInfo({
         model: data.model_used || selectedModel,
         hardware: data.hardware || (healthStatus.data?.gpu || "CPU Mode")
@@ -165,6 +173,8 @@ function App() {
   const handleInstantDemo = async () => {
     setIsProcessing(true);
     setResult(null);
+    setMmrTelemetry(null);
+    setTranscriptView('raw');
     setCompletedTasks({});
 
     const dummyFile = file || new File(["dummy meeting audio content"], "q3_budget_meeting.mp3", {
@@ -180,6 +190,15 @@ function App() {
       });
       const data = await response.json();
       setResult(data.data);
+      setMmrTelemetry(data.mmr_telemetry || {
+        applied: true,
+        original_sentences: 5,
+        selected_sentences: 3,
+        original_words: 67,
+        filtered_words: 44,
+        reduction_percent: 34.3,
+        lambda_param: 0.65
+      });
       setMetaInfo({
         model: "Instant Showcase (Zero Compute)",
         hardware: "Fail-Safe Demo Mode"
@@ -204,6 +223,8 @@ function App() {
     setIsCopied(false);
     setCompletedTasks({});
     setMetaInfo(null);
+    setMmrTelemetry(null);
+    setTranscriptView('raw');
   };
 
   const toggleTask = (idx) => {
@@ -292,6 +313,26 @@ function App() {
                 <option value="instant_demo" className="bg-slate-900 text-slate-200">🎯 Instant Demo (No GPU/RAM)</option>
               </select>
             </div>
+
+            {/* MMR Redundancy Filter Toggle */}
+            <button
+              type="button"
+              onClick={() => setEnableMmr(prev => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shadow-sm ${
+                enableMmr 
+                  ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 hover:bg-indigo-600/30' 
+                  : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-slate-200'
+              }`}
+              title="Maximal Marginal Relevance (MMR) Redundancy Filter Algorithm"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${enableMmr ? 'text-indigo-400' : 'text-slate-500'}`} />
+              <span className="hidden sm:inline">MMR Filter</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
+                enableMmr ? 'bg-indigo-500/30 text-indigo-300' : 'bg-slate-700 text-slate-400'
+              }`}>
+                {enableMmr ? 'ON' : 'OFF'}
+              </span>
+            </button>
 
             {/* Health Status Indicator */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs">
@@ -504,7 +545,7 @@ function App() {
           <div className="space-y-6">
             
             {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
                 <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
                   <FileText className="w-5 h-5" />
@@ -531,10 +572,34 @@ function App() {
                 </div>
                 <div>
                   <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Model & Engine</p>
-                  <p className="text-sm font-bold text-white mt-0.5 truncate max-w-[200px]">
+                  <p className="text-sm font-bold text-white mt-0.5 truncate max-w-[180px]">
                     {metaInfo?.model || 'Llama 3 Map-Reduce'}
                   </p>
                   <p className="text-[10px] text-slate-400 truncate">{metaInfo?.hardware || 'Local Mode'}</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">MMR Compression</p>
+                  {mmrTelemetry?.applied ? (
+                    <>
+                      <p className="text-base font-bold text-emerald-400 mt-0.5">
+                        -{mmrTelemetry.reduction_percent}% noise
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {mmrTelemetry.filtered_words}/{mmrTelemetry.original_words} w (λ={mmrTelemetry.lambda_param})
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold text-slate-300 mt-0.5">100% Raw</p>
+                      <p className="text-[10px] text-slate-400">Filter bypassed</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -604,21 +669,45 @@ function App() {
             {/* Dashboard Content Panels */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* Left Column: Raw Transcript (Visible in 'split' or 'transcript' mode) */}
+              {/* Left Column: Raw/MMR Transcript (Visible in 'split' or 'transcript' mode) */}
               {(activeTab === 'split' || activeTab === 'transcript') && (
                 <div className={`${activeTab === 'split' ? 'lg:col-span-5' : 'lg:col-span-12'} bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-slate-800/80 shadow-xl space-y-4`}>
                   <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                     <div className="flex items-center gap-2 text-slate-200 font-bold text-sm">
                       <FileText className="w-4 h-4 text-blue-400" />
-                      <h2>Raw Transcript (Agent 1)</h2>
+                      <h2>{transcriptView === 'mmr' ? 'MMR Filtered Sentences' : 'Raw Transcript (Agent 1)'}</h2>
                     </div>
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-                      Whisper Audio STT
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {result.condensed_transcript && (
+                        <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setTranscriptView('raw')}
+                            className={`px-2 py-0.5 rounded font-medium transition-all ${
+                              transcriptView === 'raw' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            Raw
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTranscriptView('mmr')}
+                            className={`px-2 py-0.5 rounded font-medium transition-all ${
+                              transcriptView === 'mmr' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            MMR Filtered
+                          </button>
+                        </div>
+                      )}
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                        {transcriptView === 'mmr' ? 'λ=0.65 Centroid' : 'Whisper Audio STT'}
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap max-h-[550px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
-                    {result.transcript}
+                    {transcriptView === 'mmr' && result.condensed_transcript ? result.condensed_transcript : result.transcript}
                   </div>
                 </div>
               )}

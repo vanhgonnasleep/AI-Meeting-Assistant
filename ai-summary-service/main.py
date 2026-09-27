@@ -42,6 +42,11 @@ except (ImportError, AttributeError):
     ActionItem = None
     crud = None
 
+try:
+    from mmr_extractor import filter_meeting_transcript
+except ImportError:
+    filter_meeting_transcript = None
+
 app = FastAPI(title="AI Meeting Assistant API", version="2.0.0")
 
 # Enable CORS for React Frontend
@@ -241,7 +246,8 @@ async def health_check():
             "agent1_stt": transcribe_audio is not None,
             "agent2_summary": True,
             "agent3_action_items": extract_action_items is not None,
-            "database_ready": MeetingRecord is not None and crud is not None
+            "database_ready": MeetingRecord is not None and crud is not None,
+            "mmr_algorithm": filter_meeting_transcript is not None
         }
     }
 
@@ -335,22 +341,41 @@ async def process_audio(
     file: UploadFile = File(...),
     model: str = Query("auto", description="Requested AI model or 'auto'"),
     whisper_model: Optional[str] = Query(None, description="Whisper model: tiny, base, small, medium"),
+    enable_mmr: bool = Query(True, description="Enable MMR redundancy reduction filter"),
     demo_mode: bool = Query(False, description="Instant demo presentation mode")
 ):
     # 0. Instant Demo Fail-Safe Trigger (Bypasses all heavy computation in 50ms)
     if demo_mode:
         print("[Demo Mode] Instant presentation demo triggered.")
+        demo_transcript = (
+            "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. "
+            "I propose an allocation of $50,000 for targeted social media ad campaigns.\n"
+            "Speaker B: That budget sounds reasonable and matches our projections. Let's lock it in. "
+            "Can you prepare the detailed financial report by Friday, John?\n"
+            "Speaker A: Will do. I'll have the complete breakdown ready by Friday afternoon."
+        )
+        demo_condensed = (
+            "Speaker A: We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns.\n"
+            "Speaker B: That budget sounds reasonable and matches our projections. Can you prepare the detailed financial report by Friday, John?\n"
+            "Speaker A: I'll have the complete breakdown ready by Friday afternoon."
+        )
         return {
             "status": "success",
             "mode": "instant_demo",
+            "model_used": "Instant Showcase (Zero Compute)",
+            "hardware": "Fail-Safe Demo Mode",
+            "mmr_telemetry": {
+                "applied": True,
+                "original_sentences": 5,
+                "selected_sentences": 3,
+                "original_words": 67,
+                "filtered_words": 44,
+                "reduction_percent": 34.3,
+                "lambda_param": 0.65
+            },
             "data": {
-                "transcript": (
-                    "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. "
-                    "I propose an allocation of $50,000 for targeted social media ad campaigns.\n"
-                    "Speaker B: That budget sounds reasonable and matches our projections. Let's lock it in. "
-                    "Can you prepare the detailed financial report by Friday, John?\n"
-                    "Speaker A: Will do. I'll have the complete breakdown ready by Friday afternoon."
-                ),
+                "transcript": demo_transcript,
+                "condensed_transcript": demo_condensed,
                 "summary": (
                     "- Approved $50,000 budget allocation for Q3 social media marketing campaigns.\n"
                     "- Agreed to finalize executive financial report by Friday afternoon.\n"
@@ -408,10 +433,18 @@ async def process_audio(
                 detail="No clear speech could be transcribed from the uploaded audio file. Please check the file audio."
             )
         
+        # 1.5. ALGORITHMIC PHASE: Maximal Marginal Relevance (MMR) Redundancy Filter
+        mmr_telemetry = None
+        condensed_transcript = transcript
+        if enable_mmr and filter_meeting_transcript is not None:
+            condensed_transcript, mmr_telemetry = filter_meeting_transcript(transcript, target_ratio=0.60)
+            if mmr_telemetry.get("applied"):
+                print(f"[MMR] Redundancy filter reduced transcript from {mmr_telemetry['original_words']} to {mmr_telemetry['filtered_words']} words ({mmr_telemetry['reduction_percent']}% compression).")
+        
         # 2. AGENT 2: Summarization (Member 2 - Core Llama 3 Map-Reduce)
-        word_count = len(transcript.split())
+        word_count = len(condensed_transcript.split())
         print(f"Agent 2 is summarizing {word_count} words via {selected_model}...")
-        summary = summarize_with_llama(transcript, model_name=selected_model, has_gpu=has_gpu)
+        summary = summarize_with_llama(condensed_transcript, model_name=selected_model, has_gpu=has_gpu)
         
         # 3. AGENT 3: Action Items (Member 3)
         action_items = None
@@ -449,8 +482,10 @@ async def process_audio(
             "model_used": selected_model,
             "hardware": gpu_desc,
             "meeting_id": saved_meeting_id,
+            "mmr_telemetry": mmr_telemetry,
             "data": {
                 "transcript": transcript,
+                "condensed_transcript": condensed_transcript if mmr_telemetry and mmr_telemetry.get("applied") else None,
                 "summary": summary,
                 "action_items": action_items
             }
