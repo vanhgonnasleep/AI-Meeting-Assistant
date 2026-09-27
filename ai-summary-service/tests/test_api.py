@@ -69,3 +69,38 @@ def test_database_schema_contract():
     assert record.filename == "budget_review.mp3"
     assert record.processed_at is not None
     assert len(record.action_items) == 1
+
+def test_meeting_crud_endpoints():
+    """Verify GET, detail, and DELETE endpoints for meeting database records."""
+    import database.crud as crud
+    # Create test meeting
+    meeting_id = crud.create_meeting(
+        filename="test_crud_meeting.mp3",
+        raw_transcript="Speaker A: Hello test.",
+        executive_summary="- Test summary.",
+        action_items=[{"task": "Unit test", "assignee": "Tester"}]
+    )
+    assert meeting_id is not None
+
+    # Test GET /api/meetings
+    res_list = client.get("/api/meetings")
+    assert res_list.status_code == 200
+    data_list = res_list.json()
+    assert data_list["status"] == "success"
+    assert any(m["id"] == meeting_id for m in data_list["meetings"])
+
+    # Test GET /api/meetings/{id}
+    res_detail = client.get(f"/api/meetings/{meeting_id}")
+    assert res_detail.status_code == 200
+    data_detail = res_detail.json()
+    assert data_detail["status"] == "success"
+    assert data_detail["meeting"]["filename"] == "test_crud_meeting.mp3"
+
+    # Test DELETE /api/meetings/{id}
+    res_del = client.delete(f"/api/meetings/{meeting_id}")
+    assert res_del.status_code == 200
+    assert res_del.json()["deleted"] is True
+
+    # Confirm 404 after deletion
+    res_notfound = client.get(f"/api/meetings/{meeting_id}")
+    assert res_notfound.status_code == 404
