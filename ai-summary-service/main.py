@@ -9,6 +9,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+from fastapi.encoders import jsonable_encoder
 
 # Setup sys.path to allow importing from database package at project root
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -36,11 +37,16 @@ except (ImportError, AttributeError):
 
 try:
     from database.models import MeetingRecord, ActionItem
-    import database.crud as crud
 except (ImportError, AttributeError):
     MeetingRecord = None
     ActionItem = None
+
+try:
+    from database import crud
+    from database.crud import create_meeting
+except (ImportError, AttributeError):
     crud = None
+    create_meeting = None
 
 try:
     from mmr_extractor import filter_meeting_transcript
@@ -521,29 +527,51 @@ async def process_audio(
             action_items = []
         
         # 4. DATABASE: Persist Meeting Record to SQLite (Đoàn Hoàng Long)
-        saved_meeting_id = None
-        if crud is not None:
+        if MeetingRecord and ActionItem and create_meeting:
             try:
-                saved_meeting_id = crud.create_meeting(
+                parsed_items = [
+                    ActionItem(
+                        task=item.get("task", ""),
+                        assignee=item.get("assignee", ""),
+                        deadline=item.get("deadline"),
+                        status=item.get("status", "pending")
+                    )
+                    for item in action_items
+                ]
+
+                record = MeetingRecord(
                     filename=safe_filename,
                     raw_transcript=transcript,
                     executive_summary=summary,
-                    action_items=action_items
+                    action_items=parsed_items
                 )
-                print(f"[DB] Meeting #{saved_meeting_id} saved successfully to SQLite.")
+
+                meeting_id = create_meeting(
+                    filename=record.filename,
+                    raw_transcript=record.raw_transcript,
+                    executive_summary=record.executive_summary,
+                    action_items=record.action_items
+                )
+
+                print(
+                    f"[DB] MeetingRecord saved successfully "
+                    f"with ID={meeting_id}"
+                )
+
             except Exception as e:
-                print(f"[Warning] Failed to persist meeting to DB: {e}")
+                print(f"[Warning] Database save failed: {e}")
+                meeting_id = None
+        else:
+            meeting_id = None
 
         # 5. Package and Return Data to React UI
         return {
             "status": "success",
             "model_used": selected_model,
             "hardware": gpu_desc,
-            "meeting_id": saved_meeting_id,
-            "mmr_telemetry": mmr_telemetry,
             "data": {
+                "meeting_id": meeting_id,
                 "transcript": transcript,
-                "condensed_transcript": condensed_transcript if mmr_telemetry and mmr_telemetry.get("applied") else None,
                 "summary": summary,
                 "action_items": action_items
             }
@@ -558,38 +586,69 @@ async def process_audio(
 # DATABASE - MEETING HISTORY ENDPOINTS (Đoàn Hoàng Long)
 # ==========================================
 @app.get("/api/meetings")
-async def get_all_meetings():
-    """Retrieves all past meetings from SQLite database (Đoàn Hoàng Long)."""
+async def get_all_meetings_endpoint():
+    """Retrieves all past meetings from SQLite database."""
     if crud is None:
-        raise HTTPException(status_code=503, detail="Database module not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Database module not available."
+        )
+
     records = crud.get_all_meetings()
+
     return {
         "status": "success",
         "count": len(records),
-        "meetings": [r.model_dump() for r in records]
+        "meetings": jsonable_encoder(records)
     }
+
 
 @app.get("/api/meetings/{meeting_id}")
 async def get_meeting_by_id(meeting_id: int):
     """Retrieves a single meeting record by ID."""
     if crud is None:
-        raise HTTPException(status_code=503, detail="Database module not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Database module not available."
+        )
+
     meeting = crud.get_meeting(meeting_id)
-    if not meeting:
-        raise HTTPException(status_code=404, detail="Meeting not found.")
-    return {"status": "success", "meeting": meeting.model_dump()}
+
+    if meeting is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found."
+        )
+
+    return {
+        "status": "success",
+        "meeting": jsonable_encoder(meeting)
+    }
+
 
 @app.delete("/api/meetings/{meeting_id}")
 async def delete_meeting_by_id(meeting_id: int):
     """Deletes a meeting record by ID."""
     if crud is None:
-        raise HTTPException(status_code=503, detail="Database module not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Database module not available."
+        )
+
     deleted = crud.delete_meeting(meeting_id)
+
     if not deleted:
-        raise HTTPException(status_code=404, detail="Meeting not found.")
-    return {"status": "success", "deleted": True}
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found."
+        )
+
+    return {
+        "status": "success",
+        "deleted": True
+    }
 
 if __name__ == "__main__":
     import uvicorn
     # Run server on port 8002, matching React frontend configuration
-    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)
