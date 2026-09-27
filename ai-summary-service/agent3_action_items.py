@@ -11,7 +11,14 @@ import json
 import os
 import re
 from typing import List, Dict, Optional, Any
-import ollama
+try:
+    import ollama
+    OLLAMA_LIB_AVAILABLE = True
+except ImportError:
+    ollama = None
+    OLLAMA_LIB_AVAILABLE = False
+
+import requests
 
 
 def extract_action_items(transcript: str, model_name: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -45,17 +52,33 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
     )
 
     try:
-        # 2. Query local Llama 3 via Ollama
-        response = ollama.chat(
-            model=target_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Extract action items from this transcript:\n{transcript}"}
-            ],
-            format="json"  # Forces Ollama to constrain Llama 3 output to JSON
-        )
-        
-        raw_content = response['message']['content'].strip()
+        # 2. Query local Llama 3 via Ollama package or direct HTTP fallback
+        if OLLAMA_LIB_AVAILABLE and ollama is not None:
+            response = ollama.chat(
+                model=target_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Extract action items from this transcript:\n{transcript}"}
+                ],
+                format="json"  # Forces Ollama to constrain Llama 3 output to JSON
+            )
+            raw_content = response['message']['content'].strip()
+        else:
+            http_res = requests.post(
+                "http://localhost:11434/api/chat",
+                json={
+                    "model": target_model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Extract action items from this transcript:\n{transcript}"}
+                    ],
+                    "format": "json",
+                    "stream": False
+                },
+                timeout=35
+            )
+            http_res.raise_for_status()
+            raw_content = http_res.json().get("message", {}).get("content", "").strip()
 
         # 3. Clean up formatting issues (Regex sanitation)
         json_match = re.search(r'\[.*\]', raw_content, re.DOTALL)

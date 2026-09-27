@@ -18,7 +18,9 @@ import {
   X,
   Clock,
   Layers,
-  Zap
+  Zap,
+  Database,
+  Trash2
 } from 'lucide-react';
 
 function App() {
@@ -32,6 +34,50 @@ function App() {
   const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
   const [selectedModel, setSelectedModel] = useState('auto');
   const [metaInfo, setMetaInfo] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [meetingsHistory, setMeetingsHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchMeetingHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch("http://localhost:8002/api/meetings");
+      if (res.ok) {
+        const data = await res.json();
+        setMeetingsHistory(data.meetings || []);
+      }
+    } catch (e) {
+      console.error("Failed to load meetings history:", e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleLoadPastMeeting = (item) => {
+    setResult({
+      transcript: item.raw_transcript,
+      summary: item.executive_summary,
+      action_items: item.action_items || []
+    });
+    setMetaInfo({
+      model: "SQLite Stored Record",
+      hardware: `Meeting #${item.id} • ${item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved Record'}`
+    });
+    setShowHistory(false);
+  };
+
+  const handleDeletePastMeeting = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this meeting record?")) return;
+    try {
+      const res = await fetch(`http://localhost:8002/api/meetings/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMeetingsHistory(prev => prev.filter(m => m.id !== id));
+      }
+    } catch (err) {
+      console.error("Failed to delete meeting:", err);
+    }
+  };
 
   // Check backend and Ollama health on mount
   useEffect(() => {
@@ -49,6 +95,7 @@ function App() {
       }
     };
     checkHealth();
+    fetchMeetingHistory();
   }, []);
 
   // Timer while processing
@@ -71,7 +118,7 @@ function App() {
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'audio/*': ['.mp3', '.wav', '.m4a'] },
+    accept: { 'audio/*': ['.mp3', '.wav', '.m4a', '.ogg', '.flac'] },
     maxFiles: 1
   });
 
@@ -103,6 +150,7 @@ function App() {
         model: data.model_used || selectedModel,
         hardware: data.hardware || (healthStatus.data?.gpu || "CPU Mode")
       });
+      fetchMeetingHistory();
     } catch (error) {
       alert("Error: " + error.message);
     } finally {
@@ -254,6 +302,21 @@ function App() {
               </span>
             </div>
 
+            {/* Database History Button */}
+            <button
+              onClick={() => { setShowHistory(true); fetchMeetingHistory(); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-xs text-slate-300 hover:text-white transition-all shadow-sm"
+              title="View SQLite saved meetings"
+            >
+              <Database className="w-3.5 h-3.5 text-blue-400" />
+              <span>History</span>
+              {meetingsHistory.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-semibold">
+                  {meetingsHistory.length}
+                </span>
+              )}
+            </button>
+
             {/* Actions */}
             {result && !isProcessing && (
               <button
@@ -335,7 +398,7 @@ function App() {
                     </div>
 
                     <div className="flex items-center gap-2 mt-1">
-                      {['.MP3', '.WAV', '.M4A'].map((ext) => (
+                      {['.MP3', '.WAV', '.M4A', '.OGG', '.FLAC'].map((ext) => (
                         <span key={ext} className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
                           {ext}
                         </span>
@@ -640,6 +703,102 @@ function App() {
 
             </div>
 
+          </div>
+        )}
+
+        {/* SQLite Meeting History Modal */}
+        {showHistory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      Saved Meeting History
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        SQLite
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {meetingsHistory.length} meeting records stored locally
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1">
+                {loadingHistory ? (
+                  <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+                    <p className="text-xs">Loading database records...</p>
+                  </div>
+                ) : meetingsHistory.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400">
+                    <Database className="w-10 h-10 mx-auto text-slate-600 mb-2" />
+                    <p className="text-sm font-medium text-slate-300">No meeting records yet</p>
+                    <p className="text-xs text-slate-500 mt-1">Processed meetings will automatically be saved here.</p>
+                  </div>
+                ) : (
+                  meetingsHistory.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => handleLoadPastMeeting(item)}
+                      className="group flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-800/60 border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition-all"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <FileAudio className="w-4 h-4 text-indigo-400 shrink-0" />
+                          <h4 className="text-xs font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
+                            {item.filename}
+                          </h4>
+                          <span className="text-[10px] text-slate-500 font-mono">#{item.id}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
+                          {item.executive_summary || "No summary recorded"}
+                        </p>
+                        <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/50">
+                            {item.action_items?.length || 0} action items
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0 pt-1">
+                        <button
+                          onClick={(e) => handleDeletePastMeeting(item.id, e)}
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                          title="Delete from SQLite database"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end">
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
