@@ -53,7 +53,7 @@ app = FastAPI(title="AI Meeting Assistant API", version="2.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # Must be False when allow_origins=["*"] (browser CORS spec)
     allow_methods=["*"],
     allow_headers=["*"],
 )

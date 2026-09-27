@@ -229,7 +229,8 @@ class MMRExtractor:
         telemetry = {
             "applied": True,
             "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
-            "lambda_diversity": self.lambda_param,
+            "lambda_param": self.lambda_param,       # key used by UI display
+            "lambda_diversity": self.lambda_param,   # alias for backwards compat
             "original_words": original_words,
             "filtered_words": filtered_words,
             "reduction_percent": reduction,

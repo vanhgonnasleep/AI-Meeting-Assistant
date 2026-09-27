@@ -87,9 +87,23 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
             http_res.raise_for_status()
             raw_content = http_res.json().get("message", {}).get("content", "").strip()
 
-        # 3. Clean up formatting issues (Regex sanitation)
-        json_match = re.search(r'\[.*\]', raw_content, re.DOTALL)
-        clean_json_str = json_match.group(0) if json_match else raw_content
+        # 3. Robust JSON array extraction: scan for outermost '[' ... ']' boundary
+        # Avoid greedy re.DOTALL which can corrupt output when LLM adds extra text between arrays
+        def extract_first_json_array(text: str) -> str:
+            start = text.find('[')
+            if start == -1:
+                return text  # no array found, try to parse the whole thing
+            depth = 0
+            for i, ch in enumerate(text[start:], start=start):
+                if ch == '[':
+                    depth += 1
+                elif ch == ']':
+                    depth -= 1
+                    if depth == 0:
+                        return text[start:i + 1]
+            return text[start:]  # malformed but give it a shot
+
+        clean_json_str = extract_first_json_array(raw_content)
 
         # 4. Parse into Python List of Dicts with fallback tolerance
         parsed = json.loads(clean_json_str)
