@@ -24,3 +24,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+database/*.db
