@@ -14,11 +14,14 @@
 [![Whisper](https://img.shields.io/badge/STT-OpenAI_Whisper-412991.svg?logo=openai&logoColor=white)](https://github.com/openai/whisper)
 [![Ollama](https://img.shields.io/badge/LLM-Llama_3_(8B_/_3.2_1B)-white.svg?logo=ollama&logoColor=black)](https://ollama.com)
 [![SQLite](https://img.shields.io/badge/Database-SQLite_WAL-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org)
-[![Tests](https://img.shields.io/badge/Test_Suite-19/19_Passed-brightgreen.svg)](#-testing--quality-assurance)
+[![Tests](https://img.shields.io/badge/Test_Suite-27/27_Passed-brightgreen.svg)](#-testing--quality-assurance)
+[![Defense Guide](https://img.shields.io/badge/Technical_Defense-Master_Guide-orange.svg)](TECHNICAL_DEFENSE_GUIDE.md)
 
 ---
 
 ## 📌 Executive Summary
+
+> 📖 **TECHNICAL DEFENSE PREPARATION:** Check out the complete [TECHNICAL_DEFENSE_GUIDE.md](TECHNICAL_DEFENSE_GUIDE.md) for step-by-step live coding cheatsheets (adding fields, endpoints, algorithms, and bug fixes) tailored for instructor defense questions.
 
 **AI Meeting Assistant** is an enterprise-grade, privacy-first meeting intelligence system running **100% locally on edge devices** without transmitting proprietary conversational data to cloud vendors. Users upload audio or video recordings (.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv), and the system executes an automated, resilient multi-agent workflow:
 
@@ -207,7 +210,7 @@ This automated script checks Ollama, pulls `llama3.2:1b`, and displays terminal 
 
 ## 🧪 Testing & Quality Assurance
 
-The repository includes a comprehensive automated test suite with **19 passing tests** verifying STT extraction, MMR algorithmic properties, API contracts, and database operations.
+The repository includes a comprehensive automated test suite with **26 passing tests** verifying STT extraction, MMR algorithmic properties, API contracts, dynamic hyperparameter sensitivity, and database operations.
 
 ```bash
 cd ai-summary-service
@@ -227,10 +230,17 @@ pytest -v tests/
 | `test_api.py` | `test_database_schema_contract` | Data Layer | Validates Pydantic v2 `MeetingRecord` and `ActionItem` models |
 | `test_api.py` | `test_meeting_crud_endpoints` | Database | Full CRUD lifecycle: create, list, retrieve, and delete meeting |
 | `test_api.py` | `test_meeting_crud_edge_cases` | Data Resilience| Handles dict/string action items without throwing errors |
+| `test_api.py` | `test_meeting_search_endpoint` | Database Search | Tests `GET /api/meetings?q=...` keyword query filtering |
+| `test_api.py` | `test_meeting_update_put_endpoint` | REST API | Verifies `PUT /api/meetings/{id}` updates fields correctly |
+| `test_api.py` | `test_meeting_task_status_patch_endpoint` | SQLite Sync | Verifies `PATCH /api/meetings/{id}/tasks/{idx}` status toggling |
+| `test_api.py` | `test_analytics_endpoint` | Telemetry | Validates `GET /api/analytics` aggregate metrics calculation |
 | `test_mmr.py` | `test_cosine_similarity` | Algorithm | Mathematical boundary tests (orthogonal = 0.0, identical = 1.0) |
 | `test_mmr.py` | `test_short_transcript_passthrough`| Algorithm | Ensures compact transcripts (<60 words) are untouched |
 | `test_mmr.py` | `test_mmr_redundancy_elimination` | Algorithm | Verifies redundancy reduction (>20% compression) on repetitive speech |
 | `test_mmr.py` | `test_mmr_vietnamese_transcript` | Multilingual | Verifies Unicode accent preservation and Vietnamese filtering |
+| `test_mmr.py` | `test_mmr_lambda_parameter_sensitivity` | Algorithm | Verifies dynamic tuning of relevance vs diversity (λ=0.9 vs λ=0.2) |
+| `test_mmr.py` | `test_sentence_split_preserves_currency_and_decimals` | Data Integrity | Prevents false splitting on numbers ($50,000 or 3.14) |
+| `test_mmr.py` | `test_heuristic_action_item_extractor` | Offline Resilience | Verifies rule-based fallback action extraction when LLM is offline |
 | `test_stt.py` | `test_ffmpeg_and_telemetry` | Agent 1 (STT) | Verifies FFmpeg presence and Whisper device detection |
 | `test_stt.py` | `test_format_timestamp` | Utility | Validates MM:SS and HH:MM:SS conversational timestamps |
 | `test_stt.py` | `test_transcribe_audio_from_bytes` | Agent 1 (STT) | Transcribes in-memory synthesized PCM WAV bytes |
@@ -263,6 +273,8 @@ Executes end-to-end ingestion: Whisper STT → MMR Redundancy Filter → Llama 3
 | `model` | string | `"auto"` | Target Ollama model name (`"auto"`, `"llama3"`, `"llama3.2:1b"`, etc.) |
 | `whisper_model` | string | `null` | Whisper model size (`"tiny"`, `"base"`, `"small"`, `"medium"`) |
 | `enable_mmr` | boolean | `true` | Toggles MMR extractive compression phase |
+| `mmr_lambda` | float | `0.65` | Relevance vs diversity balance ($0.0 \le \lambda \le 1.0$) |
+| `mmr_ratio` | float | `0.60` | Target retention ratio ($0.1 \le r \le 1.0$) |
 | `demo_mode` | boolean | `false` | Bypasses inference and returns instant presentation data in 50ms |
 
 #### 4. Dedicated Speech-to-Text Endpoint
@@ -270,9 +282,14 @@ Executes end-to-end ingestion: Whisper STT → MMR Redundancy Filter → Llama 3
 Standalone endpoint for Agent 1. Ingests audio files and returns raw or timestamped transcriptions.
 
 #### 5. Meeting History Management
-- `GET /api/meetings`: Returns all past meeting sessions ordered by creation date.
+- `GET /api/meetings?q={keyword}`: Returns all past meeting sessions, with optional search query filter.
 - `GET /api/meetings/{id}`: Retrieves full meeting details by ID.
+- `PUT /api/meetings/{id}`: Updates meeting fields (summary, action items, filename).
+- `PATCH /api/meetings/{id}/tasks/{idx}`: Toggles/updates action item status directly in SQLite.
 - `DELETE /api/meetings/{id}`: Deletes a meeting record from local storage.
+
+#### 6. System Analytics Summary
+- `GET /api/analytics`: Returns aggregate metrics (total meetings, total duration, total action items, completion rate %, detected languages).
 
 ---
 

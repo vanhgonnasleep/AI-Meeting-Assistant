@@ -18,6 +18,8 @@ class MeetingRecord(BaseModel):
     executive_summary: str = ""
     action_items: List[ActionItem] = Field(default_factory=list)
     id: Optional[Union[int, str]] = None
+    duration: Optional[float] = None
+    language: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     processed_at: Optional[str] = None

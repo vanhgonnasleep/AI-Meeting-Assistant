@@ -63,12 +63,24 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
         except Exception:
             action_items = []
 
+    duration = None
+    language = None
+    try:
+        if "duration" in row.keys() and row["duration"] is not None:
+            duration = float(row["duration"])
+        if "language" in row.keys() and row["language"] is not None:
+            language = str(row["language"])
+    except Exception:
+        pass
+
     return MeetingRecord(
         filename=row["filename"],
         raw_transcript=row["raw_transcript"] or "",
         executive_summary=row["executive_summary"] or "",
         action_items=action_items,
         id=row["id"],
+        duration=duration,
+        language=language,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -129,6 +141,8 @@ def create_meeting(
     raw_transcript: Optional[str] = None,
     executive_summary: Optional[str] = None,
     action_items: Any = None,
+    duration: Optional[float] = None,
+    language: Optional[str] = None,
 ) -> int:
     """
     Create a new meeting and return its ID.
@@ -143,15 +157,19 @@ def create_meeting(
             filename,
             raw_transcript,
             executive_summary,
-            action_items
+            action_items,
+            duration,
+            language
         )
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
             filename,
             raw_transcript,
             executive_summary,
             action_items_json,
+            duration,
+            language,
         ),
     )
 
@@ -184,19 +202,31 @@ def get_meeting(meeting_id: int) -> Optional[MeetingRecord]:
     return row_to_meeting(row)
 
 
-def get_all_meetings() -> list[MeetingRecord]:
+def get_all_meetings(search: Optional[str] = None) -> list[MeetingRecord]:
     """
-    Get all meetings, newest first.
+    Get all meetings, newest first. Optionally filter by keyword.
     """
     connection = get_connection()
 
-    rows = connection.execute(
-        """
-        SELECT *
-        FROM meetings
-        ORDER BY created_at DESC
-        """
-    ).fetchall()
+    if search and search.strip():
+        q = f"%{search.strip()}%"
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM meetings
+            WHERE filename LIKE ? OR executive_summary LIKE ? OR raw_transcript LIKE ?
+            ORDER BY created_at DESC
+            """,
+            (q, q, q),
+        ).fetchall()
+    else:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM meetings
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
 
     connection.close()
 
@@ -209,6 +239,8 @@ def update_meeting(
     raw_transcript: Optional[str] = None,
     executive_summary: Optional[str] = None,
     action_items: Any = None,
+    duration: Optional[float] = None,
+    language: Optional[str] = None,
 ) -> bool:
     """
     Update an existing meeting.
@@ -239,6 +271,9 @@ def update_meeting(
     else:
         new_action_items = action_items_to_json(existing.action_items)
 
+    new_duration = duration if duration is not None else existing.duration
+    new_language = language if language is not None else existing.language
+
     connection = get_connection()
 
     cursor = connection.execute(
@@ -249,6 +284,8 @@ def update_meeting(
             raw_transcript = ?,
             executive_summary = ?,
             action_items = ?,
+            duration = ?,
+            language = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
@@ -257,6 +294,8 @@ def update_meeting(
             new_transcript,
             new_summary,
             new_action_items,
+            new_duration,
+            new_language,
             meeting_id,
         ),
     )
@@ -268,6 +307,22 @@ def update_meeting(
     connection.close()
 
     return updated
+
+
+def update_action_item_status(meeting_id: int, item_idx: int, status: str) -> bool:
+    """
+    Toggle or update the status of a specific action item within a meeting record.
+    """
+    meeting = get_meeting(meeting_id)
+    if meeting is None:
+        return False
+
+    items = meeting.action_items
+    if item_idx < 0 or item_idx >= len(items):
+        return False
+
+    items[item_idx].status = status
+    return update_meeting(meeting_id=meeting_id, action_items=items)
 
 
 def delete_meeting(meeting_id: int) -> bool:
@@ -303,3 +358,38 @@ def get_action_items(meeting_id: int) -> Optional[list[ActionItem]]:
         return None
 
     return meeting.action_items
+
+
+def get_analytics_summary() -> dict:
+    """
+    Computes system-wide meeting analytics: total meetings, total duration,
+    action items completion rate, and distinct languages detected.
+    """
+    meetings = get_all_meetings()
+    total_meetings = len(meetings)
+    total_duration = sum(m.duration or 0.0 for m in meetings)
+    
+    total_tasks = 0
+    completed_tasks = 0
+    languages = set()
+
+    for m in meetings:
+        if m.language:
+            languages.add(m.language)
+        for item in m.action_items:
+            total_tasks += 1
+            if item.status.lower() in ("completed", "done"):
+                completed_tasks += 1
+
+    pending_tasks = total_tasks - completed_tasks
+    completion_rate = round((completed_tasks / max(total_tasks, 1)) * 100, 1)
+
+    return {
+        "total_meetings": total_meetings,
+        "total_duration_seconds": round(total_duration, 1),
+        "total_action_items": total_tasks,
+        "completed_action_items": completed_tasks,
+        "pending_action_items": pending_tasks,
+        "completion_rate_percent": completion_rate,
+        "detected_languages": list(sorted(languages))
+    }

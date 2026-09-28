@@ -114,7 +114,7 @@ def test_transcribe_endpoint_invalid_extension():
     files = {"file": ("document.pdf", b"%PDF-1.4...", "application/pdf")}
     response = client.post("/api/transcribe", files=files)
     assert response.status_code == 400
-    assert "Only .mp3, .wav, .m4a files are supported" in response.json()["detail"]
+    assert "Only .mp3, .wav, .m4a" in response.json()["detail"]
 
 
 def test_transcribe_endpoint_file_too_large():

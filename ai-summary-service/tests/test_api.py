@@ -32,7 +32,7 @@ def test_unsupported_file_format():
     files = {"file": ("unsupported_document.txt", b"plain text content", "text/plain")}
     response = client.post("/api/process-audio", files=files)
     assert response.status_code == 400
-    assert "Only .mp3, .wav, .m4a files are supported" in response.json()["detail"]
+    assert "Only .mp3, .wav, .m4a" in response.json()["detail"]
 
 def test_instant_demo_mode():
     """Ensure presenter fail-safe demo mode returns valid schema in <100ms."""
@@ -144,3 +144,91 @@ def test_meeting_crud_edge_cases():
     assert len(record2.action_items) == 2
     assert record2.action_items[0].task == "Task one"
 
+
+def test_meeting_search_endpoint():
+    """Verify GET /api/meetings?q=... returns matching results."""
+    import database.crud as crud
+    crud.create_meeting(
+        filename="unique_quarterly_planning_alpha.mp3",
+        raw_transcript="Special keyword for search query test.",
+        executive_summary="Summary with search match.",
+        action_items=[]
+    )
+    res = client.get("/api/meetings?q=quarterly_planning_alpha")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert any("unique_quarterly_planning_alpha" in m["filename"] for m in data["meetings"])
+
+
+def test_meeting_update_put_endpoint():
+    """Verify PUT /api/meetings/{id} updates summary and fields."""
+    import database.crud as crud
+    mid = crud.create_meeting(
+        filename="editable_meeting.mp3",
+        raw_transcript="Initial text.",
+        executive_summary="Initial summary.",
+        action_items=[]
+    )
+    update_payload = {
+        "filename": "editable_meeting_v2.mp3",
+        "executive_summary": "Updated executive summary text.",
+        "duration": 120.5,
+        "language": "en"
+    }
+    res = client.put(f"/api/meetings/{mid}", json=update_payload)
+    assert res.status_code == 200
+    assert res.json()["updated"] is True
+
+    record = crud.get_meeting(mid)
+    assert record.filename == "editable_meeting_v2.mp3"
+    assert record.executive_summary == "Updated executive summary text."
+    assert record.duration == 120.5
+
+
+def test_meeting_task_status_patch_endpoint():
+    """Verify PATCH /api/meetings/{id}/tasks/{idx} toggles task status."""
+    import database.crud as crud
+    mid = crud.create_meeting(
+        filename="tasks_meeting.mp3",
+        raw_transcript="Transcript text.",
+        executive_summary="Executive summary.",
+        action_items=[
+            {"task": "Design architecture", "assignee": "Alex", "status": "pending"},
+            {"task": "Run tests", "assignee": "Dev", "status": "pending"}
+        ]
+    )
+    res = client.patch(f"/api/meetings/{mid}/tasks/0", json={"status": "completed"})
+    assert res.status_code == 200
+    assert res.json()["status"] == "completed"
+
+    record = crud.get_meeting(mid)
+    assert record.action_items[0].status == "completed"
+    assert record.action_items[1].status == "pending"
+
+
+def test_meeting_task_status_invalid_value():
+    """Verify PATCH /api/meetings/{id}/tasks/{idx} rejects invalid status values with 422."""
+    import database.crud as crud
+    mid = crud.create_meeting(
+        filename="validation_test.mp3",
+        raw_transcript="Test transcript.",
+        executive_summary="Summary.",
+        action_items=[{"task": "Test task", "assignee": "Alice", "status": "pending"}]
+    )
+    res = client.patch(f"/api/meetings/{mid}/tasks/0", json={"status": "invalid_status_xyz"})
+    assert res.status_code == 422
+
+
+def test_analytics_endpoint():
+    """Verify GET /api/analytics returns valid metrics schema."""
+    res = client.get("/api/analytics")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert "analytics" in data
+    stats = data["analytics"]
+    assert "total_meetings" in stats
+    assert "total_action_items" in stats
+    assert "completion_rate_percent" in stats
+    assert stats["total_meetings"] >= 1

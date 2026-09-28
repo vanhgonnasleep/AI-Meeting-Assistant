@@ -82,3 +82,49 @@ def test_mmr_vietnamese_transcript():
     assert "Whisper" in filtered
     assert "ngân sách" in filtered.lower()
 
+
+def test_mmr_lambda_parameter_sensitivity():
+    """Verify that dynamic lambda_param parameter is correctly tracked and applied in telemetry."""
+    transcript = (
+        "Speaker A: Good morning team, let us review the quarterly figures.\n"
+        "Speaker B: Our revenue increased by twelve percent over last quarter.\n"
+        "Speaker C: The marketing budget was fully utilized across digital campaigns.\n"
+        "Speaker A: We should expand our social media spend for the next cycle.\n"
+        "Speaker B: Yes, social media spend gave us the highest return on ad spend.\n"
+        "Speaker C: I will compile the detailed financial projections by next Wednesday.\n"
+        "Speaker A: Great, let us meet again once the projections are finalized."
+    )
+    extractor = MMRExtractor()
+    _, telem_high_relevance = extractor.extract_key_sentences(transcript, target_ratio=0.5, lambda_param=0.9)
+    assert telem_high_relevance["applied"] is True
+    assert telem_high_relevance["lambda_param"] == 0.9
+
+    _, telem_high_diversity = extractor.extract_key_sentences(transcript, target_ratio=0.5, lambda_param=0.2)
+    assert telem_high_diversity["applied"] is True
+    assert telem_high_diversity["lambda_param"] == 0.2
+
+
+def test_sentence_split_preserves_currency_and_decimals():
+    """Verify that regex does not split on decimal numbers like $50,000.00 or version 2.0."""
+    text = "We approved an allocation of $50,000.00 for version 2.0 of our AI software. John will oversee implementation."
+    sentences = MMRExtractor.split_into_sentences(text)
+    assert len(sentences) == 2
+    assert "$50,000.00" in sentences[0]
+    assert "John will oversee" in sentences[1]
+
+
+def test_heuristic_action_item_extractor():
+    """Verify deterministic fallback rule-based extraction for offline scenarios."""
+    from agent3_action_items import extract_action_items_heuristic
+    text = (
+        "Alice will prepare the compliance audit report by Friday afternoon. "
+        "Bob needs to update the database schema for version two. "
+        "Can you finalize the budget review, Charlie?"
+    )
+    items = extract_action_items_heuristic(text)
+    assert len(items) >= 2
+    tasks = [i["task"] for i in items]
+    assignees = [i["assignee"] for i in items]
+    assert any("Alice" in a for a in assignees)
+    assert any("Friday afternoon" in str(i.get("deadline", "")) for i in items)
+

@@ -24,7 +24,7 @@ Where:
 
 import re
 import math
-from typing import List, Dict, Tuple, Set, Any
+from typing import List, Dict, Tuple, Set, Any, Optional
 
 
 class MMRExtractor:
@@ -73,10 +73,11 @@ class MMRExtractor:
     def split_into_sentences(text: str) -> List[str]:
         """
         Decomposes transcript into conversational sentences using regex boundaries
-        while preserving speaker tags (e.g. 'Speaker A:', 'John:').
+        while preserving speaker tags (e.g. 'Speaker A:', 'John:'), avoiding false splits
+        on numbers ($50,000 or 3.14) or abbreviations.
         """
-        # Split on sentence terminals or newlines, ignoring abbreviations
-        raw_sentences = re.split(r'(?<=[.?!])\s+|\n+', text)
+        # Split on sentence terminals preceded by non-digits, or newlines
+        raw_sentences = re.split(r'(?<=[a-zA-Z\u00C0-\u1EF9][.?!])\s+|\n+', text)
         sentences = [s.strip() for s in raw_sentences if len(s.strip()) >= 8]
         return sentences
 
@@ -151,7 +152,8 @@ class MMRExtractor:
         self,
         transcript: str,
         target_ratio: float = 0.50,
-        min_sentences: int = 5
+        min_sentences: int = 5,
+        lambda_param: Optional[float] = None
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Executes MMR selection to eliminate conversational redundancy while preserving
@@ -161,12 +163,14 @@ class MMRExtractor:
             transcript (str): Raw transcribed meeting text.
             target_ratio (float): Fraction of content to retain (0.50 = retain top 50%).
             min_sentences (int): Minimum sentences to keep.
+            lambda_param (Optional[float]): Dynamic override for diversity-relevance balance.
 
         Returns:
             Tuple[str, Dict[str, Any]]:
                 - filtered_transcript: High-density condensed transcript.
                 - telemetry: Detailed algorithmic metrics (compression, word counts, latency).
         """
+        active_lambda = lambda_param if lambda_param is not None else self.lambda_param
         sentences = self.split_into_sentences(transcript)
         total_sentences = len(sentences)
         original_words = len(transcript.split())
@@ -181,7 +185,8 @@ class MMRExtractor:
                 "compression_ratio": 1.0,
                 "reduction_percent": 0.0,
                 "sentences_kept": total_sentences,
-                "total_sentences": total_sentences
+                "total_sentences": total_sentences,
+                "lambda_param": active_lambda
             }
 
         k = max(min_sentences, int(math.ceil(total_sentences * target_ratio)))
@@ -212,7 +217,7 @@ class MMRExtractor:
                     max_sim_to_selected = 0.0
 
                 # MMR Objective function: lambda * Sim1 - (1 - lambda) * Sim2
-                mmr_score = (self.lambda_param * sim_to_doc) - ((1.0 - self.lambda_param) * max_sim_to_selected)
+                mmr_score = (active_lambda * sim_to_doc) - ((1.0 - active_lambda) * max_sim_to_selected)
 
                 if mmr_score > best_score:
                     best_score = mmr_score
@@ -233,8 +238,8 @@ class MMRExtractor:
         telemetry = {
             "applied": True,
             "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
-            "lambda_param": self.lambda_param,       # key used by UI display
-            "lambda_diversity": self.lambda_param,   # alias for backwards compat
+            "lambda_param": active_lambda,          # key used by UI display
+            "lambda_diversity": active_lambda,      # alias for backwards compat
             "original_words": original_words,
             "filtered_words": filtered_words,
             "reduction_percent": reduction,
@@ -250,6 +255,14 @@ class MMRExtractor:
 default_extractor = MMRExtractor(lambda_param=0.65)
 
 
-def filter_meeting_transcript(transcript: str, target_ratio: float = 0.55) -> Tuple[str, Dict[str, Any]]:
+def filter_meeting_transcript(
+    transcript: str, 
+    target_ratio: float = 0.55,
+    lambda_param: float = 0.65
+) -> Tuple[str, Dict[str, Any]]:
     """Convenience wrapper for orchestrator pipeline integration."""
-    return default_extractor.extract_key_sentences(transcript, target_ratio=target_ratio)
+    return default_extractor.extract_key_sentences(
+        transcript, 
+        target_ratio=target_ratio, 
+        lambda_param=lambda_param
+    )
