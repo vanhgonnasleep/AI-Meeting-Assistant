@@ -322,7 +322,7 @@ AI-Meeting-Assistant/
 │       └── test_stt.py            # Whisper STT & audio endpoint tests
 ├── database/                      # Persistent storage layer (SQLite)
 │   ├── db.py                      # Connection manager & WAL initialization
-│   ├── models.py                  # Pydantic v2 data models
+│   ├── models.py                  # Python dataclasses
 │   ├── crud.py                    # Database CRUD operations
 │   └── meeting.db                 # SQLite database (auto-generated)
 └── meeting-assistant-ui/          # Frontend client (React 19 + Vite + Tailwind)
