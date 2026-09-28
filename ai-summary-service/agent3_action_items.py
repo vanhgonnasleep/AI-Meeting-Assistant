@@ -21,6 +21,69 @@ except ImportError:
 import requests
 
 
+
+def extract_action_items_heuristic(transcript: str) -> List[Dict[str, Any]]:
+    """
+    Deterministic rule-based fallback extractor for action items.
+    Used when Ollama is offline or times out, ensuring the pipeline never fails to find deliverables.
+    Scans for commitment verbs and assignee markers.
+    """
+    if not transcript or not transcript.strip():
+        return []
+
+    commit_patterns = [
+        re.compile(r'\b([A-Z][a-z]+)\s+(?:will|shall|agreed to|is going to)\s+([^.?!;:\n]{10,})', re.IGNORECASE),
+        re.compile(r'\b([A-Z][a-z]+)\s+(?:needs to|must|should)\s+([^.?!;:\n]{10,})', re.IGNORECASE),
+        re.compile(r'(?:Can you|Please)\s+([^.?!;:\n]+),\s*([A-Z][a-z]+)\?', re.IGNORECASE),
+        re.compile(r'Confirmed\s+([A-Z][a-z]+)\s+as\s+lead\s+deliverable\s+owner\s+for\s+([^.?!;:\n]+)', re.IGNORECASE),
+    ]
+
+    items: List[Dict[str, Any]] = []
+    lines = re.split(r'[.?!]\s+|\n+', transcript)
+
+    for line in lines:
+        line_str = line.strip()
+        if not line_str or len(line_str) < 15:
+            continue
+
+        for pat in commit_patterns:
+            m = pat.search(line_str)
+            if m:
+                groups = m.groups()
+                if len(groups) == 2:
+                    # Determine which group is assignee vs task
+                    g1, g2 = groups[0].strip(), groups[1].strip()
+                    if len(g1) < 25 and not any(w in g1.lower() for w in ["prepare", "finalize", "launch", "update"]):
+                        assignee, raw_task = g1, g2
+                    else:
+                        assignee, raw_task = g2, g1
+
+                    # Look for deadline phrases (e.g. by Friday, by tomorrow)
+                    deadline = None
+                    dl_match = re.search(r'\b(?:by|before|until)\s+([A-Za-z0-9\s]+?)(?:\s*$|\.|\,)', raw_task, re.IGNORECASE)
+                    if dl_match:
+                        deadline = dl_match.group(1).strip()
+
+                    items.append({
+                        "task": raw_task,
+                        "assignee": assignee if assignee else "Unassigned",
+                        "deadline": deadline,
+                        "status": "pending"
+                    })
+                    break
+
+    # Deduplicate by task
+    seen = set()
+    deduped = []
+    for it in items:
+        k = it["task"].lower()
+        if k not in seen:
+            seen.add(k)
+            deduped.append(it)
+
+    return deduped
+
+
 def extract_action_items(transcript: str, model_name: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Receives raw meeting transcript and extracts actionable work items.
@@ -32,7 +95,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
     Returns:
         List[Dict[str, Any]]: Action items in standardized JSON format:
             [
-                {"task": "Prepare Q3 financial report", "assignee": "John", "status": "pending"},
+                {"task": "Prepare Q3 financial report", "assignee": "John", "deadline": "Friday", "status": "pending"},
                 ...
             ]
     """
@@ -41,14 +104,18 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
 
     target_model = model_name or os.getenv("OLLAMA_MODEL", "llama3")
 
-    # 1. System prompt forcing strict JSON array output format
+    # 1. System prompt forcing strict JSON array output format with deadline and status
     system_prompt = (
         "You are an AI assistant that extracts actionable work items from meeting transcripts.\n"
         "You MUST respond ONLY with a valid JSON ARRAY of objects enclosed in square brackets [].\n"
         "Do NOT return a single object, do NOT include markdown formatting or extra conversational text.\n"
-        "Each object in the array must have two keys: 'task' and 'assignee'.\n"
+        "Each object in the array must contain:\n"
+        "- 'task': A concise, actionable description of the task (string)\n"
+        "- 'assignee': The designated owner or team, or 'Unassigned' if unspecified (string)\n"
+        "- 'deadline': Delivery deadline mentioned (e.g., 'Friday afternoon', 'tomorrow') or null (string/null)\n"
+        "- 'status': Current execution status ('pending' or 'completed')\n"
         "Example:\n"
-        '[{"task": "Update database schema", "assignee": "John"}]'
+        '[{"task": "Update database schema", "assignee": "John", "deadline": "Friday", "status": "pending"}]'
     )
 
     # Guard against context window overflow on long transcripts
@@ -88,7 +155,6 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
             raw_content = http_res.json().get("message", {}).get("content", "").strip()
 
         # 3. Robust JSON array extraction: scan for outermost '[' ... ']' boundary
-        # Avoid greedy re.DOTALL which can corrupt output when LLM adds extra text between arrays
         def extract_first_json_array(text: str) -> str:
             start = text.find('[')
             if start == -1:
@@ -101,7 +167,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
                     depth -= 1
                     if depth == 0:
                         return text[start:i + 1]
-            return text[start:]  # malformed but give it a shot
+            return text[start:]
 
         clean_json_str = extract_first_json_array(raw_content)
 
@@ -141,11 +207,15 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
                     "status": str(item.get("status", "pending")).strip()
                 })
 
-        return valid_items
+        if valid_items:
+            return valid_items
+
+        # If LLM returned empty list, fall back to heuristic extraction
+        return extract_action_items_heuristic(transcript)
 
     except Exception as e:
-        print(f"[Agent 3] Error during action item extraction: {e}")
-        return []
+        print(f"[Agent 3] Warning during LLM action item extraction: {e}. Running heuristic fallback.")
+        return extract_action_items_heuristic(transcript)
 
 
 # --- Quick Local Test ---

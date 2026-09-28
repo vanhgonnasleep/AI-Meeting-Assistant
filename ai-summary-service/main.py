@@ -1,4 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import json
@@ -8,8 +10,7 @@ import sys
 import subprocess
 import shutil
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
-from fastapi.encoders import jsonable_encoder
+from typing import List, Dict, Optional, Tuple, Any
 
 # Setup sys.path to allow importing from database package at project root
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -37,14 +38,11 @@ except (ImportError, AttributeError):
 
 try:
     from database.models import MeetingRecord, ActionItem
+    import database.crud as crud
+    from database.crud import create_meeting
 except (ImportError, AttributeError):
     MeetingRecord = None
     ActionItem = None
-
-try:
-    from database import crud
-    from database.crud import create_meeting
-except (ImportError, AttributeError):
     crud = None
     create_meeting = None
 
@@ -340,7 +338,7 @@ async def transcribe_audio_endpoint(
 
     safe_filename = Path(file.filename).name
     if not safe_filename.lower().endswith(SUPPORTED_AUDIO_EXTENSIONS):
-        raise HTTPException(status_code=400, detail="Only .mp3, .wav, .m4a files are supported.")
+        raise HTTPException(status_code=400, detail="Only .mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv files are supported.")
 
     # Enforce file size limit
     try:
@@ -406,6 +404,8 @@ async def process_audio(
     model: str = Query("auto", description="Requested AI model or 'auto'"),
     whisper_model: Optional[str] = Query(None, description="Whisper model: tiny, base, small, medium"),
     enable_mmr: bool = Query(True, description="Enable MMR redundancy reduction filter"),
+    mmr_lambda: float = Query(0.65, ge=0.0, le=1.0, description="MMR relevance vs diversity hyperparameter"),
+    mmr_ratio: float = Query(0.60, ge=0.1, le=1.0, description="MMR target compression ratio"),
     demo_mode: bool = Query(False, description="Instant demo presentation mode")
 ):
     # 0. Instant Demo Fail-Safe Trigger (Bypasses all heavy computation in 50ms)
@@ -423,6 +423,11 @@ async def process_audio(
             "Speaker B: That budget sounds reasonable and matches our projections. Can you prepare the detailed financial report by Friday, John?\n"
             "Speaker A: I'll have the complete breakdown ready by Friday afternoon."
         )
+        demo_segments = [
+            {"id": 1, "start": 0.0, "end": 14.5, "timestamp": "[00:00 - 00:14]", "text": "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns."},
+            {"id": 2, "start": 14.5, "end": 28.0, "timestamp": "[00:14 - 00:28]", "text": "Speaker B: That budget sounds reasonable and matches our projections. Let's lock it in. Can you prepare the detailed financial report by Friday, John?"},
+            {"id": 3, "start": 28.0, "end": 38.5, "timestamp": "[00:28 - 00:38]", "text": "Speaker A: Will do. I'll have the complete breakdown ready by Friday afternoon."}
+        ]
         return {
             "status": "success",
             "mode": "instant_demo",
@@ -435,9 +440,10 @@ async def process_audio(
                 "original_words": 67,
                 "filtered_words": 44,
                 "reduction_percent": 34.3,
-                "lambda_param": 0.65
+                "lambda_param": mmr_lambda
             },
             "data": {
+                "meeting_id": None,
                 "transcript": demo_transcript,
                 "condensed_transcript": demo_condensed,
                 "summary": (
@@ -446,16 +452,19 @@ async def process_audio(
                     "- Confirmed John as lead deliverable owner for Q3 revenue reconciliation."
                 ),
                 "action_items": [
-                    {"task": "Prepare and submit Q3 financial report", "assignee": "John (Speaker A)"},
-                    {"task": "Launch targeted social media ad campaigns", "assignee": "Marketing Team"}
-                ]
+                    {"task": "Prepare and submit Q3 financial report", "assignee": "John (Speaker A)", "deadline": "Friday afternoon", "status": "pending"},
+                    {"task": "Launch targeted social media ad campaigns", "assignee": "Marketing Team", "deadline": "Q3 Start", "status": "pending"}
+                ],
+                "duration": 38.5,
+                "language": "en",
+                "segments": demo_segments
             }
         }
 
     # 1. Sanitize filename against path traversal
     safe_filename = Path(file.filename).name
     if not safe_filename.lower().endswith(SUPPORTED_AUDIO_EXTENSIONS):
-        raise HTTPException(status_code=400, detail="Only .mp3, .wav, .m4a files are supported.")
+        raise HTTPException(status_code=400, detail="Only .mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv files are supported.")
     
     # 2. Enforce file size limit to prevent memory exhaustion
     try:
@@ -476,15 +485,29 @@ async def process_audio(
         
         # 1. AGENT 1: Speech-to-Text (Triệu Quốc Thiện)
         transcript = None
+        duration = None
+        detected_language = None
+        segments = []
         stt_error = None
-        if transcribe_audio is not None:
+        stt_model_name = whisper_model or ("tiny" if not has_gpu else "base")
+
+        if transcribe_audio_detailed is not None:
             try:
                 file.file.seek(0)
-                stt_model_name = whisper_model or ("tiny" if not has_gpu else "base")
+                print(f"[STT] Detailed transcription of '{safe_filename}' with Whisper '{stt_model_name}'...")
+                detailed_res = transcribe_audio_detailed(file, model_name=stt_model_name)
+                transcript = detailed_res.get("text", "")
+                duration = detailed_res.get("duration", 0.0)
+                detected_language = detailed_res.get("language", "auto")
+                segments = detailed_res.get("segments", [])
+            except Exception as e:
+                stt_error = str(e)
+                print(f"[Warning] Detailed STT error: {e}")
+        elif transcribe_audio is not None:
+            try:
+                file.file.seek(0)
                 print(f"[STT] Transcribing '{safe_filename}' with Whisper '{stt_model_name}'...")
                 transcript = transcribe_audio(file, model_name=stt_model_name)
-            except NotImplementedError:
-                print("[Info] Agent 1 STT is under development by Triệu Quốc Thiện.")
             except Exception as e:
                 stt_error = str(e)
                 print(f"[Warning] Agent 1 STT error: {e}")
@@ -501,7 +524,11 @@ async def process_audio(
         mmr_telemetry = None
         condensed_transcript = transcript
         if enable_mmr and filter_meeting_transcript is not None:
-            condensed_transcript, mmr_telemetry = filter_meeting_transcript(transcript, target_ratio=0.60)
+            condensed_transcript, mmr_telemetry = filter_meeting_transcript(
+                transcript, 
+                target_ratio=mmr_ratio,
+                lambda_param=mmr_lambda
+            )
             if mmr_telemetry.get("applied"):
                 print(f"[MMR] Redundancy filter reduced transcript from {mmr_telemetry['original_words']} to {mmr_telemetry['filtered_words']} words ({mmr_telemetry['reduction_percent']}% compression).")
         
@@ -527,53 +554,48 @@ async def process_audio(
             action_items = []
         
         # 4. DATABASE: Persist Meeting Record to SQLite (Đoàn Hoàng Long)
-        if MeetingRecord and ActionItem and create_meeting:
+        saved_meeting_id = None
+        if crud is not None:
             try:
                 parsed_items = [
                     ActionItem(
                         task=item.get("task", ""),
-                        assignee=item.get("assignee", ""),
+                        assignee=item.get("assignee", "Unassigned"),
                         deadline=item.get("deadline"),
                         status=item.get("status", "pending")
                     )
+                    if isinstance(item, dict) else item
                     for item in action_items
-                ]
+                ] if ActionItem else action_items
 
-                record = MeetingRecord(
+                saved_meeting_id = crud.create_meeting(
                     filename=safe_filename,
                     raw_transcript=transcript,
                     executive_summary=summary,
-                    action_items=parsed_items
+                    action_items=parsed_items,
+                    duration=duration,
+                    language=detected_language
                 )
-
-                meeting_id = create_meeting(
-                    filename=record.filename,
-                    raw_transcript=record.raw_transcript,
-                    executive_summary=record.executive_summary,
-                    action_items=record.action_items
-                )
-
-                print(
-                    f"[DB] MeetingRecord saved successfully "
-                    f"with ID={meeting_id}"
-                )
-
+                print(f"[DB] Meeting #{saved_meeting_id} saved successfully to SQLite.")
             except Exception as e:
-                print(f"[Warning] Database save failed: {e}")
-                meeting_id = None
-        else:
-            meeting_id = None
+                print(f"[Warning] Failed to persist meeting to DB: {e}")
 
         # 5. Package and Return Data to React UI
         return {
             "status": "success",
             "model_used": selected_model,
             "hardware": gpu_desc,
+            "meeting_id": saved_meeting_id,
+            "mmr_telemetry": mmr_telemetry,
             "data": {
-                "meeting_id": meeting_id,
+                "meeting_id": saved_meeting_id,
                 "transcript": transcript,
+                "condensed_transcript": condensed_transcript if mmr_telemetry and mmr_telemetry.get("applied") else None,
                 "summary": summary,
-                "action_items": action_items
+                "action_items": action_items,
+                "duration": duration,
+                "language": detected_language,
+                "segments": segments
             }
         }
         
@@ -585,70 +607,91 @@ async def process_audio(
 # ==========================================
 # DATABASE - MEETING HISTORY ENDPOINTS (Đoàn Hoàng Long)
 # ==========================================
+
+class MeetingUpdateRequest(BaseModel):
+    filename: Optional[str] = None
+    raw_transcript: Optional[str] = None
+    executive_summary: Optional[str] = None
+    action_items: Optional[List[Dict[str, Any]]] = None
+    duration: Optional[float] = None
+    language: Optional[str] = None
+
+class TaskStatusUpdateRequest(BaseModel):
+    status: str
+
 @app.get("/api/meetings")
-async def get_all_meetings_endpoint():
-    """Retrieves all past meetings from SQLite database."""
+async def get_all_meetings_endpoint(q: Optional[str] = Query(None, description="Search query string")):
+    """Retrieves all past meetings from SQLite database (Đoàn Hoàng Long), with optional search."""
     if crud is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Database module not available."
-        )
-
-    records = crud.get_all_meetings()
-
+        raise HTTPException(status_code=503, detail="Database module not available.")
+    records = crud.get_all_meetings(search=q)
     return {
         "status": "success",
         "count": len(records),
-        "meetings": jsonable_encoder(records)
+        "meetings": [jsonable_encoder(r) for r in records]
     }
-
 
 @app.get("/api/meetings/{meeting_id}")
 async def get_meeting_by_id(meeting_id: int):
     """Retrieves a single meeting record by ID."""
     if crud is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Database module not available."
-        )
-
+        raise HTTPException(status_code=503, detail="Database module not available.")
     meeting = crud.get_meeting(meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    return {"status": "success", "meeting": jsonable_encoder(meeting)}
 
-    if meeting is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Meeting not found."
-        )
+@app.put("/api/meetings/{meeting_id}")
+async def update_meeting_by_id(meeting_id: int, payload: MeetingUpdateRequest):
+    """Updates an existing meeting record."""
+    if crud is None:
+        raise HTTPException(status_code=503, detail="Database module not available.")
+    updated = crud.update_meeting(
+        meeting_id=meeting_id,
+        filename=payload.filename,
+        raw_transcript=payload.raw_transcript,
+        executive_summary=payload.executive_summary,
+        action_items=payload.action_items,
+        duration=payload.duration,
+        language=payload.language
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Meeting not found or update failed.")
+    return {"status": "success", "updated": True}
 
-    return {
-        "status": "success",
-        "meeting": jsonable_encoder(meeting)
-    }
+@app.patch("/api/meetings/{meeting_id}/tasks/{task_idx}")
+async def update_meeting_task_status(meeting_id: int, task_idx: int, payload: TaskStatusUpdateRequest):
+    """Toggles or updates the status of an action item in a meeting record."""
+    if crud is None:
+        raise HTTPException(status_code=503, detail="Database module not available.")
+    # Validate status value against allowlist
+    allowed_statuses = {"pending", "completed", "done", "in_progress"}
+    if payload.status.lower() not in allowed_statuses:
+        raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {sorted(allowed_statuses)}")
+    success = crud.update_action_item_status(meeting_id, task_idx, payload.status.lower())
+    if not success:
+        raise HTTPException(status_code=404, detail="Meeting or task index not found.")
+    return {"status": "success", "meeting_id": meeting_id, "task_idx": task_idx, "status": payload.status.lower()}
 
+@app.get("/api/analytics")
+async def get_analytics():
+    """Retrieves aggregate metrics and analytics across all stored meetings."""
+    if crud is None:
+        raise HTTPException(status_code=503, detail="Database module not available.")
+    stats = crud.get_analytics_summary()
+    return {"status": "success", "analytics": stats}
 
 @app.delete("/api/meetings/{meeting_id}")
 async def delete_meeting_by_id(meeting_id: int):
     """Deletes a meeting record by ID."""
     if crud is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Database module not available."
-        )
-
+        raise HTTPException(status_code=503, detail="Database module not available.")
     deleted = crud.delete_meeting(meeting_id)
-
     if not deleted:
-        raise HTTPException(
-            status_code=404,
-            detail="Meeting not found."
-        )
-
-    return {
-        "status": "success",
-        "deleted": True
-    }
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    return {"status": "success", "deleted": True}
 
 if __name__ == "__main__":
     import uvicorn
     # Run server on port 8002, matching React frontend configuration
-    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)

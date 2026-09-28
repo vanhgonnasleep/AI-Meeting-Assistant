@@ -20,17 +20,26 @@ import {
   Layers,
   Zap,
   Database,
-  Trash2
+  Trash2,
+  Search,
+  Sliders,
+  Volume2,
+  FileCode,
+  Globe
 } from 'lucide-react';
 
 function App() {
   const [file, setFile] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [result, setResult] = useState(null);
+  const [currentMeetingId, setCurrentMeetingId] = useState(null);
   const [enableMmr, setEnableMmr] = useState(true);
+  const [mmrLambda, setMmrLambda] = useState(0.65);
+  const [showAdvancedMmr, setShowAdvancedMmr] = useState(false);
   const [mmrTelemetry, setMmrTelemetry] = useState(null);
-  const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'mmr'
+  const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'segments' | 'mmr'
   const [isCopied, setIsCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript'
   const [completedTasks, setCompletedTasks] = useState({});
@@ -39,16 +48,36 @@ function App() {
   const [metaInfo, setMetaInfo] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [meetingsHistory, setMeetingsHistory] = useState([]);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [systemAnalytics, setSystemAnalytics] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null); // inline error banner (replaces alert())
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  // Synchronize audio preview URL when file changes
+  useEffect(() => {
+    if (file && (file instanceof Blob || file instanceof File)) {
+      const url = URL.createObjectURL(file);
+      setAudioUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setAudioUrl(null);
+    }
+  }, [file]);
 
   const fetchMeetingHistory = async () => {
     setLoadingHistory(true);
     try {
-      const res = await fetch("http://localhost:8002/api/meetings");
-      if (res.ok) {
-        const data = await res.json();
+      const [resMeetings, resAnalytics] = await Promise.all([
+        fetch("http://localhost:8002/api/meetings"),
+        fetch("http://localhost:8002/api/analytics").catch(() => null)
+      ]);
+      if (resMeetings.ok) {
+        const data = await resMeetings.json();
         setMeetingsHistory(data.meetings || []);
+      }
+      if (resAnalytics && resAnalytics.ok) {
+        const dataAnalytics = await resAnalytics.json();
+        setSystemAnalytics(dataAnalytics.analytics || null);
       }
     } catch (e) {
       console.error("Failed to load meetings history:", e);
@@ -61,11 +90,24 @@ function App() {
     setResult({
       transcript: item.raw_transcript,
       summary: item.executive_summary,
-      action_items: item.action_items || []
+      action_items: item.action_items || [],
+      duration: item.duration,
+      language: item.language,
+      segments: []
     });
+    setCurrentMeetingId(item.id);
     setMmrTelemetry(null);
     setTranscriptView('raw');
-    setCompletedTasks({});
+
+    // Populate completed tasks from database status
+    const completed = {};
+    (item.action_items || []).forEach((act, idx) => {
+      if (act.status === 'completed' || act.status === 'done') {
+        completed[idx] = true;
+      }
+    });
+    setCompletedTasks(completed);
+
     setErrorMessage(null);
     setMetaInfo({
       model: "SQLite Stored Record",
@@ -81,6 +123,7 @@ function App() {
       const res = await fetch(`http://localhost:8002/api/meetings/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setMeetingsHistory(prev => prev.filter(m => m.id !== id));
+        fetchMeetingHistory();
       }
     } catch (err) {
       console.error("Failed to delete meeting:", err);
@@ -141,6 +184,7 @@ function App() {
     if (!file) return;
     setIsProcessing(true);
     setResult(null);
+    setCurrentMeetingId(null);
     setMmrTelemetry(null);
     setTranscriptView('raw');
     setCompletedTasks({});
@@ -150,7 +194,7 @@ function App() {
     formData.append("file", file);
 
     try {
-      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}`;
+      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}&mmr_lambda=${mmrLambda}`;
       const response = await fetch(url, {
         method: "POST",
         body: formData,
@@ -163,6 +207,7 @@ function App() {
       
       const data = await response.json();
       setResult(data.data);
+      setCurrentMeetingId(data.meeting_id || null);
       setMmrTelemetry(data.mmr_telemetry || null);
       setMetaInfo({
         model: data.model_used || selectedModel,
@@ -180,6 +225,7 @@ function App() {
   const handleInstantDemo = async () => {
     setIsProcessing(true);
     setResult(null);
+    setCurrentMeetingId(null);
     setMmrTelemetry(null);
     setTranscriptView('raw');
     setCompletedTasks({});
@@ -192,10 +238,14 @@ function App() {
     formData.append("file", dummyFile);
 
     try {
-      const response = await fetch("http://localhost:8002/api/process-audio?demo_mode=true", {
+      const response = await fetch(`http://localhost:8002/api/process-audio?demo_mode=true&mmr_lambda=${mmrLambda}`, {
         method: "POST",
         body: formData,
       });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `Demo mode server error (HTTP ${response.status})`);
+      }
       const data = await response.json();
       setResult(data.data);
       setMmrTelemetry(data.mmr_telemetry || {
@@ -205,19 +255,18 @@ function App() {
         original_words: 67,
         filtered_words: 44,
         reduction_percent: 34.3,
-        lambda_param: 0.65
+        lambda_param: mmrLambda
       });
       setMetaInfo({
         model: "Instant Showcase (Zero Compute)",
         hardware: "Fail-Safe Demo Mode"
       });
     } catch (e) {
-      setErrorMessage("Backend not reachable. Please start the FastAPI server on port 8002.");
+      setErrorMessage(e.message || "Backend not reachable. Please start the FastAPI server on port 8002.");
     } finally {
       setIsProcessing(false);
     }
   };
-
 
   const handleDemoSample = () => {
     const mockFile = new File(["sample meeting dummy binary content"], "q3_product_budget_review.mp3", {
@@ -228,7 +277,9 @@ function App() {
 
   const handleReset = () => {
     setFile(null);
+    setAudioUrl(null);
     setResult(null);
+    setCurrentMeetingId(null);
     setIsCopied(false);
     setCompletedTasks({});
     setMetaInfo(null);
@@ -237,17 +288,31 @@ function App() {
     setErrorMessage(null);
   };
 
-  const toggleTask = (idx) => {
+  const toggleTask = async (idx) => {
+    const isNowDone = !completedTasks[idx];
     setCompletedTasks(prev => ({
       ...prev,
-      [idx]: !prev[idx]
+      [idx]: isNowDone
     }));
+
+    // Persist status directly to SQLite database if meeting is saved
+    if (currentMeetingId) {
+      try {
+        await fetch(`http://localhost:8002/api/meetings/${currentMeetingId}/tasks/${idx}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending' })
+        });
+      } catch (err) {
+        console.error("Failed to sync task status to SQLite:", err);
+      }
+    }
   };
 
   const getFullMarkdown = () => {
     if (!result) return "";
     const items = result.action_items || [];
-    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"})`).join('\n')}\n\n## RAW TRANSCRIPT\n${result.transcript || ""}`;
+    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}\n\n## RAW TRANSCRIPT\n${result.transcript || ""}`;
   };
 
   const handleCopyResult = () => {
@@ -271,6 +336,60 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadJson = () => {
+    if (!result) return;
+    const exportData = {
+      meeting_id: currentMeetingId,
+      date: new Date().toISOString(),
+      metadata: metaInfo,
+      mmr_telemetry: mmrTelemetry,
+      summary: result.summary,
+      action_items: (result.action_items || []).map((item, idx) => ({
+        ...item,
+        status: completedTasks[idx] ? 'completed' : 'pending'
+      })),
+      transcript: result.transcript,
+      condensed_transcript: result.condensed_transcript,
+      duration: result.duration,
+      language: result.language,
+      segments: result.segments
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `meeting-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadTxt = () => {
+    if (!result) return;
+    const items = result.action_items || [];
+    const textContent = `=====================================================
+MEETING EXECUTIVE SUMMARY
+=====================================================
+${result.summary || ""}
+
+=====================================================
+ACTION DELIVERABLES
+=====================================================
+${items.map((it, idx) => `[${completedTasks[idx] ? 'DONE' : 'PENDING'}] ${it.task} | Owner: ${it.assignee || 'Unassigned'}${it.deadline ? ` | Due: ${it.deadline}` : ''}`).join('\n')}
+
+=====================================================
+CONVERSATIONAL TRANSCRIPT
+=====================================================
+${result.transcript || ""}
+`;
+    const blob = new Blob([textContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `meeting-transcript-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const formatFileSize = (bytes) => {
     if (!bytes || bytes <= 0) return "0 KB";
     const k = 1024;
@@ -279,8 +398,24 @@ function App() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
+  const formatDuration = (secs) => {
+    if (!secs || secs <= 0) return null;
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   const wordCount = result?.transcript ? result.transcript.split(/\s+/).filter(Boolean).length : 0;
   const estimatedReadTime = Math.ceil(wordCount / 200);
+
+  // Filter history items by search query
+  const filteredMeetings = meetingsHistory.filter(item => {
+    if (!historySearchQuery.trim()) return true;
+    const q = historySearchQuery.toLowerCase();
+    const fn = (item.filename || '').toLowerCase();
+    const sum = (item.executive_summary || '').toLowerCase();
+    return fn.includes(q) || sum.includes(q);
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-hidden font-sans">
@@ -305,7 +440,7 @@ function App() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Local meeting intelligence powered by Whisper & Llama 3 Map-Reduce
+                Local multi-agent intelligence powered by Whisper & Llama 3 Map-Reduce
               </p>
             </div>
           </div>
@@ -328,25 +463,39 @@ function App() {
               </select>
             </div>
 
-            {/* MMR Redundancy Filter Toggle */}
-            <button
-              type="button"
-              onClick={() => setEnableMmr(prev => !prev)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shadow-sm ${
-                enableMmr 
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 hover:bg-indigo-600/30' 
-                  : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-slate-200'
-              }`}
-              title="Maximal Marginal Relevance (MMR) Redundancy Filter Algorithm"
-            >
-              <Sparkles className={`w-3.5 h-3.5 ${enableMmr ? 'text-indigo-400' : 'text-slate-500'}`} />
-              <span className="hidden sm:inline">MMR Filter</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
-                enableMmr ? 'bg-indigo-500/30 text-indigo-300' : 'bg-slate-700 text-slate-400'
-              }`}>
-                {enableMmr ? 'ON' : 'OFF'}
-              </span>
-            </button>
+            {/* MMR Redundancy Filter Toggle & Tuning Trigger */}
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => setEnableMmr(prev => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-l-xl border text-xs font-medium transition-all shadow-sm ${
+                  enableMmr 
+                    ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 hover:bg-indigo-600/30' 
+                    : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-slate-200'
+                }`}
+                title="Maximal Marginal Relevance (MMR) Redundancy Filter Algorithm"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${enableMmr ? 'text-indigo-400' : 'text-slate-500'}`} />
+                <span className="hidden sm:inline">MMR</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
+                  enableMmr ? 'bg-indigo-500/30 text-indigo-300' : 'bg-slate-700 text-slate-400'
+                }`}>
+                  {enableMmr ? 'ON' : 'OFF'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedMmr(prev => !prev)}
+                className={`px-2 py-1.5 rounded-r-xl border border-l-0 text-xs font-medium transition-all ${
+                  showAdvancedMmr 
+                    ? 'bg-indigo-600 text-white border-indigo-500' 
+                    : 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700/60 text-slate-300'
+                }`}
+                title="Configure MMR λ hyperparameter"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
             {/* Health Status Indicator */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs">
@@ -375,7 +524,7 @@ function App() {
               )}
             </button>
 
-            {/* Actions */}
+            {/* Reset / New Meeting */}
             {result && !isProcessing && (
               <button
                 onClick={handleReset}
@@ -409,6 +558,44 @@ function App() {
           </div>
         </header>
 
+        {/* Advanced MMR Hyperparameter Slider Panel */}
+        {showAdvancedMmr && (
+          <div className="bg-slate-900/90 border border-indigo-500/40 rounded-2xl p-4 shadow-xl backdrop-blur-md animate-in fade-in duration-150 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  MMR Hyperparameter Tuning: Relevance vs Diversity
+                </h3>
+              </div>
+              <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                λ = {mmrLambda.toFixed(2)}
+              </span>
+            </div>
+            
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px] text-slate-400">
+                <span>Maximum Diversity (λ = 0.1)</span>
+                <span>Balanced Default (λ = 0.65)</span>
+                <span>Maximum Centroid Relevance (λ = 0.9)</span>
+              </div>
+              <input 
+                type="range"
+                min="0.10"
+                max="0.90"
+                step="0.05"
+                value={mmrLambda}
+                onChange={(e) => setMmrLambda(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              />
+              <p className="text-[11px] text-slate-400 leading-normal">
+                Formula: <code className="text-indigo-300 font-mono">MMR(s) = λ·Sim₁(s, Q) - (1-λ)·max Sim₂(s, s_j)</code>. 
+                Higher λ preserves sentences closest to the central meeting theme; lower λ penalizes repetition and extracts broader conversational variety.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Ollama Offline Warning Banner */}
         {!healthStatus.checking && !healthStatus.online && (
           <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
@@ -424,7 +611,7 @@ function App() {
           </div>
         )}
 
-        {/* Inline Error Banner (replaces browser alert) */}
+        {/* Inline Error Banner */}
         {errorMessage && (
           <div className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs">
             <div className="flex items-start gap-2.5">
@@ -459,14 +646,30 @@ function App() {
 
               <div className="flex flex-col items-center gap-5 relative z-10">
                 {file ? (
-                  <div className="flex flex-col items-center gap-3">
+                  <div className="flex flex-col items-center gap-3 w-full max-w-md">
                     <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl shadow-inner shadow-emerald-500/10">
                       <FileAudio className="w-10 h-10" />
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-white">{file.name}</p>
+                      <p className="text-base font-semibold text-white truncate max-w-sm">{file.name}</p>
                       <p className="text-xs text-slate-400 mt-1">{formatFileSize(file.size)} • Ready to analyze</p>
                     </div>
+
+                    {/* Inline HTML5 Audio Player for preview */}
+                    {audioUrl && (
+                      <div className="w-full pt-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 mb-1 text-[11px] text-slate-400">
+                          <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Preview Audio File:</span>
+                        </div>
+                        <audio 
+                          controls 
+                          src={audioUrl} 
+                          className="w-full h-9 rounded-xl bg-slate-950/80 border border-slate-700/60"
+                        />
+                      </div>
+                    )}
+
                     <button 
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setFile(null); }}
@@ -482,15 +685,15 @@ function App() {
                     </div>
                     <div>
                       <p className="text-lg font-semibold text-slate-100">
-                        Drag and drop your meeting audio here
+                        Drag and drop your meeting audio or video here
                       </p>
                       <p className="text-sm text-slate-400 mt-1">
                         or click anywhere to browse from your device (Max 50MB)
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1">
-                      {['.MP3', '.WAV', '.M4A', '.MP4', '.WEBM', '.FLAC'].map((ext) => (
+                    <div className="flex flex-wrap justify-center items-center gap-2 mt-1">
+                      {['.MP3', '.WAV', '.M4A', '.OGG', '.FLAC', '.MP4', '.WEBM', '.MKV'].map((ext) => (
                         <span key={ext} className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
                           {ext}
                         </span>
@@ -509,7 +712,7 @@ function App() {
                 </div>
                 <div>
                   <h3 className="text-xs font-semibold text-slate-200">100% Private & Local</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Runs on local Llama 3 via Ollama. No data leaves your machine.</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Runs on local Llama 3 via Ollama. No proprietary meeting data leaves your machine.</p>
                 </div>
               </div>
 
@@ -519,7 +722,7 @@ function App() {
                 </div>
                 <div>
                   <h3 className="text-xs font-semibold text-slate-200">Map-Reduce Chunking</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Sliding-window algorithm supports 2+ hour long meetings with zero hallucination.</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Sliding-window algorithm supports 2+ hour long meetings with zero context overflow.</p>
                 </div>
               </div>
 
@@ -569,7 +772,9 @@ function App() {
             <div className="flex items-center gap-2 text-xs font-medium text-slate-400 pt-1">
               <span className="flex items-center gap-1 text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" /> Ingested</span>
               <span className="text-slate-600">→</span>
-              <span className="flex items-center gap-1 text-indigo-300 animate-pulse"><Cpu className="w-3.5 h-3.5" /> STT & Map-Reduce</span>
+              <span className="flex items-center gap-1 text-indigo-300 animate-pulse"><Cpu className="w-3.5 h-3.5" /> STT & MMR</span>
+              <span className="text-slate-600">→</span>
+              <span className="flex items-center gap-1 text-purple-300 animate-pulse"><Layers className="w-3.5 h-3.5" /> Map-Reduce</span>
               <span className="text-slate-600">→</span>
               <span className="flex items-center gap-1 text-slate-500"><ListTodo className="w-3.5 h-3.5" /> Action Items</span>
             </div>
@@ -592,62 +797,81 @@ function App() {
         {result && !isProcessing && (
           <div className="space-y-6">
             
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
-                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
-                  <FileText className="w-5 h-5" />
+            {/* Quick Metrics Bar (5 cards) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                  <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Transcript Size</p>
-                  <p className="text-lg font-bold text-white mt-0.5">~{wordCount} words <span className="text-xs font-normal text-slate-400">({estimatedReadTime} min read)</span></p>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Transcript Size</p>
+                  <p className="text-base font-bold text-white mt-0.5">~{wordCount} words</p>
+                  <p className="text-[10px] text-slate-400">~{estimatedReadTime} min read</p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
-                  <ListTodo className="w-5 h-5" />
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
+                  <ListTodo className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Action Items</p>
-                  <p className="text-lg font-bold text-white mt-0.5">{result.action_items?.length || 0} tasks identified</p>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Action Items</p>
+                  <p className="text-base font-bold text-white mt-0.5">{result.action_items?.length || 0} tasks</p>
+                  <p className="text-[10px] text-emerald-400">
+                    {Object.values(completedTasks).filter(Boolean).length} completed
+                  </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
-                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400">
-                  <Layers className="w-5 h-5" />
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+                <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400">
+                  <Layers className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Model & Engine</p>
-                  <p className="text-sm font-bold text-white mt-0.5 truncate max-w-[180px]">
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Model & Engine</p>
+                  <p className="text-xs font-bold text-white mt-0.5 truncate max-w-[130px]">
                     {metaInfo?.model || 'Llama 3 Map-Reduce'}
                   </p>
-                  <p className="text-[10px] text-slate-400 truncate">{metaInfo?.hardware || 'Local Mode'}</p>
+                  <p className="text-[10px] text-slate-400 truncate max-w-[130px]">{metaInfo?.hardware || 'Local Mode'}</p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
-                  <Sparkles className="w-5 h-5" />
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+                  <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">MMR Compression</p>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">MMR Compression</p>
                   {mmrTelemetry?.applied ? (
                     <>
                       <p className="text-base font-bold text-emerald-400 mt-0.5">
                         -{mmrTelemetry.reduction_percent}% noise
                       </p>
                       <p className="text-[10px] text-slate-400 truncate">
-                        {mmrTelemetry.filtered_words}/{mmrTelemetry.original_words} w (λ={mmrTelemetry.lambda_param})
+                        {mmrTelemetry.filtered_words} / {mmrTelemetry.original_words} w (λ={mmrTelemetry.lambda_param})
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="text-sm font-bold text-slate-300 mt-0.5">100% Raw</p>
+                      <p className="text-xs font-bold text-slate-300 mt-0.5">100% Raw</p>
                       <p className="text-[10px] text-slate-400">Filter bypassed</p>
                     </>
                   )}
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+                <div className="p-2.5 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Audio Telemetry</p>
+                  <p className="text-base font-bold text-white mt-0.5">
+                    {result.duration ? formatDuration(result.duration) : '--:--'}
+                  </p>
+                  <p className="text-[10px] text-teal-300 uppercase">
+                    {result.language ? `Lang: ${result.language}` : 'Auto-detected'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -691,7 +915,7 @@ function App() {
               </div>
 
               {/* Export Toolbar */}
-              <div className="flex items-center gap-2 justify-end">
+              <div className="flex flex-wrap items-center gap-2 justify-end">
                 <button
                   onClick={handleCopyResult}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border shadow-sm ${
@@ -701,15 +925,34 @@ function App() {
                   }`}
                 >
                   {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  {isCopied ? 'Copied Markdown!' : 'Copy All'}
+                  {isCopied ? 'Copied!' : 'Copy All'}
                 </button>
 
                 <button
                   onClick={handleDownloadMarkdown}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 transition-colors shadow-sm"
+                  title="Export Markdown file"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Export .MD
+                  .MD
+                </button>
+
+                <button
+                  onClick={handleDownloadJson}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-colors shadow-sm"
+                  title="Export JSON format"
+                >
+                  <FileCode className="w-3.5 h-3.5" />
+                  .JSON
+                </button>
+
+                <button
+                  onClick={handleDownloadTxt}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors shadow-sm"
+                  title="Export plain text report"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  .TXT
                 </button>
               </div>
             </div>
@@ -717,50 +960,78 @@ function App() {
             {/* Dashboard Content Panels */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* Left Column: Raw/MMR Transcript (Visible in 'split' or 'transcript' mode) */}
+              {/* Left Column: Raw/Segmented/MMR Transcript */}
               {(activeTab === 'split' || activeTab === 'transcript') && (
                 <div className={`${activeTab === 'split' ? 'lg:col-span-5' : 'lg:col-span-12'} bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-slate-800/80 shadow-xl space-y-4`}>
                   <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                     <div className="flex items-center gap-2 text-slate-200 font-bold text-sm">
                       <FileText className="w-4 h-4 text-blue-400" />
-                      <h2>{transcriptView === 'mmr' ? 'MMR Filtered Sentences' : 'Raw Transcript (Agent 1)'}</h2>
+                      <h2>
+                        {transcriptView === 'mmr' ? 'MMR Filtered Sentences' : transcriptView === 'segments' ? 'Timestamped Segments' : 'Raw Transcript (Agent 1)'}
+                      </h2>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {result.condensed_transcript && (
-                        <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
-                          <button
-                            type="button"
-                            onClick={() => setTranscriptView('raw')}
-                            className={`px-2 py-0.5 rounded font-medium transition-all ${
-                              transcriptView === 'raw' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            Raw
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setTranscriptView('mmr')}
-                            className={`px-2 py-0.5 rounded font-medium transition-all ${
-                              transcriptView === 'mmr' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            MMR Filtered
-                          </button>
-                        </div>
+                    <div className="flex items-center gap-1.5 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setTranscriptView('raw')}
+                        className={`px-2 py-0.5 rounded font-medium transition-all ${
+                          transcriptView === 'raw' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Text
+                      </button>
+                      {result.segments && result.segments.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setTranscriptView('segments')}
+                          className={`px-2 py-0.5 rounded font-medium transition-all ${
+                            transcriptView === 'segments' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          Segments
+                        </button>
                       )}
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-                        {transcriptView === 'mmr' ? 'λ=0.65 Centroid' : 'Whisper Audio STT'}
-                      </span>
+                      {result.condensed_transcript && (
+                        <button
+                          type="button"
+                          onClick={() => setTranscriptView('mmr')}
+                          className={`px-2 py-0.5 rounded font-medium transition-all ${
+                            transcriptView === 'mmr' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          MMR
+                        </button>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap max-h-[550px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
-                    {transcriptView === 'mmr' && result.condensed_transcript ? result.condensed_transcript : result.transcript}
+                  {/* Transcript Content based on view mode */}
+                  <div className="max-h-[550px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                    {transcriptView === 'segments' && result.segments && result.segments.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {result.segments.map((seg, idx) => (
+                          <div key={idx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 text-xs transition-colors">
+                            <div className="flex items-center justify-between text-[10px] text-teal-400 font-mono mb-1">
+                              <span>{seg.timestamp || `Turn #${idx + 1}`}</span>
+                            </div>
+                            <p className="text-slate-300 leading-relaxed">{seg.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : transcriptView === 'mmr' && result.condensed_transcript ? (
+                      <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">
+                        {result.condensed_transcript}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">
+                        {result.transcript}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Right Column: AI Outputs (Visible in 'split', 'summary', or 'tasks' mode) */}
+              {/* Right Column: AI Outputs */}
               {(activeTab === 'split' || activeTab === 'summary' || activeTab === 'tasks') && (
                 <div className={`${activeTab === 'split' ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-6`}>
                   
@@ -775,7 +1046,7 @@ function App() {
                           <h2 className="text-sm font-bold text-white">Executive Summary (Agent 2)</h2>
                         </div>
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                          {metaInfo?.model || 'Llama 3'}
+                          {metaInfo?.model || 'Llama 3 Map-Reduce'}
                         </span>
                       </div>
                       
@@ -795,9 +1066,16 @@ function App() {
                           </div>
                           <h2 className="text-sm font-bold text-white">Extracted Action Plan (Agent 3)</h2>
                         </div>
-                        <span className="text-xs text-slate-400 font-mono">
-                          {Object.values(completedTasks).filter(Boolean).length}/{result.action_items?.length || 0} completed
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400 font-mono">
+                            {Object.values(completedTasks).filter(Boolean).length}/{result.action_items?.length || 0} completed
+                          </span>
+                          {currentMeetingId && (
+                            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                              SQLite synced
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <ul className="space-y-2.5">
@@ -821,14 +1099,19 @@ function App() {
                                 {isDone && <Check className="w-3 h-3 stroke-[3]" />}
                               </div>
 
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <p className={`text-xs font-medium leading-snug ${isDone ? 'line-through text-slate-500' : 'text-slate-100'}`}>
                                   {item.task}
                                 </p>
-                                <div className="flex items-center gap-2 mt-1.5">
+                                <div className="flex flex-wrap items-center gap-2 mt-1.5">
                                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                                    Assignee: {item.assignee}
+                                    Assignee: {item.assignee || 'Unassigned'}
                                   </span>
+                                  {item.deadline && (
+                                    <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                      <Clock className="w-2.5 h-2.5" /> Due: {item.deadline}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </li>
@@ -849,7 +1132,9 @@ function App() {
         {/* SQLite Meeting History Modal */}
         {showHistory && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]">
+              
+              {/* Modal Header */}
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
@@ -857,9 +1142,9 @@ function App() {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      Saved Meeting History
+                      Saved Meeting History & Analytics
                       <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                        SQLite
+                        SQLite WAL
                       </span>
                     </h3>
                     <p className="text-xs text-slate-400">
@@ -875,20 +1160,67 @@ function App() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1">
+              {/* Analytics Quick Badges Bar (if available) */}
+              {systemAnalytics && (
+                <div className="grid grid-cols-4 gap-2 pt-3">
+                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-400">Total Meetings</p>
+                    <p className="text-sm font-bold text-white">{systemAnalytics.total_meetings}</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-400">Total Action Items</p>
+                    <p className="text-sm font-bold text-indigo-400">{systemAnalytics.total_action_items}</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-400">Completed Rate</p>
+                    <p className="text-sm font-bold text-emerald-400">{systemAnalytics.completion_rate_percent}%</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-400">Total Audio Time</p>
+                    <p className="text-sm font-bold text-teal-400">{formatDuration(systemAnalytics.total_duration_seconds) || '00:00'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Search Bar */}
+              <div className="pt-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input 
+                    type="text"
+                    value={historySearchQuery}
+                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    placeholder="Search meetings by filename or executive summary..."
+                    className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                  {historySearchQuery && (
+                    <button 
+                      onClick={() => setHistorySearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Meetings List */}
+              <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
                 {loadingHistory ? (
                   <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
                     <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
                     <p className="text-xs">Loading database records...</p>
                   </div>
-                ) : meetingsHistory.length === 0 ? (
+                ) : filteredMeetings.length === 0 ? (
                   <div className="py-12 text-center text-slate-400">
                     <Database className="w-10 h-10 mx-auto text-slate-600 mb-2" />
-                    <p className="text-sm font-medium text-slate-300">No meeting records yet</p>
-                    <p className="text-xs text-slate-500 mt-1">Processed meetings will automatically be saved here.</p>
+                    <p className="text-sm font-medium text-slate-300">No matching meeting records</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {historySearchQuery ? 'Try another search term.' : 'Processed meetings will automatically be saved here.'}
+                    </p>
                   </div>
                 ) : (
-                  meetingsHistory.map((item) => (
+                  filteredMeetings.map((item) => (
                     <div
                       key={item.id}
                       onClick={() => handleLoadPastMeeting(item)}
@@ -901,6 +1233,11 @@ function App() {
                             {item.filename}
                           </h4>
                           <span className="text-[10px] text-slate-500 font-mono">#{item.id}</span>
+                          {item.language && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-teal-300 uppercase">
+                              {item.language}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
                           {item.executive_summary || "No summary recorded"}
@@ -913,6 +1250,11 @@ function App() {
                           <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/50">
                             {item.action_items?.length || 0} action items
                           </span>
+                          {item.duration && (
+                            <span className="text-teal-400">
+                              ⏱ {formatDuration(item.duration)}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -930,6 +1272,7 @@ function App() {
                 )}
               </div>
 
+              {/* Modal Footer */}
               <div className="pt-3 border-t border-slate-800 flex justify-end">
                 <button
                   onClick={() => setShowHistory(false)}

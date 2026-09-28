@@ -23,10 +23,26 @@ def init_db():
             raw_transcript TEXT,
             executive_summary TEXT,
             action_items TEXT,
+            duration REAL,
+            language TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # Non-destructive migration for existing tables created with older schemas
+    cursor = connection.execute("PRAGMA table_info(meetings);")
+    existing_columns = {row[1] for row in cursor.fetchall()}
+    if "duration" not in existing_columns:
+        try:
+            connection.execute("ALTER TABLE meetings ADD COLUMN duration REAL;")
+        except Exception:
+            pass  # Column may already exist (concurrent startup race)
+    if "language" not in existing_columns:
+        try:
+            connection.execute("ALTER TABLE meetings ADD COLUMN language TEXT;")
+        except Exception:
+            pass  # Column may already exist (concurrent startup race)
 
     connection.commit()
     connection.close()
