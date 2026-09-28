@@ -1,7 +1,7 @@
 """
 =====================================================
 AGENT 1: SPEECH-TO-TEXT (STT)
-Owner: Triệu Quốc Thiện (Agent 1)
+Owner: Triệu Quang Thiện (Agent 1)
 Task: Integrate OpenAI Whisper (or equivalent) to transcribe
       audio files (.mp3, .wav, .m4a, .ogg, .flac) into clean text.
 =====================================================

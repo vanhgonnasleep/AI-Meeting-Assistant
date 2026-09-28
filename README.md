@@ -5,7 +5,7 @@
 > **System Architecture:** Local Multi-Agent Pipeline  
 > **Team Members:**  
 > - **Lương Việt Anh** (Lead / Agent 2: Summarization & MMR Algorithm)  
-> - **Triệu Quốc Thiện** (Agent 1: Speech-to-Text Whisper)  
+> - **Triệu Quang Thiện** (Agent 1: Speech-to-Text Whisper)  
 > - **Nguyễn Quang Minh** (Agent 3: Action Items Extraction)  
 > - **Đoàn Hoàng Long** (Agent 4 / Database: SQLite & Integration)  
 
@@ -84,7 +84,7 @@
 
 | Team Member | System Role | Primary Module | Core Contribution |
 |:---|:---|:---|:---|
-| **Triệu Quốc Thiện** | Agent 1: Speech-to-Text | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping. |
+| **Triệu Quang Thiện** | Agent 1: Speech-to-Text | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping. |
 | **Lương Việt Anh (Lead)** | Orchestrator & Agent 2 | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/` | Pipeline orchestration, MMR redundancy reduction algorithm, Llama 3 Map-Reduce engine, full React UI frontend. |
 | **Nguyễn Quang Minh** | Agent 3: Action Items | `ai-summary-service/agent3_action_items.py` | JSON-constrained task and assignee extraction, bracket-depth parsing, trailing comma and quote sanitizer. |
 | **Đoàn Hoàng Long** | Agent 4: Database | `database/models.py`<br>`database/crud.py`<br>`database/db.py` | Pydantic v2 schemas, SQLite CRUD operations, WAL concurrent connection management, history drawer API. |

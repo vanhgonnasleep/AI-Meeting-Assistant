@@ -320,7 +320,7 @@ MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 # 50 MB limit
 SUPPORTED_AUDIO_EXTENSIONS = ('.mp3', '.wav', '.m4a', '.ogg', '.flac', '.mp4', '.webm', '.mkv')
 
 # ==========================================
-# AGENT 1 - SPEECH-TO-TEXT (Triệu Quốc Thiện)
+# AGENT 1 - SPEECH-TO-TEXT (Triệu Quang Thiện)
 # ==========================================
 @app.post("/api/transcribe")
 async def transcribe_audio_endpoint(
@@ -483,7 +483,7 @@ async def process_audio(
         selected_model = resolve_model(model, has_gpu=has_gpu)
         print(f"Processing audio: {safe_filename} using model: {selected_model} (Hardware: {gpu_desc})")
         
-        # 1. AGENT 1: Speech-to-Text (Triệu Quốc Thiện)
+        # 1. AGENT 1: Speech-to-Text (Triệu Quang Thiện)
         transcript = None
         duration = None
         detected_language = None
