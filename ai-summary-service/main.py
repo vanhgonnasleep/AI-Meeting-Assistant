@@ -273,9 +273,9 @@ async def get_version():
         "agents": [
             {
                 "id": 1,
-                "name": "Speech-to-Text (STT)",
-                "model": "OpenAI Whisper (tiny/base)",
-                "description": "Converts audio/video files into timestamped transcripts",
+                "name": "Speech-to-Text & Diarization (Agent 1)",
+                "model": "OpenAI Whisper + Mel Acoustic Clustering",
+                "description": "Converts audio/video files into timestamped transcripts with Speaker Diarization",
                 "available": transcribe_audio is not None
             },
             {
@@ -329,11 +329,13 @@ async def transcribe_audio_endpoint(
     file: UploadFile = File(...),
     model: Optional[str] = Query(None, description="Whisper model: tiny, base, small, medium, large"),
     language: Optional[str] = Query(None, description="Audio language code (e.g. 'vi', 'en') or auto-detect"),
-    timestamps: bool = Query(False, description="Whether to include segment timestamps")
+    timestamps: bool = Query(False, description="Whether to include segment timestamps"),
+    diarize: bool = Query(False, description="Whether to identify distinct speakers (Speaker Diarization)"),
+    num_speakers: Optional[int] = Query(None, description="Expected number of speakers (optional)")
 ):
     """
-    Dedicated Speech-to-Text endpoint powered by OpenAI Whisper (Agent 1).
-    Uploads an audio file and transcribes speech to clean text.
+    Dedicated Speech-to-Text endpoint powered by OpenAI Whisper & Acoustic Diarization (Agent 1).
+    Uploads an audio file and transcribes speech with optional speaker attribution.
     """
     if transcribe_audio is None:
         raise HTTPException(status_code=503, detail="Speech-to-Text module (Agent 1) is not available.")
@@ -360,10 +362,14 @@ async def transcribe_audio_endpoint(
             result = transcribe_audio_detailed(
                 file,
                 model_name=model,
-                language=language
+                language=language,
+                diarize=diarize,
+                num_speakers=num_speakers
             )
             raw_text = result.get("text", "")
-            if timestamps and result.get("segments"):
+            if diarize and result.get("diarized_transcript"):
+                formatted_transcript = result["diarized_transcript"]
+            elif timestamps and result.get("segments"):
                 lines = [
                     f"{seg['timestamp']} {seg['text']}"
                     for seg in result["segments"]
@@ -379,6 +385,7 @@ async def transcribe_audio_endpoint(
                 "transcript": formatted_transcript,
                 "language": result.get("language"),
                 "duration": result.get("duration"),
+                "speakers": result.get("speakers", []),
                 "segments": result.get("segments", [])
             }
         else:
@@ -386,7 +393,9 @@ async def transcribe_audio_endpoint(
                 file,
                 model_name=model,
                 language=language,
-                include_timestamps=timestamps
+                include_timestamps=timestamps,
+                diarize=diarize,
+                num_speakers=num_speakers
             )
             return {
                 "status": "success",
@@ -408,6 +417,8 @@ async def process_audio(
     enable_mmr: bool = Query(True, description="Enable MMR redundancy reduction filter"),
     mmr_lambda: float = Query(0.65, ge=0.0, le=1.0, description="MMR relevance vs diversity hyperparameter"),
     mmr_ratio: float = Query(0.60, ge=0.1, le=1.0, description="MMR target compression ratio"),
+    diarize: bool = Query(False, description="Enable Speaker Diarization to identify distinct speakers"),
+    num_speakers: Optional[int] = Query(None, description="Expected number of speakers (optional)"),
     demo_mode: bool = Query(False, description="Instant demo presentation mode")
 ):
     # 0. Instant Demo Fail-Safe Trigger (Bypasses all heavy computation in 50ms)
@@ -426,9 +437,9 @@ async def process_audio(
             "Speaker A: I'll have the complete breakdown ready by Friday afternoon."
         )
         demo_segments = [
-            {"id": 1, "start": 0.0, "end": 14.5, "timestamp": "[00:00 - 00:14]", "text": "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns."},
-            {"id": 2, "start": 14.5, "end": 28.0, "timestamp": "[00:14 - 00:28]", "text": "Speaker B: That budget sounds reasonable and matches our projections. Let's lock it in. Can you prepare the detailed financial report by Friday, John?"},
-            {"id": 3, "start": 28.0, "end": 38.5, "timestamp": "[00:28 - 00:38]", "text": "Speaker A: Will do. I'll have the complete breakdown ready by Friday afternoon."}
+            {"id": 1, "start": 0.0, "end": 14.5, "timestamp": "[00:00 - 00:14]", "speaker": "Speaker A", "text": "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns."},
+            {"id": 2, "start": 14.5, "end": 28.0, "timestamp": "[00:14 - 00:28]", "speaker": "Speaker B", "text": "Speaker B: That budget sounds reasonable and matches our projections. Let's lock it in. Can you prepare the detailed financial report by Friday, John?"},
+            {"id": 3, "start": 28.0, "end": 38.5, "timestamp": "[00:28 - 00:38]", "speaker": "Speaker A", "text": "Speaker A: Will do. I'll have the complete breakdown ready by Friday afternoon."}
         ]
         return {
             "status": "success",
@@ -459,6 +470,7 @@ async def process_audio(
                 ],
                 "duration": 38.5,
                 "language": "en",
+                "speakers": ["Speaker A", "Speaker B"],
                 "segments": demo_segments
             }
         }
@@ -485,31 +497,46 @@ async def process_audio(
         selected_model = resolve_model(model, has_gpu=has_gpu)
         print(f"Processing audio: {safe_filename} using model: {selected_model} (Hardware: {gpu_desc})")
         
-        # 1. AGENT 1: Speech-to-Text (Triệu Quang Thiện)
+        # 1. AGENT 1: Speech-to-Text & Diarization (Triệu Quang Thiện)
         transcript = None
         duration = None
         detected_language = None
         segments = []
+        speakers = []
         stt_error = None
         stt_model_name = whisper_model or ("tiny" if not has_gpu else "base")
 
         if transcribe_audio_detailed is not None:
             try:
                 file.file.seek(0)
-                print(f"[STT] Detailed transcription of '{safe_filename}' with Whisper '{stt_model_name}'...")
-                detailed_res = transcribe_audio_detailed(file, model_name=stt_model_name)
+                print(f"[STT] Detailed transcription of '{safe_filename}' with Whisper '{stt_model_name}' (Diarize={diarize})...")
+                detailed_res = transcribe_audio_detailed(
+                    file, 
+                    model_name=stt_model_name,
+                    diarize=diarize,
+                    num_speakers=num_speakers,
+                    llm_model=selected_model
+                )
                 transcript = detailed_res.get("text", "")
                 duration = detailed_res.get("duration", 0.0)
                 detected_language = detailed_res.get("language", "auto")
                 segments = detailed_res.get("segments", [])
+                speakers = detailed_res.get("speakers", [])
+                if diarize and detailed_res.get("diarized_transcript"):
+                    transcript = detailed_res["diarized_transcript"]
             except Exception as e:
                 stt_error = str(e)
                 print(f"[Warning] Detailed STT error: {e}")
         elif transcribe_audio is not None:
             try:
                 file.file.seek(0)
-                print(f"[STT] Transcribing '{safe_filename}' with Whisper '{stt_model_name}'...")
-                transcript = transcribe_audio(file, model_name=stt_model_name)
+                print(f"[STT] Transcribing '{safe_filename}' with Whisper '{stt_model_name}' (Diarize={diarize})...")
+                transcript = transcribe_audio(
+                    file, 
+                    model_name=stt_model_name,
+                    diarize=diarize,
+                    num_speakers=num_speakers
+                )
             except Exception as e:
                 stt_error = str(e)
                 print(f"[Warning] Agent 1 STT error: {e}")
@@ -604,6 +631,7 @@ async def process_audio(
                 "action_items": action_items,
                 "duration": duration,
                 "language": detected_language,
+                "speakers": speakers,
                 "segments": segments
             }
         }

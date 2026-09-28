@@ -25,8 +25,20 @@ import {
   Sliders,
   Volume2,
   FileCode,
-  Globe
+  Globe,
+  Users,
+  Edit2
 } from 'lucide-react';
+
+const getSpeakerBadgeStyle = (speaker) => {
+  if (!speaker) return 'bg-slate-800 text-slate-300 border-slate-700';
+  const s = String(speaker);
+  if (s.includes('1') || s.includes('A')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+  if (s.includes('2') || s.includes('B')) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+  if (s.includes('3') || s.includes('C')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+  if (s.includes('4') || s.includes('D')) return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+  return 'bg-pink-500/20 text-pink-300 border-pink-500/40';
+};
 
 function App() {
   const [file, setFile] = useState(null);
@@ -38,6 +50,9 @@ function App() {
   const [enableMmr, setEnableMmr] = useState(true);
   const [mmrLambda, setMmrLambda] = useState(0.65);
   const [showAdvancedMmr, setShowAdvancedMmr] = useState(false);
+  const [enableDiarization, setEnableDiarization] = useState(true);
+  const [numSpeakers, setNumSpeakers] = useState('');
+  const [speakerFilter, setSpeakerFilter] = useState('all');
   const [mmrTelemetry, setMmrTelemetry] = useState(null);
   const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'segments' | 'mmr'
   const [isCopied, setIsCopied] = useState(false);
@@ -200,7 +215,8 @@ function App() {
     formData.append("file", file);
 
     try {
-      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}&mmr_lambda=${mmrLambda}`;
+      const diarizeParam = `&diarize=${enableDiarization}${numSpeakers ? `&num_speakers=${numSpeakers}` : ''}`;
+      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}&mmr_lambda=${mmrLambda}${diarizeParam}`;
       const response = await fetch(url, {
         method: "POST",
         body: formData,
@@ -329,7 +345,11 @@ function App() {
   const getFullMarkdown = () => {
     if (!result) return "";
     const items = result.action_items || [];
-    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}\n\n## RAW TRANSCRIPT\n${result.transcript || ""}`;
+    let transcriptBlock = result.transcript || "";
+    if (result.segments && result.segments.some(s => s.speaker)) {
+      transcriptBlock = result.segments.map(s => `**${s.speaker}** (${s.timestamp || ''}): ${s.text}`).join('\n\n');
+    }
+    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
   };
 
   const handleCopyResult = () => {
@@ -339,6 +359,59 @@ function App() {
       setTimeout(() => setIsCopied(false), 2500);
     }).catch((err) => {
       console.error("Clipboard copy failed:", err);
+    });
+  };
+
+  const handleRenameSpeaker = (oldName) => {
+    if (!oldName || !result) return;
+    const newName = window.prompt(`Rename "${oldName}" to:`, oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const cleanName = newName.trim();
+    
+    setResult(prev => {
+      if (!prev) return prev;
+      const updatedSegments = (prev.segments || []).map(s => 
+        s.speaker === oldName ? { ...s, speaker: cleanName } : s
+      );
+      const updatedSpeakers = (prev.speakers || []).map(spk => 
+        spk === oldName ? cleanName : spk
+      );
+      const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'g');
+      const updatedTranscript = prev.transcript ? prev.transcript.replace(regex, cleanName) : prev.transcript;
+      return {
+        ...prev,
+        transcript: updatedTranscript,
+        segments: updatedSegments,
+        speakers: updatedSpeakers
+      };
+    });
+    if (speakerFilter === oldName) {
+      setSpeakerFilter(cleanName);
+    }
+  };
+
+  const handleCycleSpeaker = (segmentIdx) => {
+    if (!result || !result.segments || !result.segments[segmentIdx]) return;
+    const currentSpk = result.segments[segmentIdx].speaker;
+    const speakersList = (result.speakers && result.speakers.length > 0)
+      ? result.speakers
+      : ['Speaker 1', 'Speaker 2'];
+    
+    const currIdx = speakersList.indexOf(currentSpk);
+    const nextSpk = speakersList[(currIdx + 1) % speakersList.length];
+
+    setResult(prev => {
+      if (!prev) return prev;
+      const newSegments = [...prev.segments];
+      newSegments[segmentIdx] = {
+        ...newSegments[segmentIdx],
+        speaker: nextSpk
+      };
+      return {
+        ...prev,
+        segments: newSegments
+      };
     });
   };
 
@@ -522,6 +595,41 @@ ${result.transcript || ""}
               >
                 <Sliders className="w-3.5 h-3.5" />
               </button>
+            </div>
+
+            {/* Speaker Diarization Toggle */}
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => setEnableDiarization(prev => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 ${enableDiarization ? 'rounded-l-xl' : 'rounded-xl'} border text-xs font-semibold transition-all ${
+                  enableDiarization 
+                    ? 'bg-purple-600/20 border-purple-500/50 text-purple-200 hover:bg-purple-600/30' 
+                    : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-slate-200'
+                }`}
+                title="Speaker Diarization (Agent 1: Identify distinct speakers)"
+              >
+                <Users className={`w-3.5 h-3.5 ${enableDiarization ? 'text-purple-400' : 'text-slate-500'}`} />
+                <span className="hidden sm:inline">Diarize</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
+                  enableDiarization ? 'bg-purple-500/30 text-purple-300' : 'bg-slate-700 text-slate-400'
+                }`}>
+                  {enableDiarization ? 'ON' : 'OFF'}
+                </span>
+              </button>
+              {enableDiarization && (
+                <select
+                  value={numSpeakers}
+                  onChange={(e) => setNumSpeakers(e.target.value)}
+                  className="bg-slate-800/90 text-slate-300 border border-l-0 border-purple-500/50 rounded-r-xl px-2 py-1.5 text-xs font-medium focus:outline-none focus:border-purple-400"
+                  title="Expected speakers (Auto / 2 / 3 / 4)"
+                >
+                  <option value="">Auto</option>
+                  <option value="2">2 Spk</option>
+                  <option value="3">3 Spk</option>
+                  <option value="4">4 Spk</option>
+                </select>
+              )}
             </div>
 
             {/* Health Status Indicator */}
@@ -1035,15 +1143,78 @@ ${result.transcript || ""}
                   {/* Transcript Content based on view mode */}
                   <div className="max-h-[550px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
                     {transcriptView === 'segments' && result.segments && result.segments.length > 0 ? (
-                      <div className="space-y-2.5">
-                        {result.segments.map((seg, idx) => (
-                          <div key={idx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 text-xs transition-colors">
-                            <div className="flex items-center justify-between text-[10px] text-teal-400 font-mono mb-1">
-                              <span>{seg.timestamp || `Turn #${idx + 1}`}</span>
-                            </div>
-                            <p className="text-slate-300 leading-relaxed">{seg.text}</p>
+                      <div className="space-y-3">
+                        {/* Speaker filter pills if multiple speakers detected */}
+                        {result.speakers && result.speakers.length > 1 && (
+                          <div className="flex items-center gap-1.5 pb-2 overflow-x-auto scrollbar-none border-b border-slate-800 text-[11px]">
+                            <span className="text-slate-400 flex items-center gap-1 text-[10px] uppercase font-mono tracking-wider">
+                              <Users className="w-3 h-3 text-purple-400" /> Filter:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSpeakerFilter('all')}
+                              className={`px-2 py-0.5 rounded-lg font-medium transition-all ${
+                                speakerFilter === 'all'
+                                  ? 'bg-purple-600 text-white shadow-sm'
+                                  : 'bg-slate-800 text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              All ({result.segments.length})
+                            </button>
+                            {result.speakers.map((spk) => {
+                              const count = result.segments.filter(s => s.speaker === spk).length;
+                              const badgeStyle = getSpeakerBadgeStyle(spk);
+                              return (
+                                <div key={spk} className="inline-flex items-center rounded-lg border overflow-hidden text-[11px] shadow-sm">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSpeakerFilter(speakerFilter === spk ? 'all' : spk)}
+                                    className={`px-2 py-0.5 font-medium transition-all ${
+                                      speakerFilter === spk 
+                                        ? 'bg-purple-600 text-white' 
+                                        : `${badgeStyle} hover:opacity-80`
+                                    }`}
+                                    title={`Filter by ${spk}`}
+                                  >
+                                    {spk} ({count})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRenameSpeaker(spk)}
+                                    className="px-1.5 py-0.5 bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border-l border-slate-700/60"
+                                    title={`Rename speaker "${spk}"`}
+                                  >
+                                    <Edit2 className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
+                        )}
+
+                        <div className="space-y-2.5">
+                          {result.segments
+                            .filter(seg => speakerFilter === 'all' || !seg.speaker || seg.speaker === speakerFilter)
+                            .map((seg, idx) => (
+                              <div key={idx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 text-xs transition-colors space-y-1">
+                                <div className="flex items-center justify-between text-[10px]">
+                                  <span className="text-teal-400 font-mono">{seg.timestamp || `Turn #${idx + 1}`}</span>
+                                  {seg.speaker && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCycleSpeaker(idx)}
+                                      title="Click to cycle speaker if misclassified"
+                                      className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
+                                    >
+                                      <span>{seg.speaker}</span>
+                                      <span className="text-[9px] opacity-60">⇄</span>
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-slate-300 leading-relaxed">{seg.text}</p>
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     ) : transcriptView === 'mmr' && result.condensed_transcript ? (
                       <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">

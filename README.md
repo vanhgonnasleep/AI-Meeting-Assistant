@@ -14,7 +14,7 @@
 [![Whisper](https://img.shields.io/badge/STT-OpenAI_Whisper-412991.svg?logo=openai&logoColor=white)](https://github.com/openai/whisper)
 [![Ollama](https://img.shields.io/badge/LLM-Llama_3_(8B_/_3.2_1B)-white.svg?logo=ollama&logoColor=black)](https://ollama.com)
 [![SQLite](https://img.shields.io/badge/Database-SQLite_WAL-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org)
-[![Tests](https://img.shields.io/badge/Test_Suite-28/28_Passed-brightgreen.svg)](#-testing--quality-assurance)
+[![Tests](https://img.shields.io/badge/Test_Suite-32/32_Passed-brightgreen.svg)](#-testing--quality-assurance)
 [![Defense Guide](https://img.shields.io/badge/Technical_Defense-Master_Guide-orange.svg)](TECHNICAL_DEFENSE_GUIDE.md)
 
 ---
@@ -25,7 +25,7 @@
 
 **AI Meeting Assistant** is an enterprise-grade, privacy-first meeting intelligence system running **100% locally on edge devices** without transmitting proprietary conversational data to cloud vendors. Users upload audio or video recordings (.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv), and the system executes an automated, resilient multi-agent workflow:
 
-1. **Speech-to-Text (Agent 1):** Ingests audio/video and transcribes clean conversational speech with timestamped segment alignment using OpenAI Whisper.
+1. **Speech-to-Text & Diarization (Agent 1):** Ingests audio/video, transcribes clean conversational speech with timestamped segment alignment using OpenAI Whisper, and separates participants via acoustic voiceprint clustering.
 2. **Algorithmic Redundancy Reduction (MMR Filter):** Decomposes the transcript into vector space representations, executing Maximal Marginal Relevance to eliminate filler dialogue, rhetorical noise, and conversational repetition (~35–45% content compression).
 3. **Executive Summarization (Agent 2):** Synthesizes structured, non-hallucinatory executive briefings using a sliding-window Map-Reduce architecture powered by local Llama 3.
 4. **Action Item Extraction (Agent 3):** Employs constrained JSON schema parsing to extract deliverables, assignees, deadlines, and execution statuses.
@@ -44,8 +44,9 @@
 │             MULTI-AGENT ORCHESTRATION PIPELINE              │
 │                     (FastAPI Server)                        │
 │                                                             │
-│   Agent 1: Speech-to-Text (OpenAI Whisper tiny/base)        │
+│   Agent 1: Speech-to-Text & Speaker Diarization             │
 │   └─ Ingestion, format normalization, timestamped segments  │
+│   └─ Acoustic Mel-filterbank clustering (Speaker 1, 2...)   │
 │                              │                              │
 │                              ▼                              │
 │                        Raw Transcript                       │
@@ -84,7 +85,7 @@
 
 | Team Member | System Role | Primary Module | Core Contribution |
 |:---|:---|:---|:---|
-| **Triệu Quang Thiện** | Agent 1: Speech-to-Text | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping. |
+| **Triệu Quang Thiện** | Agent 1: Speech-to-Text & Diarization | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping, acoustic voiceprint clustering (Speaker Diarization). |
 | **Lương Việt Anh (Lead)** | Orchestrator & Agent 2 | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/` | Pipeline orchestration, MMR redundancy reduction algorithm, Llama 3 Map-Reduce engine, full React UI frontend. |
 | **Nguyễn Quang Minh** | Agent 3: Action Items | `ai-summary-service/agent3_action_items.py` | JSON-constrained task and assignee extraction, bracket-depth parsing, trailing comma and quote sanitizer. |
 | **Đoàn Hoàng Long** | Agent 4: Database | `database/models.py`<br>`database/crud.py`<br>`database/db.py` | Pydantic v2 schemas, SQLite CRUD operations, WAL concurrent connection management, history drawer API. |

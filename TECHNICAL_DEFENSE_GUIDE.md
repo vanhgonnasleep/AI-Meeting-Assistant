@@ -85,7 +85,7 @@
 | Team Member | Module & Code Locations | Key Concepts & Defendable Topics |
 |:---|:---|:---|
 | **Lương Việt Anh** *(Lead / Agent 2 & Orchestrator)* | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/src/App.jsx` | • Pipeline orchestration & fail-safe mechanisms.<br>• MMR Vector Space math: Sparse Cosine, Centroid $Q$, $\mathcal{O}(V \cdot N + K \cdot N)$.<br>• Sliding-window Map-Reduce to prevent LLM context degradation.<br>• Full-stack React 19 UI integration, audio player, live task sync. |
-| **Triệu Quang Thiện** *(Agent 1: STT)* | `ai-summary-service/agent1_transcribe.py`<br>`ai-summary-service/tests/test_stt.py` | • OpenAI Whisper integration and model caching (`_MODEL_CACHE`).<br>• Automated FFmpeg resolution via `imageio-ffmpeg`.<br>• In-memory temp file streaming & memory protection.<br>• Timestamp formatting and segment alignment. |
+| **Triệu Quang Thiện** *(Agent 1: STT & Diarization)* | `ai-summary-service/agent1_transcribe.py`<br>`ai-summary-service/tests/test_stt.py` | • OpenAI Whisper integration and model caching (`_MODEL_CACHE`).<br>• Automated FFmpeg resolution via `imageio-ffmpeg`.<br>• In-memory temp file streaming & memory protection.<br>• **Speaker Diarization:** Multi-scale 80-channel log-mel acoustic feature extraction, Cosine distance Agglomerative Hierarchical Clustering, and conversational turn merging.<br>• Timestamp formatting, speaker attribution, and segment alignment. |
 | **Nguyễn Quang Minh** *(Agent 3: Action Items)* | `ai-summary-service/agent3_action_items.py` | • Constrained JSON generation via Ollama.<br>• Defensive parser: Outer bracket depth balance & single-quote normalization.<br>• Rule-based regex fallback extractor for offline/timeout resilience.<br>• Delivery deadline and status field extraction. |
 | **Đoàn Hoàng Long** *(Agent 4: Database & Storage)* | `database/db.py`<br>`database/models.py`<br>`database/crud.py`<br>`ai-summary-service/tests/test_api.py` | • Pydantic v2 data contracts (`MeetingRecord`, `ActionItem`).<br>• SQLite WAL (Write-Ahead Logging) concurrency and busy timeouts.<br>• Non-destructive database migrations (`PRAGMA table_info` + `ALTER TABLE`).<br>• Full REST CRUD API, search query filtering, and analytics summary. |
 
@@ -331,5 +331,5 @@ async def generate_email_endpoint(meeting_id: int):
 
 ### Q15: What are the current limitations of the system?
 > **Answer:** 
-> 1. Speaker diarization currently relies on conversational markers and Whisper speech pauses rather than acoustic voiceprint embeddings (e.g. PyAnnote.audio).
-> 2. Real-time streaming transcription is currently chunk-based rather than WebSocket token-by-token streaming.
+> 1. Real-time streaming transcription is currently chunk-based rather than WebSocket token-by-token streaming.
+> 2. Highly overlapping simultaneous speech (multiple participants talking at the exact same millisecond) presents acoustic separation challenges without multi-channel microphone array beamforming.

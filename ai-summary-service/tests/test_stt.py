@@ -23,7 +23,11 @@ from agent1_transcribe import (
     get_whisper_model_info,
     get_whisper_device,
     format_timestamp,
-    ensure_ffmpeg
+    ensure_ffmpeg,
+    extract_segment_embedding,
+    cluster_speaker_embeddings,
+    format_diarized_transcript,
+    diarize_segments
 )
 
 try:
@@ -123,3 +127,62 @@ def test_transcribe_endpoint_file_too_large():
     files = {"file": ("large_audio.wav", oversized_bytes, "audio/wav")}
     response = client.post("/api/transcribe", files=files)
     assert response.status_code == 413
+
+
+@pytest.mark.skipif(not WHISPER_AVAILABLE, reason="OpenAI Whisper / PyTorch not installed")
+def test_cluster_speaker_embeddings():
+    """Verify acoustic feature clustering assigns distinct speakers accurately."""
+    # Synthetic vector: v_spk1 (heavy low freq), v_spk2 (heavy high freq)
+    v_spk1 = torch.zeros(163)
+    v_spk1[0:40] = 1.0
+    v_spk1 = v_spk1 / torch.norm(v_spk1, p=2)
+
+    v_spk2 = torch.zeros(163)
+    v_spk2[60:100] = 1.0
+    v_spk2 = v_spk2 / torch.norm(v_spk2, p=2)
+
+    v_spk1_alt = v_spk1.clone() + 0.05 * torch.randn(163)
+    v_spk1_alt = v_spk1_alt / torch.norm(v_spk1_alt, p=2)
+
+    # Sequence: Speaker 1, Speaker 2, Speaker 1 again
+    embeddings = [v_spk1, v_spk2, v_spk1_alt]
+    labels = cluster_speaker_embeddings(embeddings, num_speakers=2)
+    assert len(labels) == 3
+    assert labels[0] == labels[2], "First and third segments should belong to the same speaker"
+    assert labels[0] != labels[1], "First and second segments should belong to different speakers"
+
+
+def test_cluster_speaker_embeddings_edge_cases():
+    """Verify clustering edge cases for empty list and single segment."""
+    assert cluster_speaker_embeddings([]) == []
+    if WHISPER_AVAILABLE:
+        v = torch.randn(163)
+        assert cluster_speaker_embeddings([v]) == [0]
+
+
+def test_format_diarized_transcript():
+    """Verify turn formatting and consecutive speaker turn merging."""
+    segments = [
+        {"start": 0.0, "end": 2.5, "speaker": "Speaker 1", "text": "Hello team."},
+        {"start": 2.5, "end": 5.0, "speaker": "Speaker 1", "text": "Let's review the roadmap."},
+        {"start": 5.0, "end": 9.0, "speaker": "Speaker 2", "text": "I'll share my screen."}
+    ]
+    script = format_diarized_transcript(segments, merge_consecutive=True)
+    assert "[00:00 - 00:05] Speaker 1: Hello team. Let's review the roadmap." in script
+    assert "[00:05 - 00:09] Speaker 2: I'll share my screen." in script
+
+
+@pytest.mark.skipif(not WHISPER_AVAILABLE, reason="OpenAI Whisper / PyTorch not installed")
+def test_transcribe_endpoint_with_diarization():
+    """Verify POST /api/transcribe with diarize=true returns speaker annotations."""
+    wav_bytes = generate_test_wav_bytes(duration_sec=0.5)
+    files = {"file": ("test_meeting_diarize.wav", wav_bytes, "audio/wav")}
+    response = client.post("/api/transcribe?model=tiny&diarize=true", files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert "speakers" in data
+    assert "segments" in data
+    for seg in data["segments"]:
+        assert "speaker" in seg
+
