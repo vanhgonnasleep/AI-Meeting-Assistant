@@ -1,6 +1,6 @@
 # 🎙️ AI Meeting Assistant
 
-> **Course:** Emerging Topics in Information Technology  
+> **Course:** Advanced Topics in Information Technology
 > **Project Track:** Final Capstone — AI Engineering  
 > **System Architecture:** Local Multi-Agent Pipeline  
 > **Team Members:**  
