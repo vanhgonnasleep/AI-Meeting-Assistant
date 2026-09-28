@@ -113,6 +113,7 @@ function App() {
       model: "SQLite Stored Record",
       hardware: `Meeting #${item.id} • ${item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved Record'}`
     });
+    setActiveTab('split');
     setShowHistory(false);
   };
 
@@ -284,6 +285,8 @@ function App() {
     setCompletedTasks({});
     setMetaInfo(null);
     setMmrTelemetry(null);
+    setShowAdvancedMmr(false);
+    setActiveTab('split');
     setTranscriptView('raw');
     setErrorMessage(null);
   };
@@ -332,7 +335,9 @@ function App() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -359,7 +364,9 @@ function App() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `meeting-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -386,7 +393,9 @@ ${result.transcript || ""}
     const a = document.createElement("a");
     a.href = url;
     a.download = `meeting-transcript-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 

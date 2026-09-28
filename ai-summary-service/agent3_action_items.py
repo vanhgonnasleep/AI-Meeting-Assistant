@@ -136,7 +136,9 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
                 ],
                 format="json"  # Forces Ollama to constrain Llama 3 output to JSON
             )
-            raw_content = response['message']['content'].strip()
+            # Support both Ollama SDK object (response.message.content) and dict (response['message']['content'])
+            msg = response.message if hasattr(response, 'message') else response.get('message', {})
+            raw_content = (msg.content if hasattr(msg, 'content') else msg.get('content', '')).strip()
         else:
             http_res = requests.post(
                 "http://localhost:11434/api/chat",

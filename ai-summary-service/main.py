@@ -63,6 +63,12 @@ app.add_middleware(
 )
 
 # ==========================================
+# CONSTANTS & CONFIGURATION
+# ==========================================
+MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB limit
+SUPPORTED_AUDIO_EXTENSIONS = ('.mp3', '.wav', '.m4a', '.ogg', '.flac', '.mp4', '.webm', '.mkv')
+
+# ==========================================
 # HARDWARE & GPU ACCELERATION TELEMETRY
 # ==========================================
 def get_gpu_info() -> Tuple[str, bool]:
@@ -313,11 +319,6 @@ async def get_version():
     }
 
 
-# ==========================================
-# CONSTANTS & CONFIGURATION
-# ==========================================
-MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 # 50 MB limit
-SUPPORTED_AUDIO_EXTENSIONS = ('.mp3', '.wav', '.m4a', '.ogg', '.flac', '.mp4', '.webm', '.mkv')
 
 # ==========================================
 # AGENT 1 - SPEECH-TO-TEXT (Triệu Quang Thiện)
