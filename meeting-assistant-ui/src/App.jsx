@@ -417,13 +417,17 @@ ${result.transcript || ""}
   const wordCount = result?.transcript ? result.transcript.split(/\s+/).filter(Boolean).length : 0;
   const estimatedReadTime = Math.ceil(wordCount / 200);
 
-  // Filter history items by search query
+  // Filter history items by search query across filename, summary, transcript, and action items
   const filteredMeetings = meetingsHistory.filter(item => {
     if (!historySearchQuery.trim()) return true;
     const q = historySearchQuery.toLowerCase();
     const fn = (item.filename || '').toLowerCase();
     const sum = (item.executive_summary || '').toLowerCase();
-    return fn.includes(q) || sum.includes(q);
+    const trans = (item.raw_transcript || '').toLowerCase();
+    const tasksMatch = (item.action_items || []).some(it => 
+      (it.task || '').toLowerCase().includes(q) || (it.assignee || '').toLowerCase().includes(q)
+    );
+    return fn.includes(q) || sum.includes(q) || trans.includes(q) || tasksMatch;
   });
 
   return (

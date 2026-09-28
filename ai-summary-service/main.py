@@ -32,9 +32,10 @@ except (ImportError, AttributeError):
     get_whisper_device = None
 
 try:
-    from agent3_action_items import extract_action_items
+    from agent3_action_items import extract_action_items, extract_action_items_heuristic
 except (ImportError, AttributeError):
     extract_action_items = None
+    extract_action_items_heuristic = None
 
 try:
     from database.models import MeetingRecord, ActionItem
@@ -550,7 +551,14 @@ async def process_audio(
                 print("[Info] Agent 3 is under development by Nguyễn Quang Minh.")
             except Exception as e:
                 print(f"[Warning] Agent 3 error: {e}")
-        
+
+        # Fallback to deterministic heuristic extractor if LLM produced no items
+        if not action_items and extract_action_items_heuristic is not None:
+            try:
+                action_items = extract_action_items_heuristic(transcript)
+            except Exception as e:
+                print(f"[Warning] Heuristic action item extraction fallback error: {e}")
+
         if not action_items:
             action_items = []
         

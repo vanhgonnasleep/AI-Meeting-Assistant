@@ -339,4 +339,4 @@ AI-Meeting-Assistant/
 
 ## 📜 License & Academic Integrity
 
-This project is submitted as a Final Capstone for the **Emerging Topics in Information Technology** course. Developed collaboratively by the project team for educational, non-commercial research and demonstration purposes.
+This project is submitted as a Final Capstone for the **Advanced Topics in Information Technology** course. Developed collaboratively by the project team for educational, non-commercial research and demonstration purposes.

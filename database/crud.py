@@ -214,10 +214,10 @@ def get_all_meetings(search: Optional[str] = None) -> list[MeetingRecord]:
             """
             SELECT *
             FROM meetings
-            WHERE filename LIKE ? OR executive_summary LIKE ? OR raw_transcript LIKE ?
+            WHERE filename LIKE ? OR executive_summary LIKE ? OR raw_transcript LIKE ? OR action_items LIKE ?
             ORDER BY created_at DESC
             """,
-            (q, q, q),
+            (q, q, q, q),
         ).fetchall()
     else:
         rows = connection.execute(

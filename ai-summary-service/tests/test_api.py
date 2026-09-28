@@ -152,13 +152,18 @@ def test_meeting_search_endpoint():
         filename="unique_quarterly_planning_alpha.mp3",
         raw_transcript="Special keyword for search query test.",
         executive_summary="Summary with search match.",
-        action_items=[]
+        action_items=[{"task": "Prepare Q3 revenue forecast", "assignee": "Jonathan", "status": "pending"}]
     )
     res = client.get("/api/meetings?q=quarterly_planning_alpha")
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "success"
     assert any("unique_quarterly_planning_alpha" in m["filename"] for m in data["meetings"])
+
+    # Search by action item assignee
+    res_task = client.get("/api/meetings?q=Jonathan")
+    assert res_task.status_code == 200
+    assert any("unique_quarterly_planning_alpha" in m["filename"] for m in res_task.json()["meetings"])
 
 
 def test_meeting_update_put_endpoint():

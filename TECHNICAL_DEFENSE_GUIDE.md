@@ -1,6 +1,6 @@
 # 🛡️ AI Meeting Assistant — Master Technical Defense Guide
 
-> **Course:** Emerging Topics in Information Technology  
+> **Course:** Advanced Topics in Information Technology  
 > **Capstone Project:** Local Privacy-First Multi-Agent Meeting Intelligence  
 > **Prepared for:** Final Project Assessment & Technical Defense Examination  
 
