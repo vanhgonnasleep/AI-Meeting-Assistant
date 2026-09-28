@@ -275,54 +275,87 @@ def update_meeting(
     new_language = language if language is not None else existing.language
 
     connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM meetings WHERE id = ?",
+            (meeting_id,),
+        ).fetchone()
+        existing = row_to_meeting(row)
+        if existing is None:
+            connection.rollback()
+            return False
 
-    cursor = connection.execute(
-        """
-        UPDATE meetings
-        SET
-            filename = ?,
-            raw_transcript = ?,
-            executive_summary = ?,
-            action_items = ?,
-            duration = ?,
-            language = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        """,
-        (
-            new_filename,
-            new_transcript,
-            new_summary,
-            new_action_items,
-            new_duration,
-            new_language,
-            meeting_id,
-        ),
-    )
-
-    connection.commit()
-
-    updated = cursor.rowcount > 0
-
-    connection.close()
-
-    return updated
+        new_action_items = (
+            action_items_to_json(action_items)
+            if action_items is not None
+            else action_items_to_json(existing.action_items)
+        )
+        cursor = connection.execute(
+            """
+            UPDATE meetings
+            SET
+                filename = ?,
+                raw_transcript = ?,
+                executive_summary = ?,
+                action_items = ?,
+                duration = ?,
+                language = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                filename if filename is not None else existing.filename,
+                raw_transcript if raw_transcript is not None else existing.raw_transcript,
+                executive_summary if executive_summary is not None else existing.executive_summary,
+                new_action_items,
+                duration if duration is not None else existing.duration,
+                language if language is not None else existing.language,
+                meeting_id,
+            ),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def update_action_item_status(meeting_id: int, item_idx: int, status: str) -> bool:
     """
     Toggle or update the status of a specific action item within a meeting record.
+    Uses BEGIN IMMEDIATE transaction to prevent concurrent updates from overwriting each other.
     """
-    meeting = get_meeting(meeting_id)
-    if meeting is None:
-        return False
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM meetings WHERE id = ?",
+            (meeting_id,),
+        ).fetchone()
+        meeting = row_to_meeting(row)
+        if meeting is None or item_idx < 0 or item_idx >= len(meeting.action_items):
+            connection.rollback()
+            return False
 
-    items = meeting.action_items
-    if item_idx < 0 or item_idx >= len(items):
-        return False
-
-    items[item_idx].status = status
-    return update_meeting(meeting_id=meeting_id, action_items=items)
+        meeting.action_items[item_idx].status = status
+        cursor = connection.execute(
+            """
+            UPDATE meetings
+            SET action_items = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (action_items_to_json(meeting.action_items), meeting_id),
+        )
+        connection.commit()
+        return cursor.rowcount > 0
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def delete_meeting(meeting_id: int) -> bool:

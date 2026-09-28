@@ -1,5 +1,7 @@
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 import pytest
 from fastapi.testclient import TestClient
 
@@ -210,6 +212,36 @@ def test_meeting_task_status_patch_endpoint():
     record = crud.get_meeting(mid)
     assert record.action_items[0].status == "completed"
     assert record.action_items[1].status == "pending"
+
+
+def test_concurrent_task_status_updates_preserve_both_changes():
+    """Concurrent task updates must not overwrite each other's action-item changes."""
+    import database.crud as crud
+
+    meeting_id = crud.create_meeting(
+        filename="concurrent_tasks.mp3",
+        action_items=[
+            {"task": "Prepare report", "status": "pending"},
+            {"task": "Review budget", "status": "pending"},
+        ],
+    )
+    barrier = Barrier(2)
+
+    def update_task(index, status):
+        barrier.wait()
+        return crud.update_action_item_status(meeting_id, index, status)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            first = executor.submit(update_task, 0, "completed")
+            second = executor.submit(update_task, 1, "in_progress")
+            assert first.result(timeout=5) is True
+            assert second.result(timeout=5) is True
+
+        record = crud.get_meeting(meeting_id)
+        assert [item.status for item in record.action_items] == ["completed", "in_progress"]
+    finally:
+        crud.delete_meeting(meeting_id)
 
 
 def test_meeting_task_status_invalid_value():

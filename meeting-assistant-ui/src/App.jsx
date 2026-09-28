@@ -43,6 +43,7 @@ function App() {
   const [isCopied, setIsCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript'
   const [completedTasks, setCompletedTasks] = useState({});
+  const [updatingTasks, setUpdatingTasks] = useState({});
   const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
   const [selectedModel, setSelectedModel] = useState('auto');
   const [metaInfo, setMetaInfo] = useState(null);
@@ -122,12 +123,16 @@ function App() {
     if (!confirm("Are you sure you want to delete this meeting record?")) return;
     try {
       const res = await fetch(`http://localhost:8002/api/meetings/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setMeetingsHistory(prev => prev.filter(m => m.id !== id));
-        fetchMeetingHistory();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Failed to delete meeting (HTTP ${res.status})`);
       }
+      setMeetingsHistory(prev => prev.filter(m => m.id !== id));
+      if (currentMeetingId === id) setCurrentMeetingId(null);
+      await fetchMeetingHistory();
     } catch (err) {
       console.error("Failed to delete meeting:", err);
+      setErrorMessage(err.message || "Failed to delete meeting.");
     }
   };
 
@@ -292,23 +297,32 @@ function App() {
   };
 
   const toggleTask = async (idx) => {
+    if (updatingTasks[idx]) return;
     const isNowDone = !completedTasks[idx];
-    setCompletedTasks(prev => ({
-      ...prev,
-      [idx]: isNowDone
-    }));
+    setUpdatingTasks(prev => ({ ...prev, [idx]: true }));
 
-    // Persist status directly to SQLite database if meeting is saved
-    if (currentMeetingId) {
-      try {
-        await fetch(`http://localhost:8002/api/meetings/${currentMeetingId}/tasks/${idx}`, {
+    try {
+      if (currentMeetingId) {
+        const response = await fetch(`http://localhost:8002/api/meetings/${currentMeetingId}/tasks/${idx}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending' })
         });
-      } catch (err) {
-        console.error("Failed to sync task status to SQLite:", err);
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || `Failed to save task status (HTTP ${response.status})`);
+        }
       }
+
+      setCompletedTasks(prev => ({
+        ...prev,
+        [idx]: isNowDone
+      }));
+    } catch (err) {
+      console.error("Failed to sync task status to SQLite:", err);
+      setErrorMessage(err.message || "Failed to save task status.");
+    } finally {
+      setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
     }
   };
 
@@ -1098,7 +1112,10 @@ ${result.transcript || ""}
                             <li 
                               key={idx}
                               onClick={() => toggleTask(idx)}
-                              className={`group flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                              aria-busy={Boolean(updatingTasks[idx])}
+                              className={`group flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
+                                updatingTasks[idx] ? 'opacity-60 cursor-wait' : 'cursor-pointer'
+                              } ${
                                 isDone 
                                   ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-400' 
                                   : 'bg-slate-950/50 hover:bg-slate-800/50 border-slate-800/80 hover:border-slate-700 text-slate-200'

@@ -14,7 +14,7 @@
 [![Whisper](https://img.shields.io/badge/STT-OpenAI_Whisper-412991.svg?logo=openai&logoColor=white)](https://github.com/openai/whisper)
 [![Ollama](https://img.shields.io/badge/LLM-Llama_3_(8B_/_3.2_1B)-white.svg?logo=ollama&logoColor=black)](https://ollama.com)
 [![SQLite](https://img.shields.io/badge/Database-SQLite_WAL-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org)
-[![Tests](https://img.shields.io/badge/Test_Suite-27/27_Passed-brightgreen.svg)](#-testing--quality-assurance)
+[![Tests](https://img.shields.io/badge/Test_Suite-28/28_Passed-brightgreen.svg)](#-testing--quality-assurance)
 [![Defense Guide](https://img.shields.io/badge/Technical_Defense-Master_Guide-orange.svg)](TECHNICAL_DEFENSE_GUIDE.md)
 
 ---
@@ -233,6 +233,7 @@ pytest -v tests/
 | `test_api.py` | `test_meeting_search_endpoint` | Database Search | Tests `GET /api/meetings?q=...` keyword query filtering |
 | `test_api.py` | `test_meeting_update_put_endpoint` | REST API | Verifies `PUT /api/meetings/{id}` updates fields correctly |
 | `test_api.py` | `test_meeting_task_status_patch_endpoint` | SQLite Sync | Verifies `PATCH /api/meetings/{id}/tasks/{idx}` status toggling |
+| `test_api.py` | `test_concurrent_task_status_updates_preserve_both_changes` | Concurrency | Ensures `BEGIN IMMEDIATE` transactions prevent lost task updates |
 | `test_api.py` | `test_analytics_endpoint` | Telemetry | Validates `GET /api/analytics` aggregate metrics calculation |
 | `test_mmr.py` | `test_cosine_similarity` | Algorithm | Mathematical boundary tests (orthogonal = 0.0, identical = 1.0) |
 | `test_mmr.py` | `test_short_transcript_passthrough`| Algorithm | Ensures compact transcripts (<60 words) are untouched |

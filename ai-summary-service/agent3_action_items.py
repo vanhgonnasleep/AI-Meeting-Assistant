@@ -32,10 +32,10 @@ def extract_action_items_heuristic(transcript: str) -> List[Dict[str, Any]]:
         return []
 
     commit_patterns = [
-        re.compile(r'\b([A-Z][a-z]+)\s+(?:will|shall|agreed to|is going to)\s+([^.?!;:\n]{10,})', re.IGNORECASE),
-        re.compile(r'\b([A-Z][a-z]+)\s+(?:needs to|must|should)\s+([^.?!;:\n]{10,})', re.IGNORECASE),
-        re.compile(r'(?:Can you|Please)\s+([^.?!;:\n]+),\s*([A-Z][a-z]+)\?', re.IGNORECASE),
-        re.compile(r'Confirmed\s+([A-Z][a-z]+)\s+as\s+lead\s+deliverable\s+owner\s+for\s+([^.?!;:\n]+)', re.IGNORECASE),
+        (re.compile(r'\b([A-Z][a-z]+)\s+(?:will|shall|agreed to|is going to)\s+([^.?!;:\n]{10,})', re.IGNORECASE), 1, 2),
+        (re.compile(r'\b([A-Z][a-z]+)\s+(?:needs to|must|should)\s+([^.?!;:\n]{10,})', re.IGNORECASE), 1, 2),
+        (re.compile(r'(?:Can you|Please)\s+([^.?!;:\n]+),\s*([A-Z][a-z]+)\?', re.IGNORECASE), 2, 1),
+        (re.compile(r'Confirmed\s+([A-Z][a-z]+)\s+as\s+lead\s+deliverable\s+owner\s+for\s+([^.?!;:\n]+)', re.IGNORECASE), 1, 2),
     ]
 
     items: List[Dict[str, Any]] = []
@@ -46,31 +46,25 @@ def extract_action_items_heuristic(transcript: str) -> List[Dict[str, Any]]:
         if not line_str or len(line_str) < 15:
             continue
 
-        for pat in commit_patterns:
+        for pat, assignee_group, task_group in commit_patterns:
             m = pat.search(line_str)
             if m:
-                groups = m.groups()
-                if len(groups) == 2:
-                    # Determine which group is assignee vs task
-                    g1, g2 = groups[0].strip(), groups[1].strip()
-                    if len(g1) < 25 and not any(w in g1.lower() for w in ["prepare", "finalize", "launch", "update"]):
-                        assignee, raw_task = g1, g2
-                    else:
-                        assignee, raw_task = g2, g1
+                assignee = m.group(assignee_group).strip()
+                raw_task = m.group(task_group).strip()
 
-                    # Look for deadline phrases (e.g. by Friday, by tomorrow)
-                    deadline = None
-                    dl_match = re.search(r'\b(?:by|before|until)\s+([A-Za-z0-9\s]+?)(?:\s*$|\.|\,)', raw_task, re.IGNORECASE)
-                    if dl_match:
-                        deadline = dl_match.group(1).strip()
+                # Look for deadline phrases (e.g. by Friday, by tomorrow)
+                deadline = None
+                dl_match = re.search(r'\b(?:by|before|until)\s+([A-Za-z0-9\s]+?)(?:\s*$|\.|\,)', raw_task, re.IGNORECASE)
+                if dl_match:
+                    deadline = dl_match.group(1).strip()
 
-                    items.append({
-                        "task": raw_task,
-                        "assignee": assignee if assignee else "Unassigned",
-                        "deadline": deadline,
-                        "status": "pending"
-                    })
-                    break
+                items.append({
+                    "task": raw_task,
+                    "assignee": assignee if assignee else "Unassigned",
+                    "deadline": deadline,
+                    "status": "pending"
+                })
+                break
 
     # Deduplicate by task
     seen = set()

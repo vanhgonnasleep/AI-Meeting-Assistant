@@ -127,4 +127,6 @@ def test_heuristic_action_item_extractor():
     assignees = [i["assignee"] for i in items]
     assert any("Alice" in a for a in assignees)
     assert any("Friday afternoon" in str(i.get("deadline", "")) for i in items)
+    charlie_task = next(i for i in items if i["assignee"] == "Charlie")
+    assert "finalize the budget review" in charlie_task["task"]
 
