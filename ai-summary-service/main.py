@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import requests
@@ -38,10 +39,12 @@ except (ImportError, AttributeError):
 try:
     from database.models import MeetingRecord, ActionItem
     import database.crud as crud
+    from database.crud import create_meeting
 except (ImportError, AttributeError):
     MeetingRecord = None
     ActionItem = None
     crud = None
+    create_meeting = None
 
 try:
     from mmr_extractor import filter_meeting_transcript
@@ -440,6 +443,7 @@ async def process_audio(
                 "lambda_param": mmr_lambda
             },
             "data": {
+                "meeting_id": None,
                 "transcript": demo_transcript,
                 "condensed_transcript": demo_condensed,
                 "summary": (
@@ -553,11 +557,22 @@ async def process_audio(
         saved_meeting_id = None
         if crud is not None:
             try:
+                parsed_items = [
+                    ActionItem(
+                        task=item.get("task", ""),
+                        assignee=item.get("assignee", "Unassigned"),
+                        deadline=item.get("deadline"),
+                        status=item.get("status", "pending")
+                    )
+                    if isinstance(item, dict) else item
+                    for item in action_items
+                ] if ActionItem else action_items
+
                 saved_meeting_id = crud.create_meeting(
                     filename=safe_filename,
                     raw_transcript=transcript,
                     executive_summary=summary,
-                    action_items=action_items,
+                    action_items=parsed_items,
                     duration=duration,
                     language=detected_language
                 )
@@ -573,6 +588,7 @@ async def process_audio(
             "meeting_id": saved_meeting_id,
             "mmr_telemetry": mmr_telemetry,
             "data": {
+                "meeting_id": saved_meeting_id,
                 "transcript": transcript,
                 "condensed_transcript": condensed_transcript if mmr_telemetry and mmr_telemetry.get("applied") else None,
                 "summary": summary,
@@ -604,7 +620,7 @@ class TaskStatusUpdateRequest(BaseModel):
     status: str
 
 @app.get("/api/meetings")
-async def get_all_meetings(q: Optional[str] = Query(None, description="Search query string")):
+async def get_all_meetings_endpoint(q: Optional[str] = Query(None, description="Search query string")):
     """Retrieves all past meetings from SQLite database (Đoàn Hoàng Long), with optional search."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
@@ -612,7 +628,7 @@ async def get_all_meetings(q: Optional[str] = Query(None, description="Search qu
     return {
         "status": "success",
         "count": len(records),
-        "meetings": [r.model_dump() for r in records]
+        "meetings": [jsonable_encoder(r) for r in records]
     }
 
 @app.get("/api/meetings/{meeting_id}")
@@ -623,7 +639,7 @@ async def get_meeting_by_id(meeting_id: int):
     meeting = crud.get_meeting(meeting_id)
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found.")
-    return {"status": "success", "meeting": meeting.model_dump()}
+    return {"status": "success", "meeting": jsonable_encoder(meeting)}
 
 @app.put("/api/meetings/{meeting_id}")
 async def update_meeting_by_id(meeting_id: int, payload: MeetingUpdateRequest):
