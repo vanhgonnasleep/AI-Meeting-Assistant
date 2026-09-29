@@ -37,7 +37,8 @@ def test_unsupported_file_format():
     assert "Only .mp3, .wav, .m4a" in response.json()["detail"]
 
 def test_instant_demo_mode():
-    """Ensure presenter fail-safe demo mode returns valid schema in <100ms."""
+    """Ensure presenter fail-safe demo mode returns valid schema in <100ms via demo_mode, model, or filename."""
+    # 1. Via demo_mode=true query parameter
     files = {"file": ("sample_meeting.mp3", b"dummy audio binary data", "audio/mp3")}
     response = client.post("/api/process-audio?demo_mode=true", files=files)
     assert response.status_code == 200
@@ -48,6 +49,18 @@ def test_instant_demo_mode():
     assert "summary" in payload["data"]
     assert "action_items" in payload["data"]
     assert len(payload["data"]["action_items"]) > 0
+
+    # 2. Via model=instant_demo query parameter
+    files_model = {"file": ("any_meeting.mp3", b"dummy audio binary data", "audio/mp3")}
+    res_model = client.post("/api/process-audio?model=instant_demo", files=files_model)
+    assert res_model.status_code == 200
+    assert res_model.json()["mode"] == "instant_demo"
+
+    # 3. Via demo sample filename (e.g. q3_product_budget_review.mp3)
+    files_sample = {"file": ("q3_product_budget_review.mp3", b"sample meeting dummy binary content", "audio/mp3")}
+    res_sample = client.post("/api/process-audio", files=files_sample)
+    assert res_sample.status_code == 200
+    assert res_sample.json()["mode"] == "instant_demo"
 
 def test_failsafe_summary_generator():
     """Ensure fail-safe summary generator returns valid bullet points on timeout."""

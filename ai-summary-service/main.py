@@ -421,9 +421,12 @@ async def process_audio(
     num_speakers: Optional[int] = Query(None, description="Expected number of speakers (optional)"),
     demo_mode: bool = Query(False, description="Instant demo presentation mode")
 ):
+    safe_filename = Path(file.filename).name if getattr(file, "filename", None) else ""
+    is_demo_file = any(demo_kw in safe_filename.lower() for demo_kw in ("q3_product_budget_review", "q3_budget_meeting", "demo_sample"))
+
     # 0. Instant Demo Fail-Safe Trigger (Bypasses all heavy computation in 50ms)
-    if demo_mode:
-        print("[Demo Mode] Instant presentation demo triggered.")
+    if demo_mode or model == "instant_demo" or is_demo_file:
+        print(f"[Demo Mode] Instant presentation demo triggered (file: {safe_filename}, model: {model}).")
         demo_transcript = (
             "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. "
             "I propose an allocation of $50,000 for targeted social media ad campaigns.\n"
@@ -543,7 +546,10 @@ async def process_audio(
         
         if not transcript or not transcript.strip():
             if stt_error:
-                raise HTTPException(status_code=500, detail=f"Speech transcription failed: {stt_error}")
+                clean_err = stt_error
+                if "Invalid data found when processing input" in stt_error or "Failed to load audio" in stt_error:
+                    clean_err = "The uploaded file could not be decoded as valid audio. Please upload a valid audio file (.mp3, .wav, .m4a) or switch to 'Instant Demo' mode."
+                raise HTTPException(status_code=400, detail=f"Speech transcription failed: {clean_err}")
             raise HTTPException(
                 status_code=400, 
                 detail="No clear speech could be transcribed from the uploaded audio file. Please check the file audio."

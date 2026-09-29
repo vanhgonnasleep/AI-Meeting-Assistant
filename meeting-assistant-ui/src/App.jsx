@@ -216,7 +216,7 @@ function App() {
   });
 
   const handleProcessAudio = async () => {
-    if (selectedModel === 'instant_demo') {
+    if (selectedModel === 'instant_demo' || file?.name?.includes('q3_product_budget_review') || file?.name?.includes('q3_budget_meeting')) {
       return handleInstantDemo();
     }
 
@@ -310,7 +310,21 @@ function App() {
     }
   };
 
-  const handleDemoSample = () => {
+  const handleDemoSample = async () => {
+    setSelectedModel('instant_demo');
+    try {
+      const res = await fetch('/sample_meeting_en.wav');
+      if (res.ok) {
+        const blob = await res.blob();
+        const sampleFile = new File([blob], "q3_product_budget_review.wav", {
+          type: "audio/wav",
+        });
+        setFile(sampleFile);
+        return;
+      }
+    } catch {
+      // Fallback
+    }
     const mockFile = new File(["sample meeting dummy binary content"], "q3_product_budget_review.mp3", {
       type: "audio/mp3",
     });
