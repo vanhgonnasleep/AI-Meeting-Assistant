@@ -69,6 +69,7 @@ function App() {
   const [mmrTelemetry, setMmrTelemetry] = useState(null);
   const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'segments' | 'mmr'
   const [isCopied, setIsCopied] = useState(false);
+  const [summaryCopied, setSummaryCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript'
   const [completedTasks, setCompletedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
@@ -322,6 +323,7 @@ function App() {
     setResult(null);
     setCurrentMeetingId(null);
     setIsCopied(false);
+    setSummaryCopied(false);
     setCompletedTasks({});
     setUpdatingTasks({});
     setMetaInfo(null);
@@ -380,6 +382,17 @@ function App() {
       setTimeout(() => setIsCopied(false), 2500);
     }).catch((err) => {
       console.error("Clipboard copy failed:", err);
+    });
+  };
+
+  const handleCopySummary = (e) => {
+    e?.stopPropagation();
+    if (!result?.summary) return;
+    navigator.clipboard.writeText(result.summary).then(() => {
+      setSummaryCopied(true);
+      setTimeout(() => setSummaryCopied(false), 2000);
+    }).catch((err) => {
+      console.error("Clipboard copy summary failed:", err);
     });
   };
 
@@ -524,6 +537,9 @@ ${result.transcript || ""}
 
   const wordCount = result?.transcript ? result.transcript.split(/\s+/).filter(Boolean).length : 0;
   const estimatedReadTime = Math.ceil(wordCount / 200);
+  const totalTasks = result?.action_items?.length || 0;
+  const completedCount = Object.values(completedTasks).filter(Boolean).length;
+  const completionPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
   // Filter history items by search query across filename, summary, transcript, and action items
   const filteredMeetings = meetingsHistory.filter(item => {
@@ -539,7 +555,7 @@ ${result.transcript || ""}
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-hidden font-sans bg-grid-pattern">
       
       {/* Background Ambient Glows */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[850px] h-[350px] bg-gradient-to-tr from-indigo-600/20 via-purple-600/15 to-blue-600/20 blur-[130px] pointer-events-none -z-10" />
@@ -862,7 +878,7 @@ ${result.transcript || ""}
 
             {/* Feature Highlights & Demo Option */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80">
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm">
                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
@@ -872,7 +888,7 @@ ${result.transcript || ""}
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80">
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm">
                 <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
                   <Layers className="w-4 h-4" />
                 </div>
@@ -882,7 +898,7 @@ ${result.transcript || ""}
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/80">
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm">
                 <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
                   <Zap className="w-4 h-4" />
                 </div>
@@ -892,7 +908,7 @@ ${result.transcript || ""}
                     <button
                       type="button"
                       onClick={handleDemoSample}
-                      className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+                      className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
                     >
                       Load Sample File
                     </button>
@@ -955,7 +971,7 @@ ${result.transcript || ""}
             
             {/* Quick Metrics Bar (5 cards) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
                 <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
                   <FileText className="w-4 h-4" />
                 </div>
@@ -966,20 +982,30 @@ ${result.transcript || ""}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
-                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
-                  <ListTodo className="w-4 h-4" />
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex flex-col justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
+                    <ListTodo className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Action Items</p>
+                    <p className="text-base font-bold text-white mt-0.5">{totalTasks} tasks</p>
+                    <p className="text-[10px] text-emerald-400">
+                      {completedCount} completed {totalTasks > 0 ? `(${completionPercent}%)` : ''}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Action Items</p>
-                  <p className="text-base font-bold text-white mt-0.5">{result.action_items?.length || 0} tasks</p>
-                  <p className="text-[10px] text-emerald-400">
-                    {Object.values(completedTasks).filter(Boolean).length} completed
-                  </p>
-                </div>
+                {totalTasks > 0 && (
+                  <div className="w-full bg-slate-800/90 rounded-full h-1.5 mt-2.5 overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${completionPercent}%` }}
+                    />
+                  </div>
+                )}
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
                 <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400">
                   <Layers className="w-4 h-4" />
                 </div>
@@ -992,7 +1018,7 @@ ${result.transcript || ""}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
                 <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
                   <Sparkles className="w-4 h-4" />
                 </div>
@@ -1016,7 +1042,7 @@ ${result.transcript || ""}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3 shadow-sm">
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
                 <div className="p-2.5 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400">
                   <Clock className="w-4 h-4" />
                 </div>
@@ -1265,9 +1291,24 @@ ${result.transcript || ""}
                           </div>
                           <h2 className="text-sm font-bold text-white">Executive Summary (Agent 2)</h2>
                         </div>
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                          {metaInfo?.model || 'Llama 3 Map-Reduce'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleCopySummary}
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border shadow-sm active:scale-95 ${
+                              summaryCopied
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                : 'bg-purple-950/40 hover:bg-purple-900/50 text-purple-200 border-purple-500/30'
+                            }`}
+                            title="Copy summary text"
+                          >
+                            {summaryCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-purple-300" />}
+                            <span>{summaryCopied ? 'Copied' : 'Copy'}</span>
+                          </button>
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                            {metaInfo?.model || 'Llama 3 Map-Reduce'}
+                          </span>
+                        </div>
                       </div>
                       
                       <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
@@ -1288,7 +1329,7 @@ ${result.transcript || ""}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-slate-400 font-mono">
-                            {Object.values(completedTasks).filter(Boolean).length}/{result.action_items?.length || 0} completed
+                            {completedCount}/{totalTasks} completed
                           </span>
                           {currentMeetingId && (
                             <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
@@ -1297,6 +1338,14 @@ ${result.transcript || ""}
                           )}
                         </div>
                       </div>
+
+                      {/* All deliverables completed celebration state */}
+                      {totalTasks > 0 && completedCount === totalTasks && (
+                        <div className="flex items-center gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs animate-in fade-in duration-300">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span>All {totalTasks} action deliverables are completed! Great work. 🎉</span>
+                        </div>
+                      )}
 
                       <ul className="space-y-2.5">
                         {result.action_items?.map((item, idx) => {
@@ -1314,9 +1363,9 @@ ${result.transcript || ""}
                                   : 'bg-slate-950/50 hover:bg-slate-800/50 border-slate-800/80 hover:border-slate-700 text-slate-200'
                               }`}
                             >
-                              <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                              <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 active:scale-90 ${
                                 isDone 
-                                  ? 'bg-emerald-500 border-emerald-400 text-slate-950' 
+                                  ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20' 
                                   : 'border-slate-600 group-hover:border-indigo-400'
                               }`}>
                                 {isDone && <Check className="w-3 h-3 stroke-[3]" />}
@@ -1327,7 +1376,8 @@ ${result.transcript || ""}
                                   {item.task}
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                  <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                    <Users className="w-2.5 h-2.5 text-indigo-400" />
                                     Assignee: {item.assignee || 'Unassigned'}
                                   </span>
                                   {item.deadline && (
@@ -1507,6 +1557,25 @@ ${result.transcript || ""}
             </div>
           </div>
         )}
+
+        {/* Minimalist Dashboard Footer */}
+        <footer className="pt-6 pb-2 border-t border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+            <span className="font-medium text-slate-400">AI Meeting Assistant</span>
+            <span className="text-slate-600">•</span>
+            <span>Local Multi-Agent Orchestration</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-slate-500 font-mono text-[10px]">
+            <span>Whisper STT</span>
+            <span>•</span>
+            <span>MMR Redundancy Filter</span>
+            <span>•</span>
+            <span>Llama 3 Map-Reduce</span>
+            <span>•</span>
+            <span>SQLite WAL</span>
+          </div>
+        </footer>
 
       </div>
     </div>
