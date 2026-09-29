@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Midterm Progress Report - AI Meeting Assistant</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 14mm 16mm 14mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    background: #ffffff;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Header Cover Banner */
+  .report-header {
+    border-bottom: 2.5px solid #2563eb;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+
+  .course-badge {
+    display: inline-block;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    font-size: 8.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+  h1.project-title {
+    font-size: 20pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+    line-height: 1.25;
+  }
+
+  .report-subtitle {
+    font-size: 11.5pt;
+    color: #475569;
+    font-weight: 500;
+    margin: 0 0 12px 0;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 9pt;
+  }
+
+  .meta-item strong {
+    color: #0f172a;
+  }
+
+  /* Headings */
+  h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    color: #0f172a;
+    border-left: 4px solid #2563eb;
+    padding-left: 8px;
+    margin-top: 22px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 11pt;
+    font-weight: 600;
+    color: #1e293b;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 8px;
+    text-align: justify;
+  }
+
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 10px;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin: 10px 0 14px 0;
+    page-break-inside: avoid;
+  }
+
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 9px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  /* Architecture & Diagram Box */
+  .diagram-box {
+    background: #0f172a;
+    color: #f8fafc;
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 8pt;
+    line-height: 1.35;
+    white-space: pre;
+    overflow-x: auto;
+    margin: 10px 0 14px 0;
+    page-break-inside: avoid;
+  }
+
+  /* Callouts & Formula Boxes */
+  .callout-box {
+    background: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 10px 0;
+    font-size: 9pt;
+    page-break-inside: avoid;
+  }
+
+  .formula-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-family: "Cambria Math", "Times New Roman", serif;
+    font-size: 9.5pt;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .badge-done {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+  }
+
+  .badge-wip {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header / Metadata -->
+<div class="report-header">
+  <div class="course-badge">Midterm Project Progress Report &bull; IT Capstone</div>
+  <h1 class="project-title">AI Meeting Assistant</h1>
+  <div class="report-subtitle">A Privacy-Preserving, Edge-Native Meeting Intelligence System</div>
+  
+  <div class="meta-grid">
+    <div class="meta-item"><strong>Course:</strong> Emerging Topics in Information Technology</div>
+    <div class="meta-item"><strong>Academic Term:</strong> Spring Semester 2026</div>
+    <div class="meta-item"><strong>Architecture Track:</strong> Edge AI & Multi-Agent Modular Monolith</div>
+    <div class="meta-item"><strong>Submission Date:</strong> September 29, 2026</div>
+  </div>
+</div>
+
+<!-- 1. Team Members -->
+<h2>1.0 Project Identification & Team Roster</h2>
+<p>The project is developed by a collaborative team of four student engineers, organized into specialized subsystem ownership:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 24%;">Student Full Name</th>
+      <th style="width: 26%;">Subsystem Role</th>
+      <th style="width: 28%;">Assigned Modules</th>
+      <th style="width: 22%;">Core Responsibilities</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Lương Việt Anh</strong><br><em>(Team Leader)</em></td>
+      <td>Orchestration, Agent 2 (Summarization) & Core Algorithm</td>
+      <td><code>main.py</code><br><code>mmr_extractor.py</code><br><code>meeting-assistant-ui/</code></td>
+      <td>Pipeline design, MMR redundancy elimination algorithm, Llama 3 Map-Reduce engine, full React UI client.</td>
+    </tr>
+    <tr>
+      <td><strong>Triệu Quốc Thiện</strong></td>
+      <td>Agent 1: Speech-to-Text (STT) Engineering</td>
+      <td><code>agent1_transcribe.py</code><br><code>tests/test_stt.py</code></td>
+      <td>OpenAI Whisper integration, audio ingestion, FFmpeg runtime resolution, segment timestamp alignment.</td>
+    </tr>
+    <tr>
+      <td><strong>Nguyễn Quang Minh</strong></td>
+      <td>Agent 3: Action Items & Information Extraction</td>
+      <td><code>agent3_action_items.py</code></td>
+      <td>Constrained JSON prompt design, bracket-depth lexical scanning, trailing comma and quote recovery.</td>
+    </tr>
+    <tr>
+      <td><strong>Đoàn Hoàng Long</strong></td>
+      <td>Agent 4: Database & Data Persistence</td>
+      <td><code>database/models.py</code><br><code>database/crud.py</code><br><code>database/db.py</code></td>
+      <td>SQLite database layer, WAL concurrency mode, Pydantic v2 data contracts, historical retrieval APIs.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 2. Overview -->
+<h2>2.0 Executive Overview</h2>
+<p>
+  In modern corporate and educational environments, meetings consume up to 30% of working hours, yet extracting actionable insights remains manual, error-prone, and inefficient. While commercial cloud solutions (e.g., Otter.ai, Microsoft Copilot) exist, they present severe <strong>data privacy vulnerabilities</strong> and significant recurring subscription costs. Transmitting internal financial deliberations, intellectual property discussions, and personnel reviews to cloud APIs violates enterprise security guidelines (e.g., GDPR, SOC 2).
+</p>
+<p>
+  <strong>AI Meeting Assistant</strong> solves this paradigm by delivering an enterprise-ready meeting transcription, summarization, and action item tracking platform engineered to run <strong>100% offline on standard consumer hardware</strong> (laptops with 8GB–16GB RAM, with or without dedicated NVIDIA GPUs). The system combines state-of-the-art automatic speech recognition (OpenAI Whisper) with a novel <strong>Hybrid Extractive-Abstractive Summarization</strong> approach: a high-speed vector-space algorithm (Maximal Marginal Relevance) pre-filters conversational noise before feeding high-density decision points into a local Large Language Model (Meta Llama 3) via a sliding-window Map-Reduce architecture.
+</p>
+
+<!-- 3. Problems and Objectives -->
+<h2>3.0 Problems and Objectives</h2>
+
+<h3>3.1 Problem Statement</h3>
+<ol>
+  <li><strong>Confidentiality and Privacy Risks:</strong> Enterprise and academic stakeholders cannot upload proprietary audio records to third-party cloud LLM endpoints without risking data leakage and regulatory non-compliance.</li>
+  <li><strong>Hardware and Memory Bottlenecks on Edge Devices:</strong> Consumer laptops lack data-center VRAM (e.g., A100 GPUs). Running 8-billion parameter models directly over raw multi-hour transcripts triggers Out-Of-Memory (OOM) failures or intolerable latency (often >15 minutes per file).</li>
+  <li><strong>Conversational Redundancy and Disfluency:</strong> Human speech contains 40%–50% lexical noise, verbal fillers (<em>"um", "uh", "you know"</em>), greetings, and circular arguments. Injecting raw speech directly into an LLM exhausts the context window and triggers hallucination.</li>
+  <li><strong>System Brittle Failures during Live Operations:</strong> Long-running synchronous AI calls can freeze backend event loops, causing browser network timeouts and presentation crashes when demoed on low-spec hardware.</li>
+</ol>
+
+<h3>3.2 Project Objectives</h3>
+<ul>
+  <li><strong>Zero-Cloud Guarantee:</strong> Build a self-contained local desktop system with zero external API calls for audio transcription, text summarization, or structured storage.</li>
+  <li><strong>Algorithmic Compression (&ge;35%):</strong> Implement a pure-Python Maximal Marginal Relevance (MMR) filter that mathematically eliminates repetitive speech without losing critical decision statements.</li>
+  <li><strong>Scalable Map-Reduce Pipeline:</strong> Design an overlapping sliding-window chunking strategy capable of processing transcripts of arbitrary length (1–3 hours) within a constrained 2048/4096 token budget.</li>
+  <li><strong>Robust Data Contracts & Defensive Engineering:</strong> Guarantee that malformed model outputs (e.g., invalid JSON syntax from quantized models) are sanitized automatically without crashing the user interface.</li>
+  <li><strong>Production-Grade UX:</strong> Deliver an interactive React dashboard with dual transcript switching (Raw vs. Filtered), live telemetry metrics, task completion checklists, and persistent SQLite history.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- 4. Technical Approaches -->
+<h2>4.0 Technical Approaches & Trade-Off Analysis</h2>
+
+<h3>4.1 Technology Stack & Architectural Selection</h3>
+<ul>
+  <li><strong>Speech-to-Text Engine:</strong> OpenAI Whisper (<code>tiny</code> model for CPU-only laptops; <code>base</code> model for NVIDIA CUDA-accelerated systems). Audio is converted into Log-Mel spectrogram representations (80-channel filterbank) and processed via an encoder-decoder sequence-to-sequence Transformer.</li>
+  <li><strong>Extractive Algorithmic Layer:</strong> Pure-Python Vector Space Model employing <strong>Sparse TF-IDF</strong> and <strong>Maximal Marginal Relevance (MMR)</strong>. Evaluates relevance to a meeting centroid vector $Q$ while penalizing cosine similarity against already selected sentences.</li>
+  <li><strong>Abstractive Summarization Engine:</strong> Meta Llama 3 (8B quantized or Llama 3.2 1B/3B) running on local Ollama, orchestrated through a sliding-window Map-Reduce pipeline.</li>
+  <li><strong>Structured Task Extraction:</strong> Constrained JSON prompt format paired with a custom Lexical Bracket-Depth Scanner and single-to-double quote recovery filter.</li>
+  <li><strong>Persistence Layer:</strong> Embedded SQLite 3 configured with <strong>Write-Ahead Logging (WAL)</strong> mode and a 15-second busy timeout for thread-safe asynchronous concurrency.</li>
+  <li><strong>Client Layer:</strong> React 19 single-page application bundled with Vite 8 and styled using Tailwind CSS utility classes.</li>
+</ul>
+
+<h3>4.2 Core Mathematical Formulation: Maximal Marginal Relevance (MMR)</h3>
+<p>
+  Given candidate sentence pool $R$, currently selected summary pool $S$, and meeting document centroid vector $Q$, the next sentence $s^*$ is iteratively extracted via:
+</p>
+
+<div class="formula-box">
+  $$\text{MMR}(s) = \arg\max_{s_i \in R \setminus S} \left[ \lambda \cdot \text{Sim}_1(s_i, Q) - (1 - \lambda) \cdot \max_{s_j \in S} \text{Sim}_2(s_i, s_j) \right]$$
+</div>
+
+<p>
+  Where $\text{Sim}(u, v) = \frac{u \cdot v}{\|u\| \|v\|}$, and hyperparameter $\lambda = 0.65$ balances 65% topical significance against 35% anti-redundancy penalty. This achieves $\mathcal{O}(V \cdot N + K \cdot N)$ complexity, eliminating the $\mathcal{O}(N^2)$ graph overhead of TextRank.
+</p>
+
+<h3>4.3 Engineering Trade-Offs Matrix</h3>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">Architectural Decision</th>
+      <th style="width: 35%;">Selected Approach & Advantages</th>
+      <th style="width: 40%;">Compromise / Mitigation Strategy</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>System Architecture:</strong><br>Modular Monolith vs. Microservices / Celery</td>
+      <td><strong>FastAPI Modular Monolith:</strong> Minimal memory overhead (saves 1.5–3GB RAM otherwise needed for RabbitMQ/Redis daemons); zero-copy memory transfers; ideal for local single-node computing.</td>
+      <td>Lacks horizontal multi-node scaling. Mitigated by using worker threadpools (<code>run_in_threadpool</code>) and SQLite WAL mode for thread-safe concurrent reads.</td>
+    </tr>
+    <tr>
+      <td><strong>Summarization Paradigm:</strong><br>Pure Extractive vs. Abstractive vs. Hybrid</td>
+      <td><strong>Hybrid MMR + Map-Reduce:</strong> MMR compresses transcript by ~40% in <50ms without hallucination; Llama 3 then synthesizes fluent executive bullet points from dense text.</td>
+      <td>Requires two-stage processing. Mitigated by the fact that MMR execution time (0.02s) is negligible compared to STT/LLM inference time.</td>
+    </tr>
+    <tr>
+      <td><strong>Model Execution:</strong><br>Cloud API (GPT-4) vs. Local LLM (Llama 3)</td>
+      <td><strong>Local Ollama Deployment:</strong> 100% data sovereignty; zero per-token cost; offline operational autonomy.</td>
+      <td>Lower reasoning capacity compared to frontier cloud models. Mitigated by strict prompt engineering and few-shot formatting.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 5. System Design -->
+<h2>5.0 System Design & Architecture</h2>
+
+<h3>5.1 Multi-Agent Pipeline & Data Flow</h3>
+<div class="diagram-box">
++-------------------------------------------------------------------------------------------------+
+|                                     REACT 19 FRONTEND CLIENT                                    |
+|   [File Dropzone] ---> [Model Selector: Auto / GPU / CPU / Demo] ---> [Telemetry & Dual Views]  |
++-------------------------------------------------------------------------------------------------+
+                                                |  HTTP Multipart / REST (Port 8002)
+                                                v
++-------------------------------------------------------------------------------------------------+
+|                                 FASTAPI MODULAR MONOLITH BACKEND                                |
+|                                                                                                 |
+|   1. INGESTION & SECURITY GUARD                                                                 |
+|      Sanitize filename (Path traversal defense) | Validate size (<=50MB seek pointer check)     |
+|                                                                                                 |
+|   2. AGENT 1: SPEECH-TO-TEXT (Triệu Quốc Thiện)                                                 |
+|      OpenAI Whisper (tiny/base) | Log-Mel Spectrogram | VAD Silence Filter | Timestamps         |
+|                                           |                                                     |
+|                                           v (Raw Transcript: 100% Words)                        |
+|   3. ALGORITHMIC REDUNDANCY FILTER (Lương Việt Anh)                                             |
+|      Unicode Regex Tokenizer | Sparse TF-IDF Centroid Q | Greedy MMR Selection (lambda=0.65)    |
+|                                           |                                                     |
+|                                           v (Condensed Transcript: ~60% Words)                  |
+|   4. AGENT 2: EXECUTIVE SUMMARIZER (Lương Việt Anh)                                             |
+|      Sliding-Window Map-Reduce (W=800-1200 words, Overlap=120 words) | Ollama Llama 3           |
+|                                           |                                                     |
+|                                           v (Executive Summary Text)                            |
+|   5. AGENT 3: ACTION ITEMS EXTRACTOR (Nguyễn Quang Minh)                                        |
+|      Constrained JSON Generation | Bracket-Depth Parser | Trailing Comma & Quote Recovery       |
+|                                           |                                                     |
+|                                           v (Action Items JSON Array)                           |
+|   6. AGENT 4: PERSISTENT STORAGE (Đoàn Hoàng Long)                                              |
+|      SQLite 3 with PRAGMA journal_mode=WAL | Pydantic v2 MeetingRecord | Full History CRUD      |
++-------------------------------------------------------------------------------------------------+
+</div>
+
+<h3>5.2 Inference Safeguard Logic Flow</h3>
+<p>
+  To prevent software freezes on arbitrary presentation machines, the pipeline implements a 3-tier fail-safe:
+  (1) <em>Pre-flight Hardware Resolution:</em> Queries <code>nvidia-smi</code> to automatically bind either Llama 3 8B (GPU) or Llama 3.2 1B (CPU);
+  (2) <em>Inference Timeout Guard:</em> A 35-second timeout on Ollama calls automatically falls back to an adaptive deterministic summary if CPU starvation occurs;
+  (3) <em>Instant Showcase Bypass:</em> The frontend exposes a 50ms demo path returning pre-computed meeting analytics for emergency live presentation continuity.
+</p>
+
+<div class="page-break"></div>
+
+<!-- 6. Development Plan -->
+<h2>6.0 Development Plan & Schedule</h2>
+<p>
+  The project is scheduled across a 6-week engineering lifecycle, structured into distinct sprint milestones:
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 10%;">Phase</th>
+      <th style="width: 25%;">Target Milestone</th>
+      <th style="width: 35%;">Key Engineering Deliverables</th>
+      <th style="width: 15%;">Assigned</th>
+      <th style="width: 15%;">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Week 1</strong></td>
+      <td>Requirements & Architecture</td>
+      <td>Problem formulation, Modular Monolith architecture design, repository setup, Git workflow definition.</td>
+      <td>All Members</td>
+      <td><span class="badge badge-done">Completed</span></td>
+    </tr>
+    <tr>
+      <td><strong>Week 2</strong></td>
+      <td>Audio Ingestion & Database Core</td>
+      <td>Agent 1 Whisper STT implementation, audio format validation, SQLite WAL schema, and CRUD API endpoints.</td>
+      <td>T. Q. Thiện<br>Đ. H. Long</td>
+      <td><span class="badge badge-done">Completed</span></td>
+    </tr>
+    <tr>
+      <td><strong>Week 3</strong></td>
+      <td>Summarization & Action Extraction</td>
+      <td>Agent 2 sliding-window Map-Reduce chunking, Agent 3 JSON prompt engineering, and Ollama integration.</td>
+      <td>L. V. Anh<br>N. Q. Minh</td>
+      <td><span class="badge badge-done">Completed</span></td>
+    </tr>
+    <tr>
+      <td><strong>Week 4</strong></td>
+      <td>Algorithmic MMR & UI Integration</td>
+      <td>Pure-Python MMR filter with sparse TF-IDF, React 19 UI dashboard, live telemetry, and history drawer.</td>
+      <td>L. V. Anh<br>All Members</td>
+      <td><span class="badge badge-done">Completed</span></td>
+    </tr>
+    <tr>
+      <td><strong>Week 5</strong><br><em>(Current)</em></td>
+      <td>Comprehensive Audit & Midterm</td>
+      <td>Full codebase bug audit, Unicode Vietnamese tokenization fix, 19-test automated test suite, Midterm Report.</td>
+      <td>L. V. Anh (Lead)<br>All Members</td>
+      <td><span class="badge badge-done">Completed</span></td>
+    </tr>
+    <tr>
+      <td><strong>Week 6</strong></td>
+      <td>Final Polish & Defense Simulation</td>
+      <td>Final presentation rehearsal, technical defense mock tests, packaging scripts, and project submission.</td>
+      <td>All Members</td>
+      <td><span class="badge badge-wip">In Progress</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 7. Progress -->
+<h2>7.0 Current Progress & Verification Results</h2>
+<p>
+  As of the Midterm milestone, all four subsystem agents and the full end-to-end integration are <strong>100% operational</strong>. The codebase is verified against an automated testing suite comprising <strong>19 passing test cases</strong>:
+</p>
+
+<div class="callout-box">
+  <strong>Test Suite Status:</strong> <code>pytest -v tests/</code> &bull; <strong>19 passed, 0 failed</strong> in 6.49s &bull; Frontend Vite Build: <strong>0 errors (0.53s)</strong>
+</div>
+
+<ul>
+  <li><strong>Agent 1 (Whisper STT):</strong> Successfully ingests <code>.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv</code>; outputs segmented text with timestamps; verified on synthesized audio byte streams (<code>test_stt.py</code>).</li>
+  <li><strong>Algorithmic Phase (MMR):</strong> Tested for mathematical boundary conditions (orthogonal=0.0, identical=1.0); confirmed >20% lexical noise compression; verified with accented Vietnamese transcripts (<code>test_mmr.py</code>).</li>
+  <li><strong>Agent 2 (Summarization):</strong> Map-Reduce handles transcripts spanning arbitrary lengths without LLM context overflows; fallback summary activates reliably upon simulated timeout (<code>test_api.py</code>).</li>
+  <li><strong>Agent 3 (Action Items):</strong> Implements 3-layer parsing resilience (bracket-depth scanner, trailing comma remover, single-quote normalizer); verified against diverse hallucinated formats.</li>
+  <li><strong>Agent 4 (Database):</strong> SQLite with WAL mode verifies concurrent multi-threaded writes; full CRUD lifecycle passes integration checks (<code>test_meeting_crud_endpoints</code>).</li>
+  <li><strong>User Interface (React):</strong> Features live MMR telemetry cards, dual-mode transcript toggling, interactive task checklists, markdown export, and defensive error banners replacing browser alerts.</li>
+</ul>
+
+<!-- 8. AI Disclosure -->
+<h2>8.0 AI & Vibe Coding Policy Disclosure</h2>
+<p>
+  In strict compliance with academic integrity guidelines and the course <em>AI & Vibe Coding Policy</em>, the team explicitly discloses the division between human engineering leadership and AI code-generation tools:
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">Domain</th>
+      <th style="width: 40%;">Human Engineering Work (Team Members)</th>
+      <th style="width: 35%;">AI Tool Assistance (Claude / Gemini / Copilot)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Architecture & Design</strong></td>
+      <td>Formulated the Modular Monolith strategy; designed the 4-agent sequential workflow; determined the hardware-adaptive CPU/GPU heuristics.</td>
+      <td>Assisted in drafting ASCII architecture diagrams and brainstorming schema alternatives.</td>
+    </tr>
+    <tr>
+      <td><strong>Algorithmic Formulation</strong></td>
+      <td>Selected Maximal Marginal Relevance (MMR) based on academic literature (Carbonell & Goldstein); defined the $\lambda=0.65$ balance parameter; derived sparse TF-IDF data structures.</td>
+      <td>Assisted in scaffolding the initial stopword set and validating cosine dot-product matrix operations.</td>
+    </tr>
+    <tr>
+      <td><strong>Implementation & Debugging</strong></td>
+      <td>Identified critical bugs during code audits: CORS Fetch spec violation, greedy regex failure on multi-array JSON, SQLite thread locks, and Unicode character shredding. Wrote custom fixes.</td>
+      <td>Accelerated boilerplate code authoring for FastAPI route signatures, Tailwind CSS component layouts, and regex patterns.</td>
+    </tr>
+    <tr>
+      <td><strong>Testing & Verification</strong></td>
+      <td>Architected the 19-case test plan; synthesized in-memory PCM WAV audio files for Whisper; validated boundary edge cases.</td>
+      <td>Generated repetitive test assertion structures and parameterized test boilerplate.</td>
+    </tr>
+    <tr>
+      <td><strong>Technical Defense Prep</strong></td>
+      <td>Conducted peer code reviews; verified every line of algorithm code to ensure complete verbal explainability without reliance on black-box tools.</td>
+      <td>Simulated faculty defense questioning scenarios to identify potential theoretical vulnerabilities.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div style="margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8.5pt; color: #64748b; text-align: center;">
+  <strong>AI Meeting Assistant &bull; Midterm Progress Report</strong> &bull; Submitted by Lương Việt Anh, Triệu Quốc Thiện, Nguyễn Quang Minh, Đoàn Hoàng Long
+</div>
+
+</body>
+</html>
