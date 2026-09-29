@@ -250,6 +250,10 @@ pytest -v tests/
 | `test_stt.py` | `test_transcribe_endpoint_success` | REST API | Verifies `POST /api/transcribe` with valid audio payload |
 | `test_stt.py` | `test_transcribe_invalid_extension`| Validation | Ensures invalid file extensions return HTTP 400 |
 | `test_stt.py` | `test_transcribe_file_too_large` | Security | Rejects oversized files (>50MB) with HTTP 413 |
+| `test_stt.py` | `test_cluster_speaker_embeddings` | Diarization | Verifies acoustic feature clustering assigns distinct speakers accurately |
+| `test_stt.py` | `test_cluster_speaker_embeddings_edge_cases` | Robustness | Validates empty embedding list and single segment edge cases |
+| `test_stt.py` | `test_format_diarized_transcript` | Diarization | Verifies conversational pause gap detection and turn merging |
+| `test_stt.py` | `test_transcribe_endpoint_with_diarization` | REST API | Verifies `POST /api/transcribe?diarize=true` returns speaker tags |
 
 ---
 

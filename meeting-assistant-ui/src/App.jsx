@@ -130,6 +130,7 @@ function App() {
       hardware: `Meeting #${item.id} • ${item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved Record'}`
     });
     setActiveTab('split');
+    setSpeakerFilter('all');
     setShowHistory(false);
   };
 
@@ -309,6 +310,7 @@ function App() {
     setShowAdvancedMmr(false);
     setActiveTab('split');
     setTranscriptView('raw');
+    setSpeakerFilter('all');
     setErrorMessage(null);
   };
 
