@@ -313,9 +313,22 @@ function App() {
   const handleDemoSample = async () => {
     setSelectedModel('instant_demo');
     try {
-      const res = await fetch('/sample_meeting_en.wav');
+      const res = await fetch('/q3_product_budget_review.mp3');
       if (res.ok) {
         const blob = await res.blob();
+        const sampleFile = new File([blob], "q3_product_budget_review.mp3", {
+          type: "audio/mp3",
+        });
+        setFile(sampleFile);
+        return;
+      }
+    } catch {
+      // Fallback to wav
+    }
+    try {
+      const resWav = await fetch('/sample_meeting_en.wav');
+      if (resWav.ok) {
+        const blob = await resWav.blob();
         const sampleFile = new File([blob], "q3_product_budget_review.wav", {
           type: "audio/wav",
         });
