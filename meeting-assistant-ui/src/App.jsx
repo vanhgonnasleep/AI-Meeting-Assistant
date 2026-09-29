@@ -30,14 +30,27 @@ import {
   Edit2
 } from 'lucide-react';
 
+const SPEAKER_BADGE_STYLES = [
+  'bg-blue-500/20 text-blue-300 border-blue-500/40',
+  'bg-purple-500/20 text-purple-300 border-purple-500/40',
+  'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+  'bg-amber-500/20 text-amber-300 border-amber-500/40',
+  'bg-pink-500/20 text-pink-300 border-pink-500/40',
+  'bg-teal-500/20 text-teal-300 border-teal-500/40',
+  'bg-orange-500/20 text-orange-300 border-orange-500/40',
+  'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+];
+
 const getSpeakerBadgeStyle = (speaker) => {
   if (!speaker) return 'bg-slate-800 text-slate-300 border-slate-700';
+  // Deterministic hash so the same speaker always gets the same color,
+  // even after LLM rename (e.g. "Speaker 1" → "Alice").
   const s = String(speaker);
-  if (s.includes('1') || s.includes('A')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-  if (s.includes('2') || s.includes('B')) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
-  if (s.includes('3') || s.includes('C')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-  if (s.includes('4') || s.includes('D')) return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-  return 'bg-pink-500/20 text-pink-300 border-pink-500/40';
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return SPEAKER_BADGE_STYLES[hash % SPEAKER_BADGE_STYLES.length];
 };
 
 function App() {
@@ -152,7 +165,7 @@ function App() {
     }
   };
 
-  // Check backend and Ollama health on mount
+  // Check backend and Ollama health on mount; re-check every 30s until online
   useEffect(() => {
     const checkHealth = async () => {
       try {
@@ -169,6 +182,9 @@ function App() {
     };
     checkHealth();
     fetchMeetingHistory();
+    // Poll every 30s so the badge auto-updates if Ollama starts/stops
+    const healthInterval = setInterval(checkHealth, 30000);
+    return () => clearInterval(healthInterval);
   }, []);
 
   // Timer while processing
@@ -210,6 +226,7 @@ function App() {
     setMmrTelemetry(null);
     setTranscriptView('raw');
     setCompletedTasks({});
+    setUpdatingTasks({});
     setErrorMessage(null);
 
     const formData = new FormData();
@@ -252,6 +269,7 @@ function App() {
     setMmrTelemetry(null);
     setTranscriptView('raw');
     setCompletedTasks({});
+    setUpdatingTasks({});
     setErrorMessage(null);
 
     const dummyFile = file || new File(["dummy meeting audio content"], "q3_budget_meeting.mp3", {
@@ -305,6 +323,7 @@ function App() {
     setCurrentMeetingId(null);
     setIsCopied(false);
     setCompletedTasks({});
+    setUpdatingTasks({});
     setMetaInfo(null);
     setMmrTelemetry(null);
     setShowAdvancedMmr(false);
@@ -1196,15 +1215,16 @@ ${result.transcript || ""}
 
                         <div className="space-y-2.5">
                           {result.segments
-                            .filter(seg => speakerFilter === 'all' || !seg.speaker || seg.speaker === speakerFilter)
-                            .map((seg, idx) => (
-                              <div key={idx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 text-xs transition-colors space-y-1">
+                            .map((seg, originalIdx) => ({ seg, originalIdx }))
+                            .filter(({ seg }) => speakerFilter === 'all' || !seg.speaker || seg.speaker === speakerFilter)
+                            .map(({ seg, originalIdx }, displayIdx) => (
+                              <div key={originalIdx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 text-xs transition-colors space-y-1">
                                 <div className="flex items-center justify-between text-[10px]">
-                                  <span className="text-teal-400 font-mono">{seg.timestamp || `Turn #${idx + 1}`}</span>
+                                  <span className="text-teal-400 font-mono">{seg.timestamp || `Turn #${displayIdx + 1}`}</span>
                                   {seg.speaker && (
                                     <button
                                       type="button"
-                                      onClick={() => handleCycleSpeaker(idx)}
+                                      onClick={() => handleCycleSpeaker(originalIdx)}
                                       title="Click to cycle speaker if misclassified"
                                       className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
                                     >
@@ -1393,7 +1413,7 @@ ${result.transcript || ""}
                     type="text"
                     value={historySearchQuery}
                     onChange={(e) => setHistorySearchQuery(e.target.value)}
-                    placeholder="Search meetings by filename or executive summary..."
+                    placeholder="Search by filename, summary, transcript, or action items..."
                     className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                   />
                   {historySearchQuery && (

@@ -437,9 +437,9 @@ async def process_audio(
             "Speaker A: I'll have the complete breakdown ready by Friday afternoon."
         )
         demo_segments = [
-            {"id": 1, "start": 0.0, "end": 14.5, "timestamp": "[00:00 - 00:14]", "speaker": "Speaker A", "text": "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns."},
-            {"id": 2, "start": 14.5, "end": 28.0, "timestamp": "[00:14 - 00:28]", "speaker": "Speaker B", "text": "Speaker B: That budget sounds reasonable and matches our projections. Let's lock it in. Can you prepare the detailed financial report by Friday, John?"},
-            {"id": 3, "start": 28.0, "end": 38.5, "timestamp": "[00:28 - 00:38]", "speaker": "Speaker A", "text": "Speaker A: Will do. I'll have the complete breakdown ready by Friday afternoon."}
+            {"id": 1, "start": 0.0, "end": 14.5, "timestamp": "[00:00 - 00:14]", "speaker": "Speaker A", "text": "Welcome everyone. We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns."},
+            {"id": 2, "start": 14.5, "end": 28.0, "timestamp": "[00:14 - 00:28]", "speaker": "Speaker B", "text": "That budget sounds reasonable and matches our projections. Let's lock it in. Can you prepare the detailed financial report by Friday, John?"},
+            {"id": 3, "start": 28.0, "end": 38.5, "timestamp": "[00:28 - 00:38]", "speaker": "Speaker A", "text": "Will do. I'll have the complete breakdown ready by Friday afternoon."}
         ]
         return {
             "status": "success",

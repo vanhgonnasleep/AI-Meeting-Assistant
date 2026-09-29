@@ -245,6 +245,9 @@ def cluster_speaker_embeddings(
         return []
     if n == 1:
         return [0]
+    # Edge case: caller explicitly wants exactly 1 speaker → all same label
+    if num_speakers == 1:
+        return [0] * n
 
     vecs = []
     for e in embeddings:
@@ -310,9 +313,10 @@ def refine_speakers_with_llm(
         import requests
         import json
 
-        # Process in chunks of up to 35 segments to keep prompt focused and latency low (<3-5s)
-        chunk_size = 35
-        for offset in range(0, min(len(segments), 140), chunk_size):
+        # Process in chunks of up to 40 segments to keep prompt focused and latency low (<3-5s)
+        chunk_size = 40
+        total = len(segments)
+        for offset in range(0, total, chunk_size):
             chunk = segments[offset:offset + chunk_size]
             numbered_lines = "\n".join(
                 f"{i + 1}. [{seg.get('speaker', 'Unknown')}]: {seg.get('text', '')}"

@@ -153,11 +153,16 @@ def test_cluster_speaker_embeddings():
 
 
 def test_cluster_speaker_embeddings_edge_cases():
-    """Verify clustering edge cases for empty list and single segment."""
+    """Verify clustering edge cases for empty list, single segment, and num_speakers=1."""
     assert cluster_speaker_embeddings([]) == []
     if WHISPER_AVAILABLE:
         v = torch.randn(163)
         assert cluster_speaker_embeddings([v]) == [0]
+        # num_speakers=1 must assign ALL segments to speaker 0
+        v2 = torch.randn(163)
+        v3 = torch.randn(163)
+        labels = cluster_speaker_embeddings([v, v2, v3], num_speakers=1)
+        assert labels == [0, 0, 0], "num_speakers=1 should merge all segments into one cluster"
 
 
 def test_format_diarized_transcript():
