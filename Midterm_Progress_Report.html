@@ -170,12 +170,57 @@
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
-    padding: 8px 12px;
-    margin: 8px 0;
+    padding: 10px 14px;
+    margin: 10px 0;
     font-family: "Cambria Math", "Times New Roman", serif;
-    font-size: 9.5pt;
+    font-size: 10.5pt;
     text-align: center;
     page-break-inside: avoid;
+  }
+
+  .math-display {
+    font-family: "Cambria Math", "Latin Modern Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 11pt;
+    letter-spacing: 0.02em;
+    padding: 4px 0;
+    color: #0f172a;
+  }
+
+  .math-inline {
+    font-family: "Cambria Math", "Latin Modern Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 9.5pt;
+  }
+
+  .math-sub {
+    font-size: 7.5pt;
+    vertical-align: -3px;
+    line-height: 0;
+  }
+
+  .math-bracket {
+    font-size: 13.5pt;
+    vertical-align: -1px;
+    font-weight: 300;
+    color: #334155;
+  }
+
+  .math-frac {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: middle;
+    text-align: center;
+    font-size: 8.5pt;
+    padding: 0 4px;
+    line-height: 1.15;
+  }
+
+  .math-frac .num {
+    border-bottom: 1px solid #334155;
+    padding-bottom: 1px;
+  }
+
+  .math-frac .denom {
+    padding-top: 1px;
   }
 
   .badge {
@@ -241,7 +286,7 @@
       <td>Pipeline design, MMR redundancy elimination algorithm, Llama 3 Map-Reduce engine, full React UI client.</td>
     </tr>
     <tr>
-      <td><strong>Triệu Quốc Thiện</strong></td>
+      <td><strong>Triệu Quang Thiện</strong></td>
       <td>Agent 1: Speech-to-Text (STT) Engineering</td>
       <td><code>agent1_transcribe.py</code><br><code>tests/test_stt.py</code></td>
       <td>OpenAI Whisper integration, audio ingestion, FFmpeg runtime resolution, segment timestamp alignment.</td>
@@ -298,7 +343,7 @@
 <h3>4.1 Technology Stack & Architectural Selection</h3>
 <ul>
   <li><strong>Speech-to-Text Engine:</strong> OpenAI Whisper (<code>tiny</code> model for CPU-only laptops; <code>base</code> model for NVIDIA CUDA-accelerated systems). Audio is converted into Log-Mel spectrogram representations (80-channel filterbank) and processed via an encoder-decoder sequence-to-sequence Transformer.</li>
-  <li><strong>Extractive Algorithmic Layer:</strong> Pure-Python Vector Space Model employing <strong>Sparse TF-IDF</strong> and <strong>Maximal Marginal Relevance (MMR)</strong>. Evaluates relevance to a meeting centroid vector $Q$ while penalizing cosine similarity against already selected sentences.</li>
+  <li><strong>Extractive Algorithmic Layer:</strong> Pure-Python Vector Space Model employing <strong>Sparse TF-IDF</strong> and <strong>Maximal Marginal Relevance (MMR)</strong>. Evaluates relevance to a meeting centroid vector <i>Q</i> while penalizing cosine similarity against already selected sentences.</li>
   <li><strong>Abstractive Summarization Engine:</strong> Meta Llama 3 (8B quantized or Llama 3.2 1B/3B) running on local Ollama, orchestrated through a sliding-window Map-Reduce pipeline.</li>
   <li><strong>Structured Task Extraction:</strong> Constrained JSON prompt format paired with a custom Lexical Bracket-Depth Scanner and single-to-double quote recovery filter.</li>
   <li><strong>Persistence Layer:</strong> Embedded SQLite 3 configured with <strong>Write-Ahead Logging (WAL)</strong> mode and a 15-second busy timeout for thread-safe asynchronous concurrency.</li>
@@ -307,15 +352,24 @@
 
 <h3>4.2 Core Mathematical Formulation: Maximal Marginal Relevance (MMR)</h3>
 <p>
-  Given candidate sentence pool $R$, currently selected summary pool $S$, and meeting document centroid vector $Q$, the next sentence $s^*$ is iteratively extracted via:
+  Given candidate sentence pool <i>R</i>, currently selected summary pool <i>S</i>, and meeting document centroid vector <i>Q</i>, the next sentence <i>s</i>* is iteratively extracted via:
 </p>
 
 <div class="formula-box">
-  $$\text{MMR}(s) = \arg\max_{s_i \in R \setminus S} \left[ \lambda \cdot \text{Sim}_1(s_i, Q) - (1 - \lambda) \cdot \max_{s_j \in S} \text{Sim}_2(s_i, s_j) \right]$$
+  <div class="math-display">
+    <b>MMR</b>(<i>s</i>) &nbsp;=&nbsp; 
+    <b>arg&thinsp;max</b><sub class="math-sub"><i>s<sub>i</sub></i> &isin; <i>R</i> \ <i>S</i></sub>
+    <span class="math-bracket">[</span>
+      &lambda; &middot; <b>Sim</b><sub>1</sub>(<i>s<sub>i</sub></i>, <i>Q</i>) 
+      &minus; (1 &minus; &lambda;) &middot; 
+      <b>max</b><sub class="math-sub"><i>s<sub>j</sub></i> &isin; <i>S</i></sub> 
+      <b>Sim</b><sub>2</sub>(<i>s<sub>i</sub></i>, <i>s<sub>j</sub></i>)
+    <span class="math-bracket">]</span>
+  </div>
 </div>
 
 <p>
-  Where $\text{Sim}(u, v) = \frac{u \cdot v}{\|u\| \|v\|}$, and hyperparameter $\lambda = 0.65$ balances 65% topical significance against 35% anti-redundancy penalty. This achieves $\mathcal{O}(V \cdot N + K \cdot N)$ complexity, eliminating the $\mathcal{O}(N^2)$ graph overhead of TextRank.
+  Where <span class="math-inline"><b>Sim</b>(<b>u</b>, <b>v</b>) = <span class="math-frac"><span class="num"><b>u</b> &middot; <b>v</b></span><span class="denom">&parallel;<b>u</b>&parallel; &parallel;<b>v</b>&parallel;</span></span></span>, and hyperparameter <i>&lambda;</i> = 0.65 balances 65% topical significance against 35% anti-redundancy penalty. This achieves <span class="math-inline"><i>O</i>(<i>V</i>&middot;<i>N</i> + <i>K</i>&middot;<i>N</i>)</span> complexity, eliminating the <span class="math-inline"><i>O</i>(<i>N</i><sup>2</sup>)</span> graph overhead of TextRank.
 </p>
 
 <h3>4.3 Engineering Trade-Offs Matrix</h3>
@@ -363,7 +417,7 @@
 |   1. INGESTION & SECURITY GUARD                                                                 |
 |      Sanitize filename (Path traversal defense) | Validate size (<=50MB seek pointer check)     |
 |                                                                                                 |
-|   2. AGENT 1: SPEECH-TO-TEXT (Triệu Quốc Thiện)                                                 |
+|   2. AGENT 1: SPEECH-TO-TEXT (Triệu Quang Thiện)                                                 |
 |      OpenAI Whisper (tiny/base) | Log-Mel Spectrogram | VAD Silence Filter | Timestamps         |
 |                                           |                                                     |
 |                                           v (Raw Transcript: 100% Words)                        |
@@ -497,7 +551,7 @@
     </tr>
     <tr>
       <td><strong>Algorithmic Formulation</strong></td>
-      <td>Selected Maximal Marginal Relevance (MMR) based on academic literature (Carbonell & Goldstein); defined the $\lambda=0.65$ balance parameter; derived sparse TF-IDF data structures.</td>
+      <td>Selected Maximal Marginal Relevance (MMR) based on academic literature (Carbonell & Goldstein); defined the <i>&lambda;</i> = 0.65 balance parameter; derived sparse TF-IDF data structures.</td>
       <td>Assisted in scaffolding the initial stopword set and validating cosine dot-product matrix operations.</td>
     </tr>
     <tr>
@@ -519,7 +573,7 @@
 </table>
 
 <div style="margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8.5pt; color: #64748b; text-align: center;">
-  <strong>AI Meeting Assistant &bull; Midterm Progress Report</strong> &bull; Submitted by Lương Việt Anh, Triệu Quốc Thiện, Nguyễn Quang Minh, Đoàn Hoàng Long
+  <strong>AI Meeting Assistant &bull; Midterm Progress Report</strong> &bull; Submitted by Lương Việt Anh, Triệu Quang Thiện, Nguyễn Quang Minh, Đoàn Hoàng Long
 </div>
 
 </body>
