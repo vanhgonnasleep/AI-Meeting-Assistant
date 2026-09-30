@@ -27,7 +27,8 @@ import {
   FileCode,
   Globe,
   Users,
-  Edit2
+  Edit2,
+  Printer
 } from 'lucide-react';
 
 const SPEAKER_BADGE_STYLES = [
@@ -1162,6 +1163,15 @@ ${result.transcript || ""}
                 >
                   <FileText className="w-3.5 h-3.5" />
                   .TXT
+                </button>
+
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition-colors shadow-sm active:scale-95"
+                  title="Print or Save as PDF"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  PDF / Print
                 </button>
               </div>
             </div>
