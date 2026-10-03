@@ -306,7 +306,7 @@ async def get_version():
             {
                 "id": 4,
                 "name": "Persistent Storage",
-                "model": "SQLite + Pydantic v2",
+                "model": "SQLite + Python dataclasses",
                 "description": "Stores and retrieves full meeting records with CRUD API",
                 "available": crud is not None
             }

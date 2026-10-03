@@ -87,7 +87,7 @@
 | **Lương Việt Anh** *(Lead / Agent 2 & Orchestrator)* | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/src/App.jsx` | • Pipeline orchestration & fail-safe mechanisms.<br>• MMR Vector Space math: Sparse Cosine, Centroid $Q$, $\mathcal{O}(V \cdot N + K \cdot N)$.<br>• Sliding-window Map-Reduce to prevent LLM context degradation.<br>• Full-stack React 19 UI integration, audio player, live task sync. |
 | **Triệu Quang Thiện** *(Agent 1: STT & Diarization)* | `ai-summary-service/agent1_transcribe.py`<br>`ai-summary-service/tests/test_stt.py` | • OpenAI Whisper integration and model caching (`_MODEL_CACHE`).<br>• Automated FFmpeg resolution via `imageio-ffmpeg`.<br>• In-memory temp file streaming & memory protection.<br>• **Speaker Diarization:** Multi-scale 80-channel log-mel acoustic feature extraction, Cosine distance Agglomerative Hierarchical Clustering, and conversational turn merging.<br>• Timestamp formatting, speaker attribution, and segment alignment. |
 | **Nguyễn Quang Minh** *(Agent 3: Action Items)* | `ai-summary-service/agent3_action_items.py` | • Constrained JSON generation via Ollama.<br>• Defensive parser: Outer bracket depth balance & single-quote normalization.<br>• Rule-based regex fallback extractor for offline/timeout resilience.<br>• Delivery deadline and status field extraction. |
-| **Đoàn Hoàng Long** *(Agent 4: Database & Storage)* | `database/db.py`<br>`database/models.py`<br>`database/crud.py`<br>`ai-summary-service/tests/test_api.py` | • Pydantic v2 data contracts (`MeetingRecord`, `ActionItem`).<br>• SQLite WAL (Write-Ahead Logging) concurrency and busy timeouts.<br>• Non-destructive database migrations (`PRAGMA table_info` + `ALTER TABLE`).<br>• Full REST CRUD API, search query filtering, and analytics summary. |
+| **Đoàn Hoàng Long** *(Agent 4: Database & Storage)* | `database/db.py`<br>`database/models.py`<br>`database/crud.py`<br>`ai-summary-service/tests/test_api.py` | • Native Python dataclasses (`MeetingRecord`, `ActionItem`).<br>• SQLite WAL (Write-Ahead Logging) concurrency and busy timeouts.<br>• Non-destructive database migrations (`PRAGMA table_info` + `ALTER TABLE`).<br>• Full REST CRUD API, search query filtering, and analytics summary. |
 
 ---
 
@@ -132,9 +132,10 @@ During defense, instructors often ask teams to modify features on the spot. Here
 
 **Question:** *"Can you add a `priority` field ('high', 'medium', 'low') to action items and display it on the UI?"*
 
-#### Step 1: Update Pydantic Model in `database/models.py`
+#### Step 1: Update Dataclass Model in `database/models.py`
 ```python
-class ActionItem(BaseModel):
+@dataclass
+class ActionItem:
     task: str
     assignee: Optional[str] = "Unassigned"
     deadline: Optional[str] = None

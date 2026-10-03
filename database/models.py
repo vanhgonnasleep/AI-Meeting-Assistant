@@ -1,22 +1,41 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, Union, Any
+"""
+=====================================================
+DATA MODELS FOR SQLITE PERSISTENCE
+Owner: Đoàn Hoàng Long (Agent 4 / Database)
+Implementation: Native Python standard library dataclasses
+=====================================================
+"""
+
+from dataclasses import dataclass, field, asdict
+from typing import Optional, List, Union, Dict, Any
 from datetime import datetime
 
 
-class ActionItem(BaseModel):
+@dataclass
+class ActionItem:
     task: str
     assignee: Optional[str] = "Unassigned"
     deadline: Optional[str] = None
     status: str = "pending"
 
-    model_config = ConfigDict(extra="ignore")
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert dataclass instance to standard dictionary."""
+        return asdict(self)
+
+    # Backward compatibility with callers expecting model_dump() / dict()
+    def model_dump(self, *args, **kwargs) -> Dict[str, Any]:
+        return asdict(self)
+
+    def dict(self, *args, **kwargs) -> Dict[str, Any]:
+        return asdict(self)
 
 
-class MeetingRecord(BaseModel):
+@dataclass
+class MeetingRecord:
     filename: str
     raw_transcript: str = ""
     executive_summary: str = ""
-    action_items: List[ActionItem] = Field(default_factory=list)
+    action_items: List[ActionItem] = field(default_factory=list)
     id: Optional[Union[int, str]] = None
     duration: Optional[float] = None
     language: Optional[str] = None
@@ -24,21 +43,7 @@ class MeetingRecord(BaseModel):
     updated_at: Optional[str] = None
     processed_at: Optional[str] = None
 
-    model_config = ConfigDict(
-        extra="ignore",
-        json_schema_extra={
-            "example": {
-                "id": 1,
-                "filename": "q3_budget_meeting.mp3",
-                "raw_transcript": "Speaker A: Let's discuss the budget...",
-                "executive_summary": "- Discussed Q3 budget\n- Approved $50k",
-                "action_items": [{"task": "Prepare report", "assignee": "John", "status": "pending"}],
-                "created_at": "2026-09-27 10:00:00"
-            }
-        }
-    )
-
-    def model_post_init(self, __context: Any) -> None:
+    def __post_init__(self):
         # Guarantee backward and forward compatibility between created_at and processed_at
         now_str = datetime.now().isoformat()
         if not self.created_at and not self.processed_at:
@@ -48,3 +53,33 @@ class MeetingRecord(BaseModel):
             self.processed_at = self.created_at
         elif self.processed_at and not self.created_at:
             self.created_at = self.processed_at
+
+        # Coerce raw dict items to ActionItem dataclass if passed as dicts
+        if self.action_items:
+            coerced: List[ActionItem] = []
+            for item in self.action_items:
+                if isinstance(item, ActionItem):
+                    coerced.append(item)
+                elif isinstance(item, dict):
+                    coerced.append(ActionItem(
+                        task=str(item.get("task", "")).strip(),
+                        assignee=item.get("assignee", "Unassigned"),
+                        deadline=item.get("deadline"),
+                        status=item.get("status", "pending")
+                    ))
+                elif isinstance(item, str) and item.strip():
+                    coerced.append(ActionItem(task=item.strip()))
+                else:
+                    coerced.append(item)
+            self.action_items = coerced
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert dataclass instance to standard dictionary."""
+        return asdict(self)
+
+    # Backward compatibility with callers expecting model_dump() / dict()
+    def model_dump(self, *args, **kwargs) -> Dict[str, Any]:
+        return asdict(self)
+
+    def dict(self, *args, **kwargs) -> Dict[str, Any]:
+        return asdict(self)

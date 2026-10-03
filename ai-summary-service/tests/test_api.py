@@ -13,6 +13,7 @@ if str(SERVICE_DIR) not in sys.path:
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from dataclasses import is_dataclass
 from main import app, generate_failsafe_summary
 from database.models import MeetingRecord, ActionItem
 
@@ -70,10 +71,15 @@ def test_failsafe_summary_generator():
     assert "-" in summary
 
 def test_database_schema_contract():
-    """Verify MeetingRecord and ActionItem validate properly with Pydantic v2."""
+    """Verify MeetingRecord and ActionItem validate properly as Python dataclasses."""
+    assert is_dataclass(ActionItem)
+    assert is_dataclass(MeetingRecord)
+
     task = ActionItem(task="Finalize Q3 Budget", assignee="John Doe")
     assert task.task == "Finalize Q3 Budget"
     assert task.assignee == "John Doe"
+    assert task.to_dict()["task"] == "Finalize Q3 Budget"
+    assert task.model_dump()["assignee"] == "John Doe"
 
     record = MeetingRecord(
         filename="budget_review.mp3",
@@ -84,6 +90,8 @@ def test_database_schema_contract():
     assert record.filename == "budget_review.mp3"
     assert record.processed_at is not None
     assert len(record.action_items) == 1
+    assert record.to_dict()["filename"] == "budget_review.mp3"
+    assert record.model_dump()["action_items"][0]["task"] == "Finalize Q3 Budget"
 
 def test_meeting_crud_endpoints():
     """Verify GET, detail, and DELETE endpoints for meeting database records."""

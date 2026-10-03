@@ -29,7 +29,7 @@
 2. **Algorithmic Redundancy Reduction (MMR Filter):** Decomposes the transcript into vector space representations, executing Maximal Marginal Relevance to eliminate filler dialogue, rhetorical noise, and conversational repetition (~35–45% content compression).
 3. **Executive Summarization (Agent 2):** Synthesizes structured, non-hallucinatory executive briefings using a sliding-window Map-Reduce architecture powered by local Llama 3.
 4. **Action Item Extraction (Agent 3):** Employs constrained JSON schema parsing to extract deliverables, assignees, deadlines, and execution statuses.
-5. **Persistent History (Agent 4):** Records complete meeting sessions in SQLite via Pydantic v2 data models with WAL concurrency mode for historical review.
+5. **Persistent History (Agent 4):** Records complete meeting sessions in SQLite via Python standard library dataclasses (`MeetingRecord`, `ActionItem`) with WAL concurrency mode for historical review.
 
 ---
 
@@ -88,7 +88,7 @@
 | **Triệu Quang Thiện** | Agent 1: Speech-to-Text & Diarization | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping, acoustic voiceprint clustering (Speaker Diarization). |
 | **Lương Việt Anh (Lead)** | Orchestrator & Agent 2 | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/` | Pipeline orchestration, MMR redundancy reduction algorithm, Llama 3 Map-Reduce engine, full React UI frontend. |
 | **Nguyễn Quang Minh** | Agent 3: Action Items | `ai-summary-service/agent3_action_items.py` | JSON-constrained task and assignee extraction, bracket-depth parsing, trailing comma and quote sanitizer. |
-| **Đoàn Hoàng Long** | Agent 4: Database | `database/models.py`<br>`database/crud.py`<br>`database/db.py` | Pydantic v2 schemas, SQLite CRUD operations, WAL concurrent connection management, history drawer API. |
+| **Đoàn Hoàng Long** | Agent 4: Database | `database/models.py`<br>`database/crud.py`<br>`database/db.py` | Python dataclasses data models (`MeetingRecord`, `ActionItem`), SQLite CRUD operations, WAL concurrent connection management, history drawer API. |
 
 ---
 
@@ -228,7 +228,7 @@ pytest -v tests/
 | `test_api.py` | `test_unsupported_file_format` | Security | Rejects non-audio extensions with HTTP 400 |
 | `test_api.py` | `test_instant_demo_mode` | Fail-Safe | Ensures presenter demo mode returns valid schema in <100ms |
 | `test_api.py` | `test_failsafe_summary_generator`| Robustness | Validates deterministic fallback summary on timeout |
-| `test_api.py` | `test_database_schema_contract` | Data Layer | Validates Pydantic v2 `MeetingRecord` and `ActionItem` models |
+| `test_api.py` | `test_database_schema_contract` | Data Layer | Validates Python dataclasses `MeetingRecord` and `ActionItem` models |
 | `test_api.py` | `test_meeting_crud_endpoints` | Database | Full CRUD lifecycle: create, list, retrieve, and delete meeting |
 | `test_api.py` | `test_meeting_crud_edge_cases` | Data Resilience| Handles dict/string action items without throwing errors |
 | `test_api.py` | `test_meeting_search_endpoint` | Database Search | Tests `GET /api/meetings?q=...` keyword query filtering |
