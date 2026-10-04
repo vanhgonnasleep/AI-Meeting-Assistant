@@ -826,7 +826,7 @@ async def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageReques
     summary = record.executive_summary if record else payload.summary
     segments = record.segments if record and record.segments else payload.segments
     lang = record.language if record and record.language else (payload.language or "en")
-    is_demo = payload.demo_mode or (record and "q3_product_budget_review" in (record.filename or "").lower())
+    is_demo = payload.demo_mode or (record and any(kw in (record.filename or "").lower() for kw in ("q3_product_budget_review", "q3_budget_meeting", "demo_sample")))
 
     result = answer_meeting_question(
         question=payload.question,

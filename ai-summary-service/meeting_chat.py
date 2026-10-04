@@ -167,8 +167,13 @@ def answer_meeting_question(
             "mode": "prompt_required"
         }
 
-    # 1. Check curated Demo Answer if running in demo mode
-    if is_demo or (transcript and "welcome everyone. we need to finalize the marketing budget" in transcript.lower()):
+    # 1. Check curated Demo Answer if running in demo mode or sample meeting
+    if is_demo or (transcript and any(kw in transcript.lower() for kw in (
+        "welcome everyone. we need to finalize the marketing budget",
+        "finalize the marketing budget for q3",
+        "allocation of $50,000",
+        "social media ad campaigns"
+    ))):
         curated = demo_answer(clean_q, language=language)
         if curated:
             return curated

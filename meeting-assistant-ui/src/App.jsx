@@ -61,6 +61,34 @@ const getSpeakerBadgeStyle = (speaker) => {
   return SPEAKER_BADGE_STYLES[hash % SPEAKER_BADGE_STYLES.length];
 };
 
+const formatDuration = (secs) => {
+  if (!secs || secs <= 0) return null;
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
+
+const getDefaultChatGreeting = (currResult) => {
+  if (!currResult) return [];
+  if (currResult.chat_history && currResult.chat_history.length > 0) {
+    return currResult.chat_history;
+  }
+  const turnsCount = currResult.segments?.length || 0;
+  const itemsCount = currResult.action_items?.length || 0;
+  const durText = formatDuration(currResult.duration);
+  return [
+    {
+      role: 'assistant',
+      content: `👋 **Welcome to AI Meeting Chat!**\n\nI have indexed the conversational transcript and timeline for this meeting${durText ? ` (${durText} duration)` : ''} with **${turnsCount} turns** and **${itemsCount} action items**.\n\nYou can ask me about finalized decisions, budget allocations, team responsibilities, or delivery risks. Click any suggested prompt above or type your inquiry below!`,
+      citations: currResult.segments && currResult.segments.length > 0 && currResult.segments[0].timestamp
+        ? [currResult.segments[0].timestamp]
+        : [],
+      mode: 'assistant',
+      created_at: new Date().toISOString()
+    }
+  ];
+};
+
 function App() {
   const [file, setFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -142,7 +170,15 @@ function App() {
       language: item.language,
       segments: item.segments || []
     });
-    setChatMessages(item.chat_history || []);
+    const loadedChat = (item.chat_history && item.chat_history.length > 0)
+      ? item.chat_history
+      : getDefaultChatGreeting({
+          duration: item.duration,
+          action_items: item.action_items,
+          segments: item.segments,
+          chat_history: []
+        });
+    setChatMessages(loadedChat);
     if (item.filename && (item.filename.includes('q3_product_budget_review') || item.filename.includes('q3_budget_meeting'))) {
       setAudioUrl('/q3_product_budget_review.wav');
     }
@@ -269,7 +305,10 @@ function App() {
       
       const data = await response.json();
       setResult(data.data);
-      setChatMessages(data.data?.chat_history || []);
+      const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
+        ? data.data.chat_history
+        : getDefaultChatGreeting(data.data);
+      setChatMessages(initialChat);
       setCurrentMeetingId(data.meeting_id || null);
       setMmrTelemetry(data.mmr_telemetry || null);
       setMetaInfo({
@@ -312,7 +351,10 @@ function App() {
       }
       const data = await response.json();
       setResult(data.data);
-      setChatMessages(data.data?.chat_history || []);
+      const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
+        ? data.data.chat_history
+        : getDefaultChatGreeting(data.data);
+      setChatMessages(initialChat);
       if (!audioUrl) {
         setAudioUrl('/q3_product_budget_review.wav');
       }
@@ -420,14 +462,19 @@ function App() {
 
     try {
       let endpoint = 'http://localhost:8002/api/chat';
-      const isDemoMode = selectedModel === 'instant_demo' || (file?.name && file.name.includes('q3_product_budget_review'));
+      const isDemoMode = selectedModel === 'instant_demo' || 
+        Boolean(file?.name && (file.name.includes('q3_product_budget_review') || file.name.includes('q3_budget_meeting'))) ||
+        Boolean(metaInfo?.model && metaInfo.model.includes('Instant Showcase')) ||
+        Boolean(metaInfo?.hardware && metaInfo.hardware.includes('Demo Mode')) ||
+        Boolean(result?.transcript && (result.transcript.includes('finalize the marketing budget for Q3 today') || result.transcript.includes('social media ad campaigns')));
+
       let payload = {
         question: cleanQ,
         demo_mode: isDemoMode,
         transcript: result?.transcript || '',
         summary: result?.summary || '',
         segments: result?.segments || null,
-        language: result?.language || 'en',
+        language: 'en',
         model: selectedModel
       };
 
@@ -463,7 +510,7 @@ function App() {
         ...prev,
         {
           role: 'assistant',
-          content: `Xin lỗi, không thể kết nối tới mô hình AI: ${err.message}.`,
+          content: `Sorry, unable to connect to the AI service: ${err.message}. Please verify the FastAPI backend server is running.`,
           citations: [],
           mode: 'error'
         }
@@ -484,7 +531,7 @@ function App() {
         console.error("Failed to clear chat in SQLite:", e);
       }
     }
-    setChatMessages([]);
+    setChatMessages(getDefaultChatGreeting(result));
   };
 
   const renderFormattedChatText = (text) => {
@@ -552,9 +599,9 @@ function App() {
 
     let insightsBlock = "";
     if (result.insights) {
-      const decs = (result.insights.decisions || []).map(d => `- **[Chốt/Decision]** ${d.text}${d.timestamp ? ` (${d.timestamp})` : ''}`).join('\n');
-      const risks = (result.insights.risks || []).map(r => `- **[Rủi ro/Risk]** ${r.text}${r.timestamp ? ` (${r.timestamp})` : ''}`).join('\n');
-      const ques = (result.insights.open_questions || []).map(q => `- **[Câu hỏi/Question]** ${q.text}${q.timestamp ? ` (${q.timestamp})` : ''}`).join('\n');
+      const decs = (result.insights.decisions || []).map(d => `- **[Decision]** ${d.text}${d.timestamp ? ` (${d.timestamp})` : ''}`).join('\n');
+      const risks = (result.insights.risks || []).map(r => `- **[Risk]** ${r.text}${r.timestamp ? ` (${r.timestamp})` : ''}`).join('\n');
+      const ques = (result.insights.open_questions || []).map(q => `- **[Open Question]** ${q.text}${q.timestamp ? ` (${q.timestamp})` : ''}`).join('\n');
       insightsBlock = `\n\n## KEY DECISIONS & GOVERNANCE INSIGHTS\n### Finalized Decisions\n${decs || 'None'}\n\n### Blockers & Delivery Risks\n${risks || 'None'}\n\n### Open Questions\n${ques || 'None'}`;
     }
 
@@ -712,13 +759,6 @@ ${result.transcript || ""}
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
-  const formatDuration = (secs) => {
-    if (!secs || secs <= 0) return null;
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const wordCount = result?.transcript ? result.transcript.split(/\s+/).filter(Boolean).length : 0;
@@ -1259,7 +1299,7 @@ ${result.transcript || ""}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-400">
-                      Bấm vào mốc thời gian [MM:SS] tại Chat hoặc Insights để phát đúng đoạn
+                      Click any [MM:SS] citation timestamp in Chat or Insights to seek audio
                     </p>
                   </div>
                 </div>
@@ -1316,7 +1356,7 @@ ${result.transcript || ""}
                     activeTab === 'chat' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <MessageSquare className="w-3.5 h-3.5" /> Hỏi đáp AI ({chatMessages.length})
+                  <MessageSquare className="w-3.5 h-3.5" /> AI Chat ({chatMessages.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('transcript')}
@@ -1657,16 +1697,16 @@ ${result.transcript || ""}
                           </span>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          Trích xuất tự động 3 trụ cột quản trị: Quyết định đã chốt, Rủi ro/rào cản và Câu hỏi mở kèm bằng chứng audio
+                          Automated 3-pillar governance extraction: Key Decisions, Risks & Blockers, and Open Questions with audio evidence
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-                      <span>{(result.insights?.decisions || []).length} chốt</span>
+                      <span>{(result.insights?.decisions || []).length} decisions</span>
                       <span>•</span>
-                      <span>{(result.insights?.risks || []).length} rủi ro</span>
+                      <span>{(result.insights?.risks || []).length} risks</span>
                       <span>•</span>
-                      <span>{(result.insights?.open_questions || []).length} câu hỏi</span>
+                      <span>{(result.insights?.open_questions || []).length} open questions</span>
                     </div>
                   </div>
 
@@ -1679,7 +1719,7 @@ ${result.transcript || ""}
                           <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300">
                             <CheckCircle2 className="w-4 h-4" />
                           </div>
-                          <h3 className="text-sm font-bold text-white">Quyết định đã chốt</h3>
+                          <h3 className="text-sm font-bold text-white">Key Decisions</h3>
                         </div>
                         <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                           {(result.insights?.decisions || []).length}
@@ -1687,7 +1727,7 @@ ${result.transcript || ""}
                       </div>
                       <div className="space-y-3">
                         {(!result.insights?.decisions || result.insights.decisions.length === 0) ? (
-                          <p className="text-xs text-slate-500 italic py-4 text-center">Chưa phát hiện quyết định chốt nào trong cuộc họp.</p>
+                          <p className="text-xs text-slate-500 italic py-4 text-center">No key decisions recorded in this meeting.</p>
                         ) : (
                           result.insights.decisions.map((dec, idx) => (
                             <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-emerald-500/40 transition-all space-y-2 group">
@@ -1705,7 +1745,7 @@ ${result.transcript || ""}
                                     type="button"
                                     onClick={() => handleSeekAudio(parseTimestampToSeconds(dec.timestamp))}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono transition-all group-hover:border-emerald-400 cursor-pointer active:scale-95"
-                                    title={`Click để nhảy tới ${dec.timestamp} trong audio`}
+                                    title={`Click to jump audio to ${dec.timestamp}`}
                                   >
                                     <Play className="w-2.5 h-2.5 fill-emerald-300" />
                                     <span>{dec.timestamp}</span>
@@ -1725,7 +1765,7 @@ ${result.transcript || ""}
                           <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300">
                             <AlertTriangle className="w-4 h-4" />
                           </div>
-                          <h3 className="text-sm font-bold text-white">Rủi ro & Rào cản</h3>
+                          <h3 className="text-sm font-bold text-white">Risks & Blockers</h3>
                         </div>
                         <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
                           {(result.insights?.risks || []).length}
@@ -1733,7 +1773,7 @@ ${result.transcript || ""}
                       </div>
                       <div className="space-y-3">
                         {(!result.insights?.risks || result.insights.risks.length === 0) ? (
-                          <p className="text-xs text-slate-500 italic py-4 text-center">Không phát hiện rủi ro nghiêm trọng.</p>
+                          <p className="text-xs text-slate-500 italic py-4 text-center">No critical risks or delivery blockers detected.</p>
                         ) : (
                           result.insights.risks.map((risk, idx) => (
                             <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-amber-500/40 transition-all space-y-2 group">
@@ -1751,7 +1791,7 @@ ${result.transcript || ""}
                                     type="button"
                                     onClick={() => handleSeekAudio(parseTimestampToSeconds(risk.timestamp))}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-mono transition-all group-hover:border-amber-400 cursor-pointer active:scale-95"
-                                    title={`Click để nhảy tới ${risk.timestamp} trong audio`}
+                                    title={`Click to jump audio to ${risk.timestamp}`}
                                   >
                                     <Play className="w-2.5 h-2.5 fill-amber-300" />
                                     <span>{risk.timestamp}</span>
@@ -1771,7 +1811,7 @@ ${result.transcript || ""}
                           <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-300">
                             <HelpCircle className="w-4 h-4" />
                           </div>
-                          <h3 className="text-sm font-bold text-white">Câu hỏi mở & Tồn đọng</h3>
+                          <h3 className="text-sm font-bold text-white">Open Questions</h3>
                         </div>
                         <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
                           {(result.insights?.open_questions || []).length}
@@ -1779,7 +1819,7 @@ ${result.transcript || ""}
                       </div>
                       <div className="space-y-3">
                         {(!result.insights?.open_questions || result.insights.open_questions.length === 0) ? (
-                          <p className="text-xs text-slate-500 italic py-4 text-center">Tất cả các câu hỏi đều đã được giải đáp.</p>
+                          <p className="text-xs text-slate-500 italic py-4 text-center">All open questions were resolved.</p>
                         ) : (
                           result.insights.open_questions.map((q, idx) => (
                             <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-blue-500/40 transition-all space-y-2 group">
@@ -1797,7 +1837,7 @@ ${result.transcript || ""}
                                     type="button"
                                     onClick={() => handleSeekAudio(parseTimestampToSeconds(q.timestamp))}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[10px] font-mono transition-all group-hover:border-blue-400 cursor-pointer active:scale-95"
-                                    title={`Click để nhảy tới ${q.timestamp} trong audio`}
+                                    title={`Click to jump audio to ${q.timestamp}`}
                                   >
                                     <Play className="w-2.5 h-2.5 fill-blue-300" />
                                     <span>{q.timestamp}</span>
@@ -1832,7 +1872,7 @@ ${result.transcript || ""}
                           </span>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          Hỏi đáp ngữ cảnh thông minh, trích dẫn chính xác turn hội thoại và tự động nhảy audio player
+                          Context-grounded Lite-RAG assistant with timestamped turn citations and audio seek synchronization
                         </p>
                       </div>
                     </div>
@@ -1843,7 +1883,7 @@ ${result.transcript || ""}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 transition-all cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Xóa lịch sử chat</span>
+                        <span>Clear Chat</span>
                       </button>
                     )}
                   </div>
@@ -1851,13 +1891,13 @@ ${result.transcript || ""}
                   {/* Quick Suggestion Prompts */}
                   <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
                     <span className="text-slate-500 text-[11px] whitespace-nowrap flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-indigo-400" /> Gợi ý câu hỏi:
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Suggested Prompts:
                     </span>
                     {[
-                      "Ai chịu trách nhiệm về Marketing và ngân sách?",
-                      "Ngân sách được duyệt là bao nhiêu và tăng giảm thế nào?",
-                      "Quyết định quan trọng nhất trong cuộc họp là gì?",
-                      "Hạn chót các đầu việc tiếp theo là ngày nào?"
+                      "What budget was approved and what are the terms?",
+                      "Who owns the financial report and when is it due?",
+                      "What are the main risks or blockers identified?",
+                      "Summarize key decisions made in this meeting."
                     ].map((promptText, pIdx) => (
                       <button
                         key={pIdx}
@@ -1875,15 +1915,31 @@ ${result.transcript || ""}
                   <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col h-[520px]">
                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-slate-700">
                       {chatMessages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
+                        <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
                           <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                            <MessageSquare className="w-7 h-7" />
+                            <MessageSquare className="w-8 h-8" />
                           </div>
-                          <div className="max-w-md space-y-1">
-                            <h3 className="text-sm font-semibold text-white">Chưa có tin nhắn nào</h3>
+                          <div className="max-w-md space-y-2">
+                            <h3 className="text-sm font-semibold text-white">AI Meeting Assistant Ready</h3>
                             <p className="text-xs text-slate-400 leading-relaxed">
-                              Hãy nhập câu hỏi bên dưới hoặc chọn gợi ý phía trên. Trợ lý AI sẽ tra cứu chính xác mốc thời gian và trích dẫn bằng chứng từ cuộc họp.
+                              Ask anything about decisions, numbers, action deliverables, or delivery blockers. Click any suggested prompt above or pick a quick question below:
                             </p>
+                            <div className="pt-2 flex flex-wrap justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSendChatMessage("What budget was approved and what are the terms?")}
+                                className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-all cursor-pointer"
+                              >
+                                💬 Ask: What budget was approved?
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSendChatMessage("Who owns the financial report and when is it due?")}
+                                className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all cursor-pointer"
+                              >
+                                💬 Ask: Who owns the financial report?
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -1895,7 +1951,7 @@ ${result.transcript || ""}
                               className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
                             >
                               <div className="flex items-center gap-1.5 text-[10px] text-slate-500 px-1 font-mono">
-                                <span>{isUser ? 'Bạn' : 'Meeting Assistant AI'}</span>
+                                <span>{isUser ? 'You' : 'Meeting Assistant AI'}</span>
                                 {msg.mode && (
                                   <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
                                     {msg.mode === 'instant_demo_faq' ? 'Instant Matcher' : msg.mode}
@@ -1917,7 +1973,7 @@ ${result.transcript || ""}
                                 {!isUser && msg.citations && msg.citations.length > 0 && (
                                   <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
                                     <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                                      <Play className="w-2.5 h-2.5 text-indigo-400" /> Bằng chứng audio:
+                                      <Play className="w-2.5 h-2.5 text-indigo-400" /> Audio Citations:
                                     </span>
                                     {msg.citations.map((cit, citIdx) => (
                                       <button
@@ -1925,7 +1981,7 @@ ${result.transcript || ""}
                                         type="button"
                                         onClick={() => handleSeekAudio(parseTimestampToSeconds(cit))}
                                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-mono transition-all cursor-pointer active:scale-95"
-                                        title={`Nhảy player tới ${cit}`}
+                                        title={`Jump audio player to ${cit}`}
                                       >
                                         <Play className="w-2 h-2 fill-indigo-300" />
                                         <span>{cit}</span>
@@ -1941,7 +1997,7 @@ ${result.transcript || ""}
                       {isChatLoading && (
                         <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs w-fit">
                           <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-                          <span>AI đang tra cứu transcript và phân tích ngữ cảnh...</span>
+                          <span>AI is analyzing transcript context and retrieving citations...</span>
                         </div>
                       )}
                       <div ref={chatBottomRef} />
@@ -1960,7 +2016,7 @@ ${result.transcript || ""}
                               handleSendChatMessage();
                             }
                           }}
-                          placeholder="Hỏi bất cứ điều gì về cuộc họp (ví dụ: 'Ngân sách được duyệt là bao nhiêu?')..."
+                          placeholder="Ask anything about the meeting (e.g. 'What budget was approved?')..."
                           className="flex-1 bg-transparent px-3 py-2 text-xs text-white placeholder-slate-500 outline-none"
                           disabled={isChatLoading}
                         />
@@ -1969,7 +2025,7 @@ ${result.transcript || ""}
                           onClick={() => handleSendChatMessage()}
                           disabled={!chatInput.trim() || isChatLoading}
                           className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all active:scale-95 shrink-0 cursor-pointer"
-                          title="Gửi câu hỏi"
+                          title="Send question"
                         >
                           {isChatLoading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
