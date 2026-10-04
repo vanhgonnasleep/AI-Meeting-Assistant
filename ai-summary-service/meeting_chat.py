@@ -14,6 +14,7 @@ Implements 100% Edge/Local Retrieval-Augmented Generation (RAG):
 
 import math
 import re
+from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
 import requests
 
@@ -50,14 +51,14 @@ def retrieve_relevant_segments(
                 continue
             ts = seg.get("timestamp", f"Turn #{idx+1}")
             # Format clean short timestamp e.g. "00:14"
-            ts_match = re.search(r'(\d{2}:\d{2})', str(ts))
+            ts_match = re.search(r'(\d{1,3}:\d{2}(?::\d{2})?)', str(ts))
             clean_ts = ts_match.group(1) if ts_match else str(ts)
             chunks.append({
                 "id": seg.get("id", idx + 1),
                 "speaker": seg.get("speaker", "Speaker"),
                 "timestamp": clean_ts,
-                "start": seg.get("start", 0.0),
-                "end": seg.get("end", 0.0),
+                "start": seg.get("start"),
+                "end": seg.get("end"),
                 "text": text
             })
     elif transcript and transcript.strip():
@@ -76,8 +77,8 @@ def retrieve_relevant_segments(
                 "id": idx + 1,
                 "speaker": speaker,
                 "timestamp": f"Segment #{idx + 1}",
-                "start": float(idx * 5),
-                "end": float((idx + 1) * 5),
+                "start": None,
+                "end": None,
                 "text": clean_text
             })
 
@@ -85,7 +86,7 @@ def retrieve_relevant_segments(
         return []
 
     # 2. Score chunks against query tokens
-    query_tokens = _extract_query_tokens(query)
+    query_tokens = Counter(_extract_query_tokens(query))
     if not query_tokens:
         return chunks[:top_k]
 
@@ -101,12 +102,12 @@ def retrieve_relevant_segments(
                 df[t] = df.get(t, 0) + 1
 
     for c in chunks:
-        c_tokens = re.findall(r'[\w\'-]+', c["text"].lower())
-        c_len = max(len(c_tokens), 1)
+        c_tokens = Counter(re.findall(r'[\w\'-]+', c["text"].lower()))
+        c_len = max(sum(c_tokens.values()), 1)
         score = 0.0
 
-        for t in query_tokens:
-            tf = c_tokens.count(t)
+        for t, query_frequency in query_tokens.items():
+            tf = c_tokens[t]
             if tf > 0:
                 doc_freq = df.get(t, 1)
                 idf = math.log((total_docs - doc_freq + 0.5) / (doc_freq + 0.5) + 1.0)
@@ -114,7 +115,7 @@ def retrieve_relevant_segments(
                 k1 = 1.2
                 b = 0.75
                 norm_tf = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (c_len / 30.0)))
-                score += idf * norm_tf
+                score += query_frequency * idf * norm_tf
 
         # Exact phrase or number bonus (e.g. "$50,000" or "Friday")
         if query.lower().strip() in c["text"].lower():
@@ -168,12 +169,7 @@ def answer_meeting_question(
         }
 
     # 1. Check curated Demo Answer if running in demo mode or sample meeting
-    if is_demo or (transcript and any(kw in transcript.lower() for kw in (
-        "welcome everyone. we need to finalize the marketing budget",
-        "finalize the marketing budget for q3",
-        "allocation of $50,000",
-        "social media ad campaigns"
-    ))):
+    if is_demo:
         curated = demo_answer(clean_q, language=language)
         if curated:
             return curated

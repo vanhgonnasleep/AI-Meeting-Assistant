@@ -13,6 +13,7 @@ MIGRATION_COLUMNS = {
     "segments": "TEXT",       # JSON array of timestamped transcript segments
     "insights": "TEXT",       # JSON object: decisions / risks / open_questions
     "chat_history": "TEXT",   # JSON array of persisted Q&A messages
+    "chat_generation": "INTEGER NOT NULL DEFAULT 0",
 }
 
 

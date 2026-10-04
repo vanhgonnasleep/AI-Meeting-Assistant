@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { normalizeCitation, createRequestGate } from './session';
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
   UploadCloud, 
   FileAudio, 
@@ -25,7 +28,6 @@ import {
   Sliders,
   Volume2,
   FileCode,
-  Globe,
   Users,
   Edit2,
   Printer,
@@ -34,8 +36,7 @@ import {
   AlertTriangle,
   HelpCircle,
   Target,
-  Play,
-  CornerDownLeft
+  Play
 } from 'lucide-react';
 
 const SPEAKER_BADGE_STYLES = [
@@ -123,8 +124,31 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isDemoResult, setIsDemoResult] = useState(false);
+  const [warnings, setWarnings] = useState([]);
+  const processGate = useRef(createRequestGate());
+  const chatGate = useRef(createRequestGate());
+  const sessionVersion = useRef(0);
   const audioRef = useRef(null);
   const chatBottomRef = useRef(null);
+
+  useEffect(() => {
+    const process = processGate.current;
+    const chat = chatGate.current;
+    return () => { process.cancel(); chat.cancel(); };
+  }, []);
+
+  const invalidateSession = () => {
+    sessionVersion.current += 1;
+    processGate.current.cancel();
+    chatGate.current.cancel();
+    setIsProcessing(false);
+    setIsChatLoading(false);
+    setChatInput('');
+    setUpdatingTasks({});
+    setWarnings([]);
+    setIsDemoResult(false);
+  };
 
   // Synchronize audio preview URL when file changes
   useEffect(() => {
@@ -141,8 +165,8 @@ function App() {
     setLoadingHistory(true);
     try {
       const [resMeetings, resAnalytics] = await Promise.all([
-        fetch("http://localhost:8002/api/meetings"),
-        fetch("http://localhost:8002/api/analytics").catch(() => null)
+        fetch(`${API_BASE}/api/meetings`),
+        fetch(`${API_BASE}/api/analytics`).catch(() => null)
       ]);
       if (resMeetings.ok) {
         const data = await resMeetings.json();
@@ -160,6 +184,9 @@ function App() {
   };
 
   const handleLoadPastMeeting = (item) => {
+    invalidateSession();
+    setFile(null);
+    setAudioUrl(null);
     setResult({
       transcript: item.raw_transcript,
       summary: item.executive_summary,
@@ -179,9 +206,6 @@ function App() {
           chat_history: []
         });
     setChatMessages(loadedChat);
-    if (item.filename && (item.filename.includes('q3_product_budget_review') || item.filename.includes('q3_budget_meeting'))) {
-      setAudioUrl('/q3_product_budget_review.wav');
-    }
     setCurrentMeetingId(item.id);
     setMmrTelemetry(null);
     setTranscriptView('raw');
@@ -209,7 +233,7 @@ function App() {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this meeting record?")) return;
     try {
-      const res = await fetch(`http://localhost:8002/api/meetings/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/meetings/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || `Failed to delete meeting (HTTP ${res.status})`);
@@ -227,7 +251,7 @@ function App() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const res = await fetch("http://localhost:8002/api/health");
+        const res = await fetch(`${API_BASE}/api/health`);
         if (res.ok) {
           const data = await res.json();
           setHealthStatus({ online: data.ollama_online, checking: false, data });
@@ -260,7 +284,7 @@ function App() {
   }, [isProcessing]);
 
   const onDrop = (acceptedFiles) => {
-    if (acceptedFiles?.length > 0) setFile(acceptedFiles[0]);
+    if (acceptedFiles?.length > 0) { handleReset(); setFile(acceptedFiles[0]); }
   };
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -269,15 +293,20 @@ function App() {
       'audio/*': ['.mp3', '.wav', '.m4a', '.ogg', '.flac'],
       'video/*': ['.mp4', '.webm', '.mkv']
     },
+    maxSize: 50 * 1024 * 1024,
+    onDropRejected: () => setErrorMessage('Choose one supported audio/video file up to 50 MB.'),
+    disabled: isProcessing,
     maxFiles: 1
   });
 
   const handleProcessAudio = async () => {
-    if (selectedModel === 'instant_demo' || file?.name?.includes('q3_product_budget_review') || file?.name?.includes('q3_budget_meeting')) {
+    if (selectedModel === 'instant_demo') {
       return handleInstantDemo();
     }
 
     if (!file) return;
+    invalidateSession();
+    const request = processGate.current.begin();
     setIsProcessing(true);
     setResult(null);
     setCurrentMeetingId(null);
@@ -292,10 +321,11 @@ function App() {
 
     try {
       const diarizeParam = `&diarize=${enableDiarization}${numSpeakers ? `&num_speakers=${numSpeakers}` : ''}`;
-      const url = `http://localhost:8002/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}&mmr_lambda=${mmrLambda}${diarizeParam}`;
+      const url = `${API_BASE}/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}&mmr_lambda=${mmrLambda}${diarizeParam}`;
       const response = await fetch(url, {
         method: "POST",
         body: formData,
+        signal: request.signal,
       });
       
       if (!response.ok) {
@@ -304,6 +334,9 @@ function App() {
       }
       
       const data = await response.json();
+      if (!request.isCurrent()) return;
+      setIsDemoResult(data.mode === "instant_demo");
+      setWarnings(data.warnings || []);
       setResult(data.data);
       const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
         ? data.data.chat_history
@@ -317,14 +350,17 @@ function App() {
       });
       fetchMeetingHistory();
     } catch (error) {
+      if (!request.isCurrent()) return;
       setErrorMessage(error.message || "An unexpected error occurred. Please try again.");
     } finally {
-      setIsProcessing(false);
+      if (request.isCurrent()) setIsProcessing(false);
     }
   };
 
   // Fail-safe instant demo handler (Bypasses heavy inference in 50ms)
   const handleInstantDemo = async () => {
+    invalidateSession();
+    const request = processGate.current.begin();
     setIsProcessing(true);
     setResult(null);
     setCurrentMeetingId(null);
@@ -341,23 +377,25 @@ function App() {
     formData.append("file", dummyFile);
 
     try {
-      const response = await fetch(`http://localhost:8002/api/process-audio?demo_mode=true&mmr_lambda=${mmrLambda}`, {
+      const response = await fetch(`${API_BASE}/api/process-audio?demo_mode=true&mmr_lambda=${mmrLambda}`, {
         method: "POST",
         body: formData,
+        signal: request.signal,
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.detail || `Demo mode server error (HTTP ${response.status})`);
       }
       const data = await response.json();
+      if (!request.isCurrent()) return;
+      setIsDemoResult(data.mode === "instant_demo");
+      setWarnings(data.warnings || []);
       setResult(data.data);
       const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
         ? data.data.chat_history
         : getDefaultChatGreeting(data.data);
       setChatMessages(initialChat);
-      if (!audioUrl) {
-        setAudioUrl('/q3_product_budget_review.wav');
-      }
+      setAudioUrl('/q3_product_budget_review.wav');
       setMmrTelemetry(data.mmr_telemetry || {
         applied: true,
         original_sentences: 5,
@@ -372,13 +410,16 @@ function App() {
         hardware: "Fail-Safe Demo Mode"
       });
     } catch (e) {
+      if (!request.isCurrent()) return;
       setErrorMessage(e.message || "Backend not reachable. Please start the FastAPI server on port 8002.");
     } finally {
-      setIsProcessing(false);
+      if (request.isCurrent()) setIsProcessing(false);
     }
   };
 
   const handleDemoSample = async () => {
+    handleReset();
+    const version = sessionVersion.current;
     setSelectedModel('instant_demo');
     try {
       const res = await fetch('/q3_product_budget_review.mp3');
@@ -387,6 +428,7 @@ function App() {
         const sampleFile = new File([blob], "q3_product_budget_review.mp3", {
           type: "audio/mp3",
         });
+        if (version !== sessionVersion.current) return;
         setFile(sampleFile);
         return;
       }
@@ -400,6 +442,7 @@ function App() {
         const sampleFile = new File([blob], "q3_product_budget_review.wav", {
           type: "audio/wav",
         });
+        if (version !== sessionVersion.current) return;
         setFile(sampleFile);
         return;
       }
@@ -409,10 +452,12 @@ function App() {
     const mockFile = new File(["sample meeting dummy binary content"], "q3_product_budget_review.mp3", {
       type: "audio/mp3",
     });
+    if (version !== sessionVersion.current) return;
     setFile(mockFile);
   };
 
   const handleReset = () => {
+    invalidateSession();
     setFile(null);
     setAudioUrl(null);
     setResult(null);
@@ -434,26 +479,17 @@ function App() {
   };
 
   const handleSeekAudio = (seconds) => {
-    if (audioRef.current && typeof seconds === 'number') {
+    if (audioRef.current && Number.isFinite(seconds)) {
       audioRef.current.currentTime = Math.max(0, seconds);
       audioRef.current.play().catch(() => {});
     }
-  };
-
-  const parseTimestampToSeconds = (ts) => {
-    if (ts === null || ts === undefined) return 0;
-    if (typeof ts === 'number') return ts;
-    const m = String(ts).match(/(\d{1,2}):(\d{2})/);
-    if (m) {
-      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-    }
-    return 0;
   };
 
   const handleSendChatMessage = async (presetText) => {
     const textToSend = typeof presetText === 'string' ? presetText : chatInput;
     if (!textToSend || !textToSend.trim() || isChatLoading) return;
     const cleanQ = textToSend.trim();
+    const request = chatGate.current.begin();
     setChatInput('');
 
     const newUserMsg = { role: 'user', content: cleanQ, created_at: new Date().toISOString() };
@@ -461,12 +497,8 @@ function App() {
     setIsChatLoading(true);
 
     try {
-      let endpoint = 'http://localhost:8002/api/chat';
-      const isDemoMode = selectedModel === 'instant_demo' || 
-        Boolean(file?.name && (file.name.includes('q3_product_budget_review') || file.name.includes('q3_budget_meeting'))) ||
-        Boolean(metaInfo?.model && metaInfo.model.includes('Instant Showcase')) ||
-        Boolean(metaInfo?.hardware && metaInfo.hardware.includes('Demo Mode')) ||
-        Boolean(result?.transcript && (result.transcript.includes('finalize the marketing budget for Q3 today') || result.transcript.includes('social media ad campaigns')));
+      let endpoint = `${API_BASE}/api/chat`;
+      const isDemoMode = isDemoResult;
 
       let payload = {
         question: cleanQ,
@@ -474,19 +506,20 @@ function App() {
         transcript: result?.transcript || '',
         summary: result?.summary || '',
         segments: result?.segments || null,
-        language: 'en',
-        model: selectedModel
+        language: result?.language || 'en',
+        model: selectedModel === 'instant_demo' ? 'auto' : selectedModel
       };
 
       if (currentMeetingId) {
-        endpoint = `http://localhost:8002/api/meetings/${currentMeetingId}/chat`;
+        endpoint = `${API_BASE}/api/meetings/${currentMeetingId}/chat`;
         payload.meeting_id = currentMeetingId;
       }
 
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: request.signal,
       });
 
       if (!res.ok) {
@@ -495,6 +528,7 @@ function App() {
       }
 
       const data = await res.json();
+      if (!request.isCurrent()) return;
       const assistantMsg = {
         role: 'assistant',
         content: data.answer,
@@ -505,6 +539,7 @@ function App() {
 
       setChatMessages(prev => [...prev, assistantMsg]);
     } catch (err) {
+      if (!request.isCurrent()) return;
       console.error("Chat error:", err);
       setChatMessages(prev => [
         ...prev,
@@ -516,32 +551,40 @@ function App() {
         }
       ]);
     } finally {
-      setIsChatLoading(false);
-      setTimeout(() => {
+      if (request.isCurrent()) {
+        setIsChatLoading(false);
         chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      }
     }
   };
 
   const handleClearChat = async () => {
-    if (currentMeetingId) {
-      try {
-        await fetch(`http://localhost:8002/api/meetings/${currentMeetingId}/chat`, { method: 'DELETE' });
-      } catch (e) {
-        console.error("Failed to clear chat in SQLite:", e);
+    const version = sessionVersion.current;
+    const request = chatGate.current.begin();
+    setIsChatLoading(true);
+    try {
+      if (currentMeetingId) {
+        const response = await fetch(`${API_BASE}/api/meetings/${currentMeetingId}/chat`, { method: 'DELETE', signal: request.signal });
+        if (!response.ok) throw new Error('Could not clear saved chat. Please retry.');
       }
+      if (version !== sessionVersion.current || !request.isCurrent()) return;
+      setResult(previous => previous ? { ...previous, chat_history: [] } : previous);
+      setChatMessages(getDefaultChatGreeting({ ...result, chat_history: [] }));
+    } catch (error) {
+      if (version === sessionVersion.current && request.isCurrent()) setErrorMessage(error.message);
+    } finally {
+      if (request.isCurrent()) setIsChatLoading(false);
     }
-    setChatMessages(getDefaultChatGreeting(result));
   };
 
   const renderFormattedChatText = (text) => {
     if (!text) return null;
-    const parts = text.split(/(\[\d{1,2}:\d{2}\])/g);
+    const parts = text.split(/(\[\d{1,3}:\d{2}(?::\d{2})?\])/g);
     return parts.map((part, i) => {
-      const match = part.match(/^\[(\d{1,2}:\d{2})\]$/);
+      const match = part.match(/^\[(\d{1,3}:\d{2}(?::\d{2})?)\]$/);
       if (match) {
         const ts = match[1];
-        const sec = parseTimestampToSeconds(ts);
+        const sec = normalizeCitation(ts).seconds;
         return (
           <button
             key={i}
@@ -562,11 +605,12 @@ function App() {
   const toggleTask = async (idx) => {
     if (updatingTasks[idx]) return;
     const isNowDone = !completedTasks[idx];
+    const version = sessionVersion.current;
     setUpdatingTasks(prev => ({ ...prev, [idx]: true }));
 
     try {
       if (currentMeetingId) {
-        const response = await fetch(`http://localhost:8002/api/meetings/${currentMeetingId}/tasks/${idx}`, {
+        const response = await fetch(`${API_BASE}/api/meetings/${currentMeetingId}/tasks/${idx}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending' })
@@ -577,15 +621,17 @@ function App() {
         }
       }
 
+      if (version !== sessionVersion.current) return;
       setCompletedTasks(prev => ({
         ...prev,
         [idx]: isNowDone
       }));
     } catch (err) {
+      if (version !== sessionVersion.current) return;
       console.error("Failed to sync task status to SQLite:", err);
       setErrorMessage(err.message || "Failed to save task status.");
     } finally {
-      setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
+      if (version === sessionVersion.current) setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
     }
   };
 
@@ -711,7 +757,11 @@ function App() {
       condensed_transcript: result.condensed_transcript,
       duration: result.duration,
       language: result.language,
-      segments: result.segments
+      segments: result.segments,
+      insights: result.insights,
+      chat_history: chatMessages,
+      warnings,
+      demo_mode: isDemoResult
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -799,7 +849,7 @@ ${result.transcript || ""}
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight text-white">AI Meeting Assistant</h1>
                 <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  Orchestrator v2.0
+                  Orchestrator v2.1
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -1070,7 +1120,7 @@ ${result.transcript || ""}
 
                     <button 
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                      onClick={(e) => { e.stopPropagation(); handleReset(); }}
                       className="mt-2 flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-medium px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 transition-colors"
                     >
                       <X className="w-3 h-3" /> Change File
@@ -1177,7 +1227,10 @@ ${result.transcript || ""}
               <span className="flex items-center gap-1 text-slate-500"><ListTodo className="w-3.5 h-3.5" /> Action Items</span>
             </div>
 
-            {/* Fail-Safe Button: Skip waiting directly to demo */}
+            <button type="button" onClick={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }} className="text-sm text-slate-300 underline">
+              Stop waiting
+            </button>
+            {/* Explicit demo switch invalidates the previous response. */}
             <div className="pt-2">
               <button
                 type="button"
@@ -1185,7 +1238,7 @@ ${result.transcript || ""}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-all shadow-lg shadow-amber-500/5 active:scale-95 animate-pulse"
               >
                 <Zap className="w-3.5 h-3.5 text-amber-400" />
-                Presenter Emergency: Skip to Instant Result ⏩
+                Show labeled demo instead ⏩
               </button>
             </div>
           </div>
@@ -1195,6 +1248,12 @@ ${result.transcript || ""}
         {result && !isProcessing && (
           <div className="space-y-6">
             
+            {(isDemoResult || warnings.length > 0) && (
+              <div role="status" className="p-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm">
+                {isDemoResult && <p>Demo data — these results are from the sample meeting, not your uploaded recording.</p>}
+                {warnings.map((warning, index) => <p key={index}>{warning}</p>)}
+              </div>
+            )}
             {/* Quick Metrics Bar (5 cards) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
               <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
@@ -1743,7 +1802,7 @@ ${result.transcript || ""}
                                 {dec.timestamp && (
                                   <button
                                     type="button"
-                                    onClick={() => handleSeekAudio(parseTimestampToSeconds(dec.timestamp))}
+                                    onClick={() => handleSeekAudio(normalizeCitation(dec.timestamp).seconds)}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono transition-all group-hover:border-emerald-400 cursor-pointer active:scale-95"
                                     title={`Click to jump audio to ${dec.timestamp}`}
                                   >
@@ -1789,7 +1848,7 @@ ${result.transcript || ""}
                                 {risk.timestamp && (
                                   <button
                                     type="button"
-                                    onClick={() => handleSeekAudio(parseTimestampToSeconds(risk.timestamp))}
+                                    onClick={() => handleSeekAudio(normalizeCitation(risk.timestamp).seconds)}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-mono transition-all group-hover:border-amber-400 cursor-pointer active:scale-95"
                                     title={`Click to jump audio to ${risk.timestamp}`}
                                   >
@@ -1835,7 +1894,7 @@ ${result.transcript || ""}
                                 {q.timestamp && (
                                   <button
                                     type="button"
-                                    onClick={() => handleSeekAudio(parseTimestampToSeconds(q.timestamp))}
+                                    onClick={() => handleSeekAudio(normalizeCitation(q.timestamp).seconds)}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[10px] font-mono transition-all group-hover:border-blue-400 cursor-pointer active:scale-95"
                                     title={`Click to jump audio to ${q.timestamp}`}
                                   >
@@ -1975,18 +2034,21 @@ ${result.transcript || ""}
                                     <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
                                       <Play className="w-2.5 h-2.5 text-indigo-400" /> Audio Citations:
                                     </span>
-                                    {msg.citations.map((cit, citIdx) => (
+                                    {msg.citations.map((cit, citIdx) => {
+                                      const citation = normalizeCitation(cit);
+                                      return (
                                       <button
                                         key={citIdx}
                                         type="button"
-                                        onClick={() => handleSeekAudio(parseTimestampToSeconds(cit))}
+                                        disabled={!audioUrl || citation.seconds === null}
+                                        onClick={() => handleSeekAudio(citation.seconds)}
                                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-mono transition-all cursor-pointer active:scale-95"
-                                        title={`Jump audio player to ${cit}`}
+                                        title={citation.seconds === null ? "No audio timestamp available" : `Jump audio player to ${citation.label}`}
                                       >
                                         <Play className="w-2 h-2 fill-indigo-300" />
-                                        <span>{cit}</span>
+                                        <span>{citation.label}</span>
                                       </button>
-                                    ))}
+                                    ); })}
                                   </div>
                                 )}
                               </div>

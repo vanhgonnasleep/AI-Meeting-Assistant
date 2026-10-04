@@ -10,6 +10,7 @@ Task: Integrate OpenAI Whisper (or equivalent) to transcribe
 import os
 import shutil
 import tempfile
+from threading import Lock
 from pathlib import Path
 from typing import Union, Optional, Dict, Any, List, BinaryIO, Tuple
 from fastapi import UploadFile
@@ -24,6 +25,7 @@ except ImportError:
 
 # Global model cache to avoid re-loading weights on every inference
 _MODEL_CACHE: Dict[str, Any] = {}
+_MODEL_LOAD_LOCK = Lock()
 
 
 def ensure_ffmpeg() -> bool:
@@ -90,13 +92,18 @@ def get_whisper_model(model_name: Optional[str] = None, device: Optional[str] = 
     if not device:
         device = get_whisper_device()
 
-    cache_key = f"{model_name}_{device}"
-    if cache_key not in _MODEL_CACHE:
-        print(f"[Agent 1 STT] Loading Whisper model '{model_name}' on {device.upper()}...")
-        _MODEL_CACHE[cache_key] = whisper.load_model(model_name, device=device)
-        print(f"[Agent 1 STT] Whisper model '{model_name}' ready.")
+    if model_name not in whisper.available_models():
+        raise ValueError("Choose a supported Whisper model name; local checkpoint paths are not accepted.")
 
-    return _MODEL_CACHE[cache_key]
+    cache_key = f"{model_name}_{device}"
+    with _MODEL_LOAD_LOCK:
+        if cache_key not in _MODEL_CACHE:
+            # Keep one resident model, rather than accumulating all requested weights.
+            _MODEL_CACHE.clear()
+            print(f"[Agent 1 STT] Loading Whisper model '{model_name}' on {device.upper()}...")
+            _MODEL_CACHE[cache_key] = whisper.load_model(model_name, device=device)
+            print(f"[Agent 1 STT] Whisper model '{model_name}' ready.")
+        return _MODEL_CACHE[cache_key]
 
 
 def get_whisper_model_info() -> Dict[str, Any]:

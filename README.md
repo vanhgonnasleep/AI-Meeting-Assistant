@@ -109,7 +109,7 @@ Where:
 - **$\text{Sim}_1(s_i, Q)$ (Relevance Score):** Sparse Cosine Similarity between candidate sentence $s_i$ and the centroid $Q$.
 - **$\max_{s_j \in S} \text{Sim}_2(s_i, s_j)$ (Redundancy Penalty):** Maximum similarity between candidate $s_i$ and any sentence already selected into summary pool $S$.
 - **$\lambda = 0.65$ (Relevance-Diversity Hyperparameter):** Prioritizes 65% topical significance while dedicating 35% weight to penalizing lexical repetition.
-- **Time Complexity:** $\mathcal{O}(V \cdot N + K \cdot N)$ where $V$ is vocabulary size, $N$ is sentence count, and $K$ is selected sentences. This avoids quadratic $\mathcal{O}(N^2)$ graph-based overhead (e.g., LexRank).
+- **Selection Cost:** $\mathcal{O}(K \cdot N)$ cosine comparisons, each operating on sparse vectors, where $V$ is vocabulary size, $N$ is sentence count, and $K$ is selected sentences. Relevance is computed once and maximum redundancy is updated incrementally. When K grows with N, selection remains quadratic in sentence count.
 
 #### Multilingual & Unicode Tokenization Support
 The tokenizer leverages Unicode-compliant regex patterns (`[\w\'-]+`) paired with bilingual stopword filtering (English conversational fillers `um, uh, like, yeah` and Vietnamese fillers `dạ, vâng, ạ, thì, mà, là...`), allowing seamless MMR execution on diverse meeting languages.
@@ -136,11 +136,11 @@ The orchestrator dynamically benchmarks available hardware at boot:
 
 ## 🛡️ Fail-Safe Mechanisms (Presenter Emergency Safeguards)
 
-To guarantee 100% defense reliability during live presentations on arbitrary or weak hardware:
+Demo mode is an explicit presentation option. Real recordings always follow the transcription pipeline:
 
-1. **Adaptive Inference Timeout:** If local Ollama inference exceeds 35 seconds due to CPU saturation, an adaptive fail-safe triggers automatically, returning a deterministic executive summary to preserve presentation continuity.
+1. **Adaptive Inference Timeout:** If local Ollama inference exceeds 35 seconds due to CPU saturation, an adaptive fail-safe triggers automatically, returning a clearly labeled excerpt of the actual transcript. It never substitutes sample meeting facts.
 2. **Instant Demo Mode (`?demo_mode=true`):** Bypasses all model computation, returning a fully formed, mathematically validated Q3 budget meeting showcase in under 50ms.
-3. **Presenter Emergency Skip Button:** If processing takes longer than expected during a live defense, an emergency skip button on the UI allows the presenter to jump directly to showcase results without throwing an error.
+3. **Presenter Emergency Skip Button:** If processing takes longer than expected during a live defense, an emergency skip button on the UI allows the presenter to switch to labeled sample results. The previous browser request is invalidated so a late response cannot overwrite the demo.
 
 ---
 
@@ -151,7 +151,7 @@ To guarantee 100% defense reliability during live presentations on arbitrary or 
 | Software | Recommended Version | Purpose |
 |:---|:---|:---|
 | Python | 3.10+ (tested on 3.10 – 3.14) | FastAPI Backend & ML Pipeline |
-| Node.js | 18+ (tested on Node 20+) | Vite React Frontend |
+| Node.js | 24 LTS | Vite React Frontend |
 | [Ollama](https://ollama.com/) | Latest | Local LLM inference engine |
 | FFmpeg | Any | Audio extraction (bundled automatically via `imageio-ffmpeg`) |
 
@@ -211,12 +211,14 @@ This automated script checks Ollama, pulls `llama3.2:1b`, and displays terminal 
 
 ## 🧪 Testing & Quality Assurance
 
-The repository includes a comprehensive automated test suite with **26 passing tests** verifying STT extraction, MMR algorithmic properties, API contracts, dynamic hyperparameter sensitivity, and database operations.
+The repository includes API, algorithm, storage, request-limit, concurrency, and frontend regression tests verifying STT extraction, MMR algorithmic properties, API contracts, dynamic hyperparameter sensitivity, and database operations.
 
 ```bash
 cd ai-summary-service
 .\venv\Scripts\activate
 pytest -v tests/
+# Optional local Whisper integration (loads/downloads the tiny model):
+pytest -v tests/ --run-model-tests
 ```
 
 ### Test Suite Breakdown
@@ -299,12 +301,22 @@ Standalone endpoint for Agent 1. Ingests audio files and returns raw or timestam
 
 ---
 
+## Maintenance update — 2026-10-04
+
+See [maintenance notes](docs/maintenance-2026-10-04.md) for the verified fixes, test commands, and known limits.
+
+- Demo results are labeled and require an explicit selection.
+- Real AI failures show a transcript excerpt and warning; failed persistence shows an export reminder.
+- Stop waiting invalidates the browser request. Server work may continue and can appear in History later.
+- Set `VITE_API_BASE_URL` before starting/building the frontend to use another local backend address.
+- The API is a local, single-user service. External deployment requires authentication and a separate deployment review.
+
 ## 🔒 Security, Isolation & Engineering Safeguards
 
-- **Prompt Injection Isolation:** Meeting transcripts are enclosed within `<meeting_transcript>` XML boundaries, instructing the LLM to treat transcript content purely as passive data and ignore embedded instructions or prompt overrides.
-- **Path Traversal Protection:** All incoming file uploads are sanitized via `Path(file.filename).name` to prevent directory traversal attacks.
-- **Memory Bomb Prevention:** Strict 50MB file size limits (`MAX_FILE_SIZE_BYTES`) are verified via seek pointers before loading bytes into memory.
-- **CORS Specification Compliance:** Configured with `allow_credentials=False` alongside wildcard origins to strictly adhere to Fetch Living Standard §3.2.
+- **LLM Grounding:** Prompts ask the LLM to treat transcript content as data. Prompt instructions are not a security boundary or a guarantee of factual accuracy; generated decisions and speaker names still require review.
+- **Upload Handling:** Filename basenames are normalized for Windows and POSIX separators; temporary audio files use generated names. Whisper model parameters accept named models only.
+- **Request Limits:** Upload ingestion is bounded before multipart parsing, then each audio file is checked against the 50 MB limit. JSON requests and chat context have separate budgets; at most two compute requests and one transcription run concurrently.
+- **CORS Specification Compliance:** Allowlisted local UI origins, explicit rejection of other browser origins, host validation, and loopback-only server defaults. Set `CORS_ORIGINS` when using a different local UI port.
 - **Database Concurrency Protection:** SQLite connections use `PRAGMA journal_mode=WAL;` and 15-second busy timeouts to ensure thread-safe concurrent access.
 - **Defensive JSON Sanitization:** Multi-layered parsing handles bracket extraction, trailing comma cleanup, and Python single-quote normalization to guard against LLM formatting anomalies.
 
@@ -322,7 +334,7 @@ AI-Meeting-Assistant/
 │   ├── agent3_action_items.py     # Agent 3: Action Items JSON extraction
 │   ├── mmr_extractor.py           # Algorithmic Phase: Maximal Marginal Relevance
 │   ├── requirements.txt           # Python dependencies
-│   └── tests/                     # Automated test suite (19 test cases)
+│   └── tests/                     # Isolated regression and integration tests
 │       ├── test_api.py            # API integration & CRUD contract tests
 │       ├── test_mmr.py            # MMR mathematical & multilingual tests
 │       └── test_stt.py            # Whisper STT & audio endpoint tests
@@ -336,7 +348,7 @@ AI-Meeting-Assistant/
     ├── vite.config.js             # Vite configuration
     ├── tailwind.config.js         # Tailwind CSS styling configuration
     └── src/
-        ├── App.jsx                # Main interactive dashboard (944 lines)
+        ├── App.jsx                # Main interactive dashboard
         ├── App.css                # Application styles
         └── main.jsx               # React DOM entrypoint
 ```

@@ -122,14 +122,15 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
     try:
         # 2. Query local Llama 3 via Ollama package or direct HTTP fallback
         if OLLAMA_LIB_AVAILABLE and ollama is not None:
-            response = ollama.chat(
-                model=target_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Extract action items from this transcript:\n{clean_transcript}"}
-                ],
-                format="json"  # Forces Ollama to constrain Llama 3 output to JSON
-            )
+            with ollama.Client(timeout=35) as client:
+                response = client.chat(
+                    model=target_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Extract action items from this transcript:\n{clean_transcript}"}
+                    ],
+                    format="json"
+                )
             # Support both Ollama SDK object (response.message.content) and dict (response['message']['content'])
             msg = response.message if hasattr(response, 'message') else response.get('message', {})
             raw_content = (msg.content if hasattr(msg, 'content') else msg.get('content', '')).strip()

@@ -57,9 +57,9 @@ def test_instant_demo_mode():
     assert res_model.status_code == 200
     assert res_model.json()["mode"] == "instant_demo"
 
-    # 3. Via demo sample filename (e.g. q3_product_budget_review.mp3)
+    # Sample filenames also need an explicit demo selection.
     files_sample = {"file": ("q3_product_budget_review.mp3", b"sample meeting dummy binary content", "audio/mp3")}
-    res_sample = client.post("/api/process-audio", files=files_sample)
+    res_sample = client.post("/api/process-audio?demo_mode=true", files=files_sample)
     assert res_sample.status_code == 200
     assert res_sample.json()["mode"] == "instant_demo"
 
@@ -134,7 +134,7 @@ def test_version_endpoint():
     response = client.get("/api/version")
     assert response.status_code == 200
     data = response.json()
-    assert data["version"] == "2.0.0"
+    assert data["version"] == app.version
     assert "agents" in data
     assert len(data["agents"]) >= 4
     assert "fail_safe_mechanisms" in data
@@ -280,6 +280,11 @@ def test_meeting_task_status_invalid_value():
 
 def test_analytics_endpoint():
     """Verify GET /api/analytics returns valid metrics schema."""
+    import database.crud as crud
+    crud.create_meeting(filename="analytics.wav", duration=15, action_items=[
+        {"task": "Ship report", "status": "completed"},
+        {"task": "Review report", "status": "pending"},
+    ])
     res = client.get("/api/analytics")
     assert res.status_code == 200
     data = res.json()
@@ -289,7 +294,8 @@ def test_analytics_endpoint():
     assert "total_meetings" in stats
     assert "total_action_items" in stats
     assert "completion_rate_percent" in stats
-    assert stats["total_meetings"] >= 1
+    assert stats["total_meetings"] == 1
+    assert stats["completion_rate_percent"] == 50.0
 
 
 def test_meeting_insights_heuristic():

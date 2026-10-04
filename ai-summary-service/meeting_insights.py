@@ -50,7 +50,7 @@ def _match_segment_evidence(text: str, segments: Optional[List[Dict[str, Any]]])
         # Extract [MM:SS] format
         clean_ts = None
         if ts:
-            m = re.search(r'(\d{2}:\d{2})', str(ts))
+            m = re.search(r'(\d{1,3}:\d{2}(?::\d{2})?)', str(ts))
             if m:
                 clean_ts = m.group(1)
             else:
@@ -148,12 +148,6 @@ def extract_insights_heuristic(
             if ts: item["timestamp"] = ts
             if start is not None: item["start"] = start
             decisions.append(item)
-
-    # If transcript mentions budget/commitments, guarantee at least 1 decision/risk if available
-    if not decisions and summary:
-        first_sum_line = summary.split("\n")[0].strip("- *• ")
-        if first_sum_line:
-            decisions.append({"text": first_sum_line})
 
     return {
         "decisions": decisions,

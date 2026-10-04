@@ -37,7 +37,11 @@ python main.py
 
 ## 🧪 Testing
 
-Execute the comprehensive automated test suite (19 tests):
+Execute isolated API and algorithm tests (no model download by default):
 ```bash
 pytest -v tests/
 ```
+
+For local Whisper integration, run `pytest -v tests/ --run-model-tests`.
+The server binds to loopback by default. Configure `CORS_ORIGINS` for a different local UI port; external deployment requires authentication.
+See [maintenance notes](../docs/maintenance-2026-10-04.md) for current behavior and limitations.

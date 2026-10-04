@@ -17,8 +17,9 @@ Where:
   - Sim1(s_i, Q) is the cosine similarity measuring informational relevance.
   - max_{s_j in S} Sim2(s_i, s_j) measures redundancy against already selected sentences.
   - lambda in [0, 1] is the diversity-relevance trade-off hyperparameter (default: 0.65).
-  - Time Complexity: O(V * N + K * N), where V is vocabulary size, N is total sentences,
-    and K is extracted sentence count. Far superior to quadratic graph methods.
+  - Selection: O(K * N) sparse cosine comparisons, where N is sentence count and K
+    is selected count. Each comparison also costs sparse-vector traversal; K proportional
+    to N still yields quadratic selection work.
 =============================================================================
 """
 
@@ -197,6 +198,8 @@ class MMRExtractor:
         # Unselected sentences pool R \ S
         remaining_indices = list(range(total_sentences))
         selected_indices: List[int] = []
+        relevance = [self._cosine_similarity(vector, centroid) for vector in vectors]
+        redundancy = [0.0] * total_sentences
 
         # MMR Iterative Selection
         for _ in range(k):
@@ -205,16 +208,8 @@ class MMRExtractor:
 
             for i in remaining_indices:
                 # Sim1: Informational relevance to meeting centroid Q
-                sim_to_doc = self._cosine_similarity(vectors[i], centroid)
-
-                # Sim2: Max redundancy against currently chosen sentences S
-                if selected_indices:
-                    max_sim_to_selected = max(
-                        self._cosine_similarity(vectors[i], vectors[j])
-                        for j in selected_indices
-                    )
-                else:
-                    max_sim_to_selected = 0.0
+                sim_to_doc = relevance[i]
+                max_sim_to_selected = redundancy[i]
 
                 # MMR Objective function: lambda * Sim1 - (1 - lambda) * Sim2
                 mmr_score = (active_lambda * sim_to_doc) - ((1.0 - active_lambda) * max_sim_to_selected)
@@ -226,6 +221,8 @@ class MMRExtractor:
             if best_idx is not None:
                 selected_indices.append(best_idx)
                 remaining_indices.remove(best_idx)
+                for i in remaining_indices:
+                    redundancy[i] = max(redundancy[i], self._cosine_similarity(vectors[i], vectors[best_idx]))
 
         # Sort selected sentences back to original chronological order to preserve meeting dialogue flow
         selected_indices.sort()

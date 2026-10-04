@@ -56,6 +56,7 @@ class MeetingRecord:
     insights: Dict[str, List[Dict[str, Any]]] = field(default_factory=empty_insights)
     # Persisted Q&A: [{role, content, citations, mode, created_at}]
     chat_history: List[Dict[str, Any]] = field(default_factory=list)
+    chat_generation: int = 0
 
     def __post_init__(self):
         # Guarantee backward and forward compatibility between created_at and processed_at
@@ -109,4 +110,4 @@ class MeetingRecord:
         return asdict(self)
 
     def dict(self, *args, **kwargs) -> Dict[str, Any]:
-        return asdict(self)
+        return asdict(self)

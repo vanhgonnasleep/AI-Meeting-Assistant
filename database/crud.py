@@ -101,6 +101,7 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
         segments=_load_json_column(row, "segments", []),
         insights=_load_json_column(row, "insights", {}),
         chat_history=_load_json_column(row, "chat_history", []),
+        chat_generation=row["chat_generation"] if "chat_generation" in row.keys() else 0,
     )
 
 
@@ -377,7 +378,7 @@ def update_action_item_status(meeting_id: int, item_idx: int, status: str) -> bo
         connection.close()
 
 
-def append_chat_messages(meeting_id: int, messages: List[Dict[str, Any]]) -> bool:
+def append_chat_messages(meeting_id: int, messages: List[Dict[str, Any]], expected_generation: Optional[int] = None) -> bool:
     """
     Atomically append Q&A messages to a meeting's chat history.
     Uses BEGIN IMMEDIATE so two concurrent questions never drop each other's messages.
@@ -394,10 +395,14 @@ def append_chat_messages(meeting_id: int, messages: List[Dict[str, Any]]) -> boo
     try:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
-            "SELECT chat_history FROM meetings WHERE id = ?",
+            "SELECT chat_history, chat_generation FROM meetings WHERE id = ?",
             (meeting_id,),
         ).fetchone()
         if row is None:
+            connection.rollback()
+            return False
+
+        if expected_generation is not None and row["chat_generation"] != expected_generation:
             connection.rollback()
             return False
 
@@ -438,7 +443,7 @@ def clear_chat_history(meeting_id: int) -> bool:
     connection = get_connection()
     try:
         cursor = connection.execute(
-            "UPDATE meetings SET chat_history = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE meetings SET chat_history = NULL, chat_generation = chat_generation + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (meeting_id,),
         )
         connection.commit()
