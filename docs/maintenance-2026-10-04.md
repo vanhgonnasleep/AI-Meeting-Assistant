@@ -19,6 +19,10 @@ This maintenance pass prioritizes correctness and predictable resource usage in 
 - History detail requests are invalidated when the dialog closes. Failed loading keeps the previous result's demo label and warnings. An in-app rename form replaces the browser prompt.
 - Speaker refinement accepts line numbers only inside its current chunk. The final Map-Reduce prompt uses the same data boundary as the direct/partial prompts. Neither prompt boundaries nor low temperature guarantee factual accuracy.
 - The Windows launcher checks the project virtual environment and frontend dependencies, works from the repository directory, and binds the UI to a fixed local port. The low-spec setup reports failed model downloads correctly.
+- Chat suggestions now quote the current transcript instead of reusing budget/financial-report examples. Empty source text produces no suggestions. Switching meetings recomputes them; summaries and extracted tasks are not used as evidence for their topics.
+- Chat retrieval focuses on quoted source text and removes generic question framing from keyword scoring. An unrelated question receives `no_matching_context` with no citations or model call instead of arbitrary chronological excerpts. Whole-meeting overview requests use an explicit sample across the transcript; the sample is not complete coverage.
+- Generated executive summaries are excluded from the chat model's evidence. Offline answers are labeled source excerpts rather than synthesized answers. Saved-meeting chat requests send the question and record ID, avoiding redundant large transcripts; the server reads the stored source.
+- Raw transcript times, ratios and URLs retain their colons. Inline chat seek buttons are disabled when the original audio is unavailable. An empty extracted-question list no longer claims that all questions were resolved.
 
 The database migration adds `chat_generation` with a default value for existing meetings and a recent-meeting index. No meeting records need to be deleted or replaced. The history API now defaults to 50 records (maximum 100); clients needing the whole history must paginate.
 
@@ -28,11 +32,11 @@ On Windows, Python 3.14.7 and Node 24.21.0:
 
 ```text
 python -m pytest ai-summary-service/tests -q --run-model-tests
-81 passed; 2 upstream deprecation warnings
+90 passed; 2 upstream deprecation warnings
 
 cd meeting-assistant-ui
 npm run lint
-npm test              # 7 passed
+npm test              # 16 passed
 npm run build
 npm audit --omit=dev   # 0 vulnerabilities
 ```
@@ -40,6 +44,8 @@ npm audit --omit=dev   # 0 vulnerabilities
 The four Whisper integration tests require the full model dependencies and model weights. The default suite skips those tests so CI can use `ai-summary-service/requirements-test.txt` without downloading Whisper weights. CI uses Python 3.11; its remote result is separate from the local verification above.
 
 Browser checks covered explicit demo processing, object citations, a suggested chat question, and chat clearing. A second preview used a separate synthetic database to check history pagination, a transcript search outside the first page, speaker correction surviving reopening, and retained demo labeling after a failed detail request. The unsupported browser rename prompt discovered during this check was replaced and verified. An independent code review also compared MMR output against the previous algorithm over 144 parameter/input combinations and checked oversized JSON and multipart streams.
+
+A third isolated preview verified that engineering and gardening meetings produce different source-based chat suggestions. An unavailable model returned clearly labeled relevant excerpts, and a budget question against the gardening meeting returned no matching context despite the word “approved” in its transcript. Independent review found an overbroad speaker-header rule that could discard times, ratios and URLs; regression tests now cover those cases.
 
 ## Remaining limits
 
@@ -51,6 +57,7 @@ Browser checks covered explicit demo processing, object citations, a suggested c
 - Python dependency compatibility passed `pip check`. An OSV query of 46 installed backend packages returned no known findings, including paginated responses; this covers that environment and database, not every future installation. AI quality remains heuristic when Ollama is unavailable. Speaker diarization is approximate and has no representative accuracy evaluation in this pass.
 - Search still scans matching text; it is not an FTS index. Analytics remains proportional to task count. Large-scale use needs measured benchmarks and a separate indexing design.
 - Speaker corrections update structured labels. Previously generated narrative prose may still mention old names; review or regenerate it separately. Original audio is not persisted with history, and response warnings are not stored as separate database fields.
+- Suggestions use bounded excerpts and simple topic heuristics, not a new AI question-generation service. Chat retrieval remains lexical: synonyms and translations can miss useful context, and word overlap can still select insufficient evidence. Model instructions and displayed citations do not verify every generated claim. New feature work is deferred.
 
 ## Feature priorities after this pass
 

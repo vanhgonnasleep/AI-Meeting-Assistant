@@ -27,6 +27,61 @@ export function createRequestGate() {
   };
 }
 
+// Topics come from the current source text, not unverified generated summaries/tasks.
+export function getSuggestedPrompts(result) {
+  const segments = Array.isArray(result?.segments) ? result.segments : [];
+  let texts = segments.map(segment => typeof segment?.text === 'string' ? segment.text : '').filter(text => text.trim());
+  const fromSegments = texts.length > 0;
+  if (!texts.length && typeof result?.transcript === 'string') texts = [result.transcript];
+  const seen = new Set();
+  const candidates = [];
+  for (const text of texts) {
+    for (const part of text.split(/(?<=[.!?])\s+|\n+/u)) {
+      let cleaned = part.trim();
+      if (!fromSegments) {
+        const timestamp = /^\[\d{1,3}:\d{2}(?::\d{2})?(?:\s*-\s*\d{1,3}:\d{2}(?::\d{2})?)?\]\s*/u;
+        const attributed = timestamp.test(cleaned);
+        cleaned = cleaned.replace(timestamp, '');
+        // Segment.text is spoken text; only raw transcript attribution has headers.
+        cleaned = cleaned.replace(attributed ? /^[\p{L}][\p{L}\p{M}\p{N} .'-]{0,60}:\s+/u : /^Speaker\s+[\p{L}\p{N}]+:\s*/iu, '');
+      }
+      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      if (cleaned.length < 8 || /^(?:hello(?: everyone)?|hi(?: everyone)?|welcome(?: everyone)?|thank you|thanks|okay|xin chào|cảm ơn)[.!]*$/iu.test(cleaned)) continue;
+      const shortened = cleaned.length > 150 ? cleaned.slice(0, 147).replace(/\s+\S*$/u, '') + '…' : cleaned;
+      const key = shortened.toLocaleLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const category = /\b(?:agreed|decided|approved|confirmed|thống nhất|quyết định|chốt)\b/iu.test(cleaned) ? 'decision'
+        : /\b(?:risk|blocker|delay|concern|rủi ro|trở ngại|chậm tiến độ)\b/iu.test(cleaned) ? 'risk'
+        : /\b(?:will|must|needs to|deadline|sẽ|cần|hạn chót)\b/iu.test(cleaned) ? 'follow-up'
+        : cleaned.includes('?') ? 'question' : 'topic';
+      candidates.push({ excerpt: shortened, category });
+    }
+  }
+  // Prefer distinct categories before filling with other transcript excerpts.
+  const selected = [];
+  for (const category of ['decision', 'follow-up', 'risk', 'question', 'topic']) {
+    const candidate = candidates.find(item => item.category === category);
+    if (candidate && selected.length < 4) selected.push(candidate);
+  }
+  for (const candidate of candidates) {
+    if (selected.length >= 4) break;
+    if (!selected.includes(candidate)) selected.push(candidate);
+  }
+  return selected.map(({ excerpt, category }) => {
+    if (category === 'decision') return `What decision, if any, is discussed in “${excerpt}”?`;
+    if (category === 'follow-up') return `What follow-up, if any, is discussed in “${excerpt}”?`;
+    if (category === 'risk') return `What does the meeting say about the concern in “${excerpt}”?`;
+    return `What does the meeting say about “${excerpt}”?`;
+  });
+}
+
+export function buildChatPayload({ question, meetingId, model, isDemo, result }) {
+  if (meetingId) return { question, model, meeting_id: meetingId };
+  return { question, model, demo_mode: Boolean(isDemo), transcript: result?.transcript || '',
+    summary: result?.summary || '', segments: result?.segments || null, language: result?.language || 'en' };
+}
+
 export function resultFromMeeting(meeting) {
   const segments = (Array.isArray(meeting.segments) ? meeting.segments : [])
     .filter(segment => segment && typeof segment === 'object').map(segment => ({ ...segment, text: String(segment.text ?? '') }));

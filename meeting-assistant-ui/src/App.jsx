@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { normalizeCitation, createRequestGate, resultFromMeeting, editSpeakerAttribution } from './session';
+import { normalizeCitation, createRequestGate, resultFromMeeting, editSpeakerAttribution, getSuggestedPrompts, buildChatPayload } from './session';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
@@ -80,10 +80,8 @@ const getDefaultChatGreeting = (currResult) => {
   return [
     {
       role: 'assistant',
-      content: `👋 **Welcome to AI Meeting Chat!**\n\nI have indexed the conversational transcript and timeline for this meeting${durText ? ` (${durText} duration)` : ''} with **${turnsCount} turns** and **${itemsCount} action items**.\n\nYou can ask me about finalized decisions, budget allocations, team responsibilities, or delivery risks. Click any suggested prompt above or type your inquiry below!`,
-      citations: currResult.segments && currResult.segments.length > 0 && currResult.segments[0].timestamp
-        ? [currResult.segments[0].timestamp]
-        : [],
+      content: `👋 **Welcome to AI Meeting Chat!**\n\nThis meeting${durText ? ` (${durText} duration)` : ''} has **${turnsCount} transcript segments** and **${itemsCount} extracted action items**.\n\nAsk a question about its content or choose a suggestion based on the transcript. Check the source excerpts when reviewing an answer.`,
+      citations: [],
       mode: 'assistant',
       created_at: new Date().toISOString()
     }
@@ -96,6 +94,7 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [result, setResult] = useState(null);
+  const suggestedPrompts = useMemo(() => getSuggestedPrompts(result), [result]);
   const [currentMeetingId, setCurrentMeetingId] = useState(null);
   const [enableMmr, setEnableMmr] = useState(true);
   const [mmrLambda, setMmrLambda] = useState(0.65);
@@ -552,21 +551,11 @@ function App() {
 
     try {
       let endpoint = `${API_BASE}/api/chat`;
-      const isDemoMode = isDemoResult;
-
-      let payload = {
-        question: cleanQ,
-        demo_mode: isDemoMode,
-        transcript: result?.transcript || '',
-        summary: result?.summary || '',
-        segments: result?.segments || null,
-        language: result?.language || 'en',
-        model: selectedModel === 'instant_demo' ? 'auto' : selectedModel
-      };
+      const payload = buildChatPayload({ question: cleanQ, meetingId: currentMeetingId,
+        isDemo: isDemoResult, result, model: selectedModel === 'instant_demo' ? 'auto' : selectedModel });
 
       if (currentMeetingId) {
         endpoint = `${API_BASE}/api/meetings/${currentMeetingId}/chat`;
-        payload.meeting_id = currentMeetingId;
       }
 
       const res = await fetch(endpoint, {
@@ -644,9 +633,10 @@ function App() {
           <button
             key={i}
             type="button"
+            disabled={!audioUrl || sec === null}
             onClick={() => handleSeekAudio(sec)}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded bg-indigo-500/25 hover:bg-indigo-500/40 text-indigo-300 hover:text-white border border-indigo-500/40 text-[11px] font-mono transition-all font-semibold active:scale-95 cursor-pointer"
-            title={`Click to jump audio to ${ts}`}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded bg-indigo-500/25 hover:bg-indigo-500/40 text-indigo-300 hover:text-white border border-indigo-500/40 text-[11px] font-mono transition-all font-semibold active:scale-95 cursor-pointer disabled:cursor-default disabled:opacity-60"
+            title={!audioUrl ? 'Audio is not available for this meeting' : sec === null ? 'No audio timestamp available' : `Click to jump audio to ${ts}`}
           >
             <Play className="w-2 h-2 text-indigo-400 fill-indigo-400" />
             <span>{ts}</span>
@@ -1946,7 +1936,7 @@ ${result.transcript || ""}
                       </div>
                       <div className="space-y-3">
                         {(!result.insights?.open_questions || result.insights.open_questions.length === 0) ? (
-                          <p className="text-xs text-slate-500 italic py-4 text-center">All open questions were resolved.</p>
+                          <p className="text-xs text-slate-500 italic py-4 text-center">No open questions extracted.</p>
                         ) : (
                           result.insights.open_questions.map((q, idx) => (
                             <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-blue-500/40 transition-all space-y-2 group">
@@ -2016,27 +2006,22 @@ ${result.transcript || ""}
                   </div>
 
                   {/* Quick Suggestion Prompts */}
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
+                  {suggestedPrompts.length > 0 && <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
                     <span className="text-slate-500 text-[11px] whitespace-nowrap flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Suggested Prompts:
                     </span>
-                    {[
-                      "What budget was approved and what are the terms?",
-                      "Who owns the financial report and when is it due?",
-                      "What are the main risks or blockers identified?",
-                      "Summarize key decisions made in this meeting."
-                    ].map((promptText, pIdx) => (
+                    {suggestedPrompts.map((promptText, pIdx) => (
                       <button
                         key={pIdx}
                         type="button"
                         onClick={() => handleSendChatMessage(promptText)}
-                        disabled={isChatLoading}
-                        className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-indigo-600/20 border border-slate-800 hover:border-indigo-500/40 text-slate-300 hover:text-white text-xs whitespace-nowrap transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                        disabled={isChatLoading || isSpeakerSaving}
+                        className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-indigo-600/20 border border-slate-800 hover:border-indigo-500/40 text-slate-300 hover:text-white text-xs text-left min-w-48 max-w-80 shrink-0 whitespace-normal transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                       >
                         {promptText}
                       </button>
                     ))}
-                  </div>
+                  </div>}
 
                   {/* Messages Container */}
                   <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col h-[520px]">
@@ -2049,23 +2034,18 @@ ${result.transcript || ""}
                           <div className="max-w-md space-y-2">
                             <h3 className="text-sm font-semibold text-white">AI Meeting Assistant Ready</h3>
                             <p className="text-xs text-slate-400 leading-relaxed">
-                              Ask anything about decisions, numbers, action deliverables, or delivery blockers. Click any suggested prompt above or pick a quick question below:
+                              Ask a question about this meeting's transcript. Suggestions appear when source text is available.
                             </p>
                             <div className="pt-2 flex flex-wrap justify-center gap-2">
-                              <button
+                              {suggestedPrompts.slice(0, 2).map(promptText => <button
+                                key={promptText}
                                 type="button"
-                                onClick={() => handleSendChatMessage("What budget was approved and what are the terms?")}
+                                onClick={() => handleSendChatMessage(promptText)}
+                                disabled={isChatLoading || isSpeakerSaving}
                                 className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-all cursor-pointer"
                               >
-                                💬 Ask: What budget was approved?
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleSendChatMessage("Who owns the financial report and when is it due?")}
-                                className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all cursor-pointer"
-                              >
-                                💬 Ask: Who owns the financial report?
-                              </button>
+                                {promptText}
+                              </button>)}
                             </div>
                           </div>
                         </div>
@@ -2100,7 +2080,7 @@ ${result.transcript || ""}
                                 {!isUser && msg.citations && msg.citations.length > 0 && (
                                   <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
                                     <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                                      <Play className="w-2.5 h-2.5 text-indigo-400" /> Audio Citations:
+                                      <Play className="w-2.5 h-2.5 text-indigo-400" /> Source Excerpts:
                                     </span>
                                     {msg.citations.map((cit, citIdx) => {
                                       const citation = normalizeCitation(cit);
@@ -2146,7 +2126,8 @@ ${result.transcript || ""}
                               handleSendChatMessage();
                             }
                           }}
-                          placeholder="Ask anything about the meeting (e.g. 'What budget was approved?')..."
+                          placeholder="Ask a question about this meeting's content..."
+                          maxLength={4000}
                           className="flex-1 bg-transparent px-3 py-2 text-xs text-white placeholder-slate-500 outline-none"
                           disabled={isChatLoading}
                         />
