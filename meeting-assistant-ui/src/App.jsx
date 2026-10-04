@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { 
   UploadCloud, 
@@ -28,7 +28,14 @@ import {
   Globe,
   Users,
   Edit2,
-  Printer
+  Printer,
+  MessageSquare,
+  Send,
+  AlertTriangle,
+  HelpCircle,
+  Target,
+  Play,
+  CornerDownLeft
 } from 'lucide-react';
 
 const SPEAKER_BADGE_STYLES = [
@@ -71,7 +78,7 @@ function App() {
   const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'segments' | 'mmr'
   const [isCopied, setIsCopied] = useState(false);
   const [summaryCopied, setSummaryCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript'
+  const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript' | 'insights' | 'chat'
   const [completedTasks, setCompletedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
   const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
@@ -83,6 +90,13 @@ function App() {
   const [systemAnalytics, setSystemAnalytics] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+
+  // Agent 6 Interactive Chat state
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const audioRef = useRef(null);
+  const chatBottomRef = useRef(null);
 
   // Synchronize audio preview URL when file changes
   useEffect(() => {
@@ -122,10 +136,16 @@ function App() {
       transcript: item.raw_transcript,
       summary: item.executive_summary,
       action_items: item.action_items || [],
+      insights: item.insights || { decisions: [], risks: [], open_questions: [] },
+      chat_history: item.chat_history || [],
       duration: item.duration,
       language: item.language,
-      segments: []
+      segments: item.segments || []
     });
+    setChatMessages(item.chat_history || []);
+    if (item.filename && (item.filename.includes('q3_product_budget_review') || item.filename.includes('q3_budget_meeting'))) {
+      setAudioUrl('/q3_product_budget_review.wav');
+    }
     setCurrentMeetingId(item.id);
     setMmrTelemetry(null);
     setTranscriptView('raw');
@@ -249,6 +269,7 @@ function App() {
       
       const data = await response.json();
       setResult(data.data);
+      setChatMessages(data.data?.chat_history || []);
       setCurrentMeetingId(data.meeting_id || null);
       setMmrTelemetry(data.mmr_telemetry || null);
       setMetaInfo({
@@ -291,6 +312,10 @@ function App() {
       }
       const data = await response.json();
       setResult(data.data);
+      setChatMessages(data.data?.chat_history || []);
+      if (!audioUrl) {
+        setAudioUrl('/q3_product_budget_review.wav');
+      }
       setMmrTelemetry(data.mmr_telemetry || {
         applied: true,
         original_sentences: 5,
@@ -361,6 +386,130 @@ function App() {
     setTranscriptView('raw');
     setSpeakerFilter('all');
     setErrorMessage(null);
+    setChatMessages([]);
+    setChatInput('');
+    setIsChatLoading(false);
+  };
+
+  const handleSeekAudio = (seconds) => {
+    if (audioRef.current && typeof seconds === 'number') {
+      audioRef.current.currentTime = Math.max(0, seconds);
+      audioRef.current.play().catch(() => {});
+    }
+  };
+
+  const parseTimestampToSeconds = (ts) => {
+    if (ts === null || ts === undefined) return 0;
+    if (typeof ts === 'number') return ts;
+    const m = String(ts).match(/(\d{1,2}):(\d{2})/);
+    if (m) {
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+    return 0;
+  };
+
+  const handleSendChatMessage = async (presetText) => {
+    const textToSend = typeof presetText === 'string' ? presetText : chatInput;
+    if (!textToSend || !textToSend.trim() || isChatLoading) return;
+    const cleanQ = textToSend.trim();
+    setChatInput('');
+
+    const newUserMsg = { role: 'user', content: cleanQ, created_at: new Date().toISOString() };
+    setChatMessages(prev => [...prev, newUserMsg]);
+    setIsChatLoading(true);
+
+    try {
+      let endpoint = 'http://localhost:8002/api/chat';
+      const isDemoMode = selectedModel === 'instant_demo' || (file?.name && file.name.includes('q3_product_budget_review'));
+      let payload = {
+        question: cleanQ,
+        demo_mode: isDemoMode,
+        transcript: result?.transcript || '',
+        summary: result?.summary || '',
+        segments: result?.segments || null,
+        language: result?.language || 'en',
+        model: selectedModel
+      };
+
+      if (currentMeetingId) {
+        endpoint = `http://localhost:8002/api/meetings/${currentMeetingId}/chat`;
+        payload.meeting_id = currentMeetingId;
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Chat request failed (HTTP ${res.status})`);
+      }
+
+      const data = await res.json();
+      const assistantMsg = {
+        role: 'assistant',
+        content: data.answer,
+        citations: data.citations || [],
+        mode: data.mode,
+        created_at: new Date().toISOString()
+      };
+
+      setChatMessages(prev => [...prev, assistantMsg]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      setChatMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `Xin lỗi, không thể kết nối tới mô hình AI: ${err.message}.`,
+          citations: [],
+          mode: 'error'
+        }
+      ]);
+    } finally {
+      setIsChatLoading(false);
+      setTimeout(() => {
+        chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (currentMeetingId) {
+      try {
+        await fetch(`http://localhost:8002/api/meetings/${currentMeetingId}/chat`, { method: 'DELETE' });
+      } catch (e) {
+        console.error("Failed to clear chat in SQLite:", e);
+      }
+    }
+    setChatMessages([]);
+  };
+
+  const renderFormattedChatText = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(\[\d{1,2}:\d{2}\])/g);
+    return parts.map((part, i) => {
+      const match = part.match(/^\[(\d{1,2}:\d{2})\]$/);
+      if (match) {
+        const ts = match[1];
+        const sec = parseTimestampToSeconds(ts);
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => handleSeekAudio(sec)}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded bg-indigo-500/25 hover:bg-indigo-500/40 text-indigo-300 hover:text-white border border-indigo-500/40 text-[11px] font-mono transition-all font-semibold active:scale-95 cursor-pointer"
+            title={`Click to jump audio to ${ts}`}
+          >
+            <Play className="w-2 h-2 text-indigo-400 fill-indigo-400" />
+            <span>{ts}</span>
+          </button>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
   };
 
   const toggleTask = async (idx) => {
@@ -400,7 +549,16 @@ function App() {
     if (result.segments && result.segments.some(s => s.speaker)) {
       transcriptBlock = result.segments.map(s => `**${s.speaker}** (${s.timestamp || ''}): ${s.text}`).join('\n\n');
     }
-    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
+
+    let insightsBlock = "";
+    if (result.insights) {
+      const decs = (result.insights.decisions || []).map(d => `- **[Chốt/Decision]** ${d.text}${d.timestamp ? ` (${d.timestamp})` : ''}`).join('\n');
+      const risks = (result.insights.risks || []).map(r => `- **[Rủi ro/Risk]** ${r.text}${r.timestamp ? ` (${r.timestamp})` : ''}`).join('\n');
+      const ques = (result.insights.open_questions || []).map(q => `- **[Câu hỏi/Question]** ${q.text}${q.timestamp ? ` (${q.timestamp})` : ''}`).join('\n');
+      insightsBlock = `\n\n## KEY DECISIONS & GOVERNANCE INSIGHTS\n### Finalized Decisions\n${decs || 'None'}\n\n### Blockers & Delivery Risks\n${risks || 'None'}\n\n### Open Questions\n${ques || 'None'}`;
+    }
+
+    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}${insightsBlock}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
   };
 
   const handleCopyResult = () => {
@@ -1086,10 +1244,40 @@ ${result.transcript || ""}
               </div>
             </div>
 
+            {/* Audio Recording Player & Seek Bar */}
+            {audioUrl && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/60 backdrop-blur-xl p-3 px-4 rounded-2xl border border-slate-800 shadow-md">
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 shrink-0">
+                    <Volume2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-white">Audio Sync Player</p>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-teal-500/15 text-teal-300 border border-teal-500/30">
+                        Interactive
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Bấm vào mốc thời gian [MM:SS] tại Chat hoặc Insights để phát đúng đoạn
+                    </p>
+                  </div>
+                </div>
+                <div className="w-full sm:w-auto flex-1 max-w-sm">
+                  <audio
+                    ref={audioRef}
+                    src={audioUrl}
+                    controls
+                    className="w-full h-8 rounded-lg outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* View Switcher & Export Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/40 p-2 rounded-2xl border border-slate-800/80">
               {/* Tab Navigation */}
-              <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+              <div className="flex flex-wrap items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
                 <button
                   onClick={() => setActiveTab('split')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -1113,6 +1301,22 @@ ${result.transcript || ""}
                   }`}
                 >
                   <ListTodo className="w-3.5 h-3.5" /> Tasks ({result.action_items?.length || 0})
+                </button>
+                <button
+                  onClick={() => setActiveTab('insights')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    activeTab === 'insights' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Target className="w-3.5 h-3.5" /> Insights {result.insights ? `(${((result.insights.decisions?.length || 0) + (result.insights.risks?.length || 0))})` : ''}
+                </button>
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    activeTab === 'chat' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" /> Hỏi đáp AI ({chatMessages.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('transcript')}
@@ -1431,6 +1635,351 @@ ${result.transcript || ""}
                     </div>
                   )}
 
+                </div>
+              )}
+
+              {/* Agent 5: Key Decisions & Risk/Blocker Matrix Panel */}
+              {activeTab === 'insights' && (
+                <div className="lg:col-span-12 space-y-6">
+                  {/* Panel Header */}
+                  <div className="bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                        <Target className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-white">
+                            Key Decisions & Risk/Blocker Matrix
+                          </h2>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono">
+                            Agent 5 Intelligence
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Trích xuất tự động 3 trụ cột quản trị: Quyết định đã chốt, Rủi ro/rào cản và Câu hỏi mở kèm bằng chứng audio
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                      <span>{(result.insights?.decisions || []).length} chốt</span>
+                      <span>•</span>
+                      <span>{(result.insights?.risks || []).length} rủi ro</span>
+                      <span>•</span>
+                      <span>{(result.insights?.open_questions || []).length} câu hỏi</span>
+                    </div>
+                  </div>
+
+                  {/* 3 Pillars Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Pillar 1: Decisions */}
+                    <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-emerald-500/30 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-emerald-500/20">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                          <h3 className="text-sm font-bold text-white">Quyết định đã chốt</h3>
+                        </div>
+                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          {(result.insights?.decisions || []).length}
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {(!result.insights?.decisions || result.insights.decisions.length === 0) ? (
+                          <p className="text-xs text-slate-500 italic py-4 text-center">Chưa phát hiện quyết định chốt nào trong cuộc họp.</p>
+                        ) : (
+                          result.insights.decisions.map((dec, idx) => (
+                            <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-emerald-500/40 transition-all space-y-2 group">
+                              <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                                {dec.text}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {dec.speaker && (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${getSpeakerBadgeStyle(dec.speaker)}`}>
+                                    {dec.speaker}
+                                  </span>
+                                )}
+                                {dec.timestamp && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSeekAudio(parseTimestampToSeconds(dec.timestamp))}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono transition-all group-hover:border-emerald-400 cursor-pointer active:scale-95"
+                                    title={`Click để nhảy tới ${dec.timestamp} trong audio`}
+                                  >
+                                    <Play className="w-2.5 h-2.5 fill-emerald-300" />
+                                    <span>{dec.timestamp}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pillar 2: Risks & Blockers */}
+                    <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-amber-500/30 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-amber-500/20">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300">
+                            <AlertTriangle className="w-4 h-4" />
+                          </div>
+                          <h3 className="text-sm font-bold text-white">Rủi ro & Rào cản</h3>
+                        </div>
+                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          {(result.insights?.risks || []).length}
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {(!result.insights?.risks || result.insights.risks.length === 0) ? (
+                          <p className="text-xs text-slate-500 italic py-4 text-center">Không phát hiện rủi ro nghiêm trọng.</p>
+                        ) : (
+                          result.insights.risks.map((risk, idx) => (
+                            <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-amber-500/40 transition-all space-y-2 group">
+                              <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                                {risk.text}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {risk.speaker && (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${getSpeakerBadgeStyle(risk.speaker)}`}>
+                                    {risk.speaker}
+                                  </span>
+                                )}
+                                {risk.timestamp && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSeekAudio(parseTimestampToSeconds(risk.timestamp))}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-mono transition-all group-hover:border-amber-400 cursor-pointer active:scale-95"
+                                    title={`Click để nhảy tới ${risk.timestamp} trong audio`}
+                                  >
+                                    <Play className="w-2.5 h-2.5 fill-amber-300" />
+                                    <span>{risk.timestamp}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pillar 3: Open Questions */}
+                    <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-blue-500/30 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-blue-500/20">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-300">
+                            <HelpCircle className="w-4 h-4" />
+                          </div>
+                          <h3 className="text-sm font-bold text-white">Câu hỏi mở & Tồn đọng</h3>
+                        </div>
+                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                          {(result.insights?.open_questions || []).length}
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {(!result.insights?.open_questions || result.insights.open_questions.length === 0) ? (
+                          <p className="text-xs text-slate-500 italic py-4 text-center">Tất cả các câu hỏi đều đã được giải đáp.</p>
+                        ) : (
+                          result.insights.open_questions.map((q, idx) => (
+                            <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-blue-500/40 transition-all space-y-2 group">
+                              <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                                {q.text}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {q.speaker && (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${getSpeakerBadgeStyle(q.speaker)}`}>
+                                    {q.speaker}
+                                  </span>
+                                )}
+                                {q.timestamp && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSeekAudio(parseTimestampToSeconds(q.timestamp))}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[10px] font-mono transition-all group-hover:border-blue-400 cursor-pointer active:scale-95"
+                                    title={`Click để nhảy tới ${q.timestamp} trong audio`}
+                                  >
+                                    <Play className="w-2.5 h-2.5 fill-blue-300" />
+                                    <span>{q.timestamp}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Agent 6: Interactive Meeting Chatbot Panel */}
+              {activeTab === 'chat' && (
+                <div className="lg:col-span-12 space-y-4">
+                  {/* Chat Header Card */}
+                  <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="p-2.5 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">
+                        <MessageSquare className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-white">
+                            Interactive Meeting Assistant Chatbot
+                          </h2>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">
+                            Agent 6 Lite-RAG
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Hỏi đáp ngữ cảnh thông minh, trích dẫn chính xác turn hội thoại và tự động nhảy audio player
+                        </p>
+                      </div>
+                    </div>
+                    {chatMessages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearChat}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Xóa lịch sử chat</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick Suggestion Prompts */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
+                    <span className="text-slate-500 text-[11px] whitespace-nowrap flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-indigo-400" /> Gợi ý câu hỏi:
+                    </span>
+                    {[
+                      "Ai chịu trách nhiệm về Marketing và ngân sách?",
+                      "Ngân sách được duyệt là bao nhiêu và tăng giảm thế nào?",
+                      "Quyết định quan trọng nhất trong cuộc họp là gì?",
+                      "Hạn chót các đầu việc tiếp theo là ngày nào?"
+                    ].map((promptText, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => handleSendChatMessage(promptText)}
+                        disabled={isChatLoading}
+                        className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-indigo-600/20 border border-slate-800 hover:border-indigo-500/40 text-slate-300 hover:text-white text-xs whitespace-nowrap transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                      >
+                        {promptText}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Messages Container */}
+                  <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col h-[520px]">
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-slate-700">
+                      {chatMessages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
+                          <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                            <MessageSquare className="w-7 h-7" />
+                          </div>
+                          <div className="max-w-md space-y-1">
+                            <h3 className="text-sm font-semibold text-white">Chưa có tin nhắn nào</h3>
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              Hãy nhập câu hỏi bên dưới hoặc chọn gợi ý phía trên. Trợ lý AI sẽ tra cứu chính xác mốc thời gian và trích dẫn bằng chứng từ cuộc họp.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        chatMessages.map((msg, idx) => {
+                          const isUser = msg.role === 'user';
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
+                            >
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 px-1 font-mono">
+                                <span>{isUser ? 'Bạn' : 'Meeting Assistant AI'}</span>
+                                {msg.mode && (
+                                  <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                                    {msg.mode === 'instant_demo_faq' ? 'Instant Matcher' : msg.mode}
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                className={`p-4 rounded-2xl max-w-[85%] text-xs leading-relaxed shadow-sm ${
+                                  isUser
+                                    ? 'bg-indigo-600 text-white rounded-tr-none'
+                                    : 'bg-slate-950/80 text-slate-200 border border-slate-800/80 rounded-tl-none'
+                                }`}
+                              >
+                                <div className="whitespace-pre-wrap">
+                                  {isUser ? msg.content : renderFormattedChatText(msg.content)}
+                                </div>
+
+                                {/* Citations Quick Buttons if present on assistant msg */}
+                                {!isUser && msg.citations && msg.citations.length > 0 && (
+                                  <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                                      <Play className="w-2.5 h-2.5 text-indigo-400" /> Bằng chứng audio:
+                                    </span>
+                                    {msg.citations.map((cit, citIdx) => (
+                                      <button
+                                        key={citIdx}
+                                        type="button"
+                                        onClick={() => handleSeekAudio(parseTimestampToSeconds(cit))}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-mono transition-all cursor-pointer active:scale-95"
+                                        title={`Nhảy player tới ${cit}`}
+                                      >
+                                        <Play className="w-2 h-2 fill-indigo-300" />
+                                        <span>{cit}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      {isChatLoading && (
+                        <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs w-fit">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                          <span>AI đang tra cứu transcript và phân tích ngữ cảnh...</span>
+                        </div>
+                      )}
+                      <div ref={chatBottomRef} />
+                    </div>
+
+                    {/* Chat Input Bar */}
+                    <div className="pt-3 border-t border-slate-800/80">
+                      <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-1.5 focus-within:border-indigo-500/80 transition-colors">
+                        <input
+                          type="text"
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendChatMessage();
+                            }
+                          }}
+                          placeholder="Hỏi bất cứ điều gì về cuộc họp (ví dụ: 'Ngân sách được duyệt là bao nhiêu?')..."
+                          className="flex-1 bg-transparent px-3 py-2 text-xs text-white placeholder-slate-500 outline-none"
+                          disabled={isChatLoading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSendChatMessage()}
+                          disabled={!chatInput.trim() || isChatLoading}
+                          className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all active:scale-95 shrink-0 cursor-pointer"
+                          title="Gửi câu hỏi"
+                        >
+                          {isChatLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

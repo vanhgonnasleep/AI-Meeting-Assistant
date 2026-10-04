@@ -30,6 +30,14 @@ class ActionItem:
         return asdict(self)
 
 
+INSIGHT_CATEGORIES = ("decisions", "risks", "open_questions")
+
+
+def empty_insights() -> Dict[str, List[Dict[str, Any]]]:
+    """Canonical empty shape for meeting insights."""
+    return {category: [] for category in INSIGHT_CATEGORIES}
+
+
 @dataclass
 class MeetingRecord:
     filename: str
@@ -42,6 +50,12 @@ class MeetingRecord:
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     processed_at: Optional[str] = None
+    # Timestamped transcript segments: [{start, end, timestamp, speaker, text}]
+    segments: List[Dict[str, Any]] = field(default_factory=list)
+    # Meeting intelligence: {decisions: [...], risks: [...], open_questions: [...]}
+    insights: Dict[str, List[Dict[str, Any]]] = field(default_factory=empty_insights)
+    # Persisted Q&A: [{role, content, citations, mode, created_at}]
+    chat_history: List[Dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         # Guarantee backward and forward compatibility between created_at and processed_at
@@ -63,7 +77,7 @@ class MeetingRecord:
                 elif isinstance(item, dict):
                     coerced.append(ActionItem(
                         task=str(item.get("task", "")).strip(),
-                        assignee=item.get("assignee", "Unassigned"),
+                        assignee=item.get("assignee") or "Unassigned",
                         deadline=item.get("deadline"),
                         status=item.get("status", "pending")
                     ))
@@ -72,6 +86,19 @@ class MeetingRecord:
                 else:
                     coerced.append(item)
             self.action_items = coerced
+
+        # Normalize optional collections (tolerate None / malformed values from storage)
+        if not isinstance(self.segments, list):
+            self.segments = []
+        if not isinstance(self.chat_history, list):
+            self.chat_history = []
+        normalized = empty_insights()
+        if isinstance(self.insights, dict):
+            for category in INSIGHT_CATEGORIES:
+                values = self.insights.get(category)
+                if isinstance(values, list):
+                    normalized[category] = [v for v in values if isinstance(v, dict)]
+        self.insights = normalized
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert dataclass instance to standard dictionary."""
@@ -82,4 +109,4 @@ class MeetingRecord:
         return asdict(self)
 
     def dict(self, *args, **kwargs) -> Dict[str, Any]:
-        return asdict(self)
+        return asdict(self)

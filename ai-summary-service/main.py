@@ -52,7 +52,42 @@ try:
 except ImportError:
     filter_meeting_transcript = None
 
-app = FastAPI(title="AI Meeting Assistant API", version="2.0.0")
+try:
+    from demo_data import (
+        DEMO_DURATION,
+        DEMO_SEGMENTS,
+        DEMO_TRANSCRIPT,
+        DEMO_CONDENSED,
+        DEMO_SUMMARY,
+        DEMO_ACTION_ITEMS,
+        DEMO_INSIGHTS,
+        DEMO_CHAT_HISTORY,
+        demo_answer
+    )
+except ImportError:
+    DEMO_DURATION = 29.05
+    DEMO_SEGMENTS = []
+    DEMO_TRANSCRIPT = ""
+    DEMO_CONDENSED = ""
+    DEMO_SUMMARY = ""
+    DEMO_ACTION_ITEMS = []
+    DEMO_INSIGHTS = {"decisions": [], "risks": [], "open_questions": []}
+    DEMO_CHAT_HISTORY = []
+    demo_answer = None
+
+try:
+    from meeting_insights import extract_insights, extract_insights_heuristic
+except ImportError:
+    extract_insights = None
+    extract_insights_heuristic = None
+
+try:
+    from meeting_chat import answer_meeting_question, retrieve_relevant_segments
+except ImportError:
+    answer_meeting_question = None
+    retrieve_relevant_segments = None
+
+app = FastAPI(title="AI Meeting Assistant API", version="2.1.0")
 
 # Enable CORS for React Frontend
 app.add_middleware(
@@ -260,7 +295,9 @@ async def health_check():
             "agent2_summary": True,
             "agent3_action_items": extract_action_items is not None,
             "database_ready": MeetingRecord is not None and crud is not None,
-            "mmr_algorithm": filter_meeting_transcript is not None
+            "mmr_algorithm": filter_meeting_transcript is not None,
+            "agent5_insights": extract_insights is not None,
+            "agent6_chat": answer_meeting_question is not None
         }
     }
 
@@ -270,7 +307,7 @@ async def get_version():
     return {
         "version": "2.0.0",
         "name": "AI Meeting Assistant",
-        "description": "Local multi-agent pipeline: Whisper STT → MMR Filter → Llama 3 Map-Reduce → Action Items → SQLite",
+        "description": "Local multi-agent pipeline: Whisper STT → MMR Filter → Llama 3 Map-Reduce → Action Items → Governance Insights → SQLite → Interactive Lite-RAG Chat",
         "architecture": "Multi-Agent Orchestration (FastAPI)",
         "agents": [
             {
@@ -309,13 +346,29 @@ async def get_version():
                 "model": "SQLite + Python dataclasses",
                 "description": "Stores and retrieves full meeting records with CRUD API",
                 "available": crud is not None
+            },
+            {
+                "id": 5,
+                "name": "Key Decisions & Risk Intelligence",
+                "model": "Llama 3 Structured Extraction + Heuristic Fallback",
+                "description": "Extracts finalized decisions, delivery risks, and open questions with evidence alignment",
+                "available": extract_insights is not None
+            },
+            {
+                "id": 6,
+                "name": "Interactive Meeting Chatbot",
+                "model": "Lite-RAG + Cosine Segment Ranking + Audio Timestamp Grounding",
+                "description": "Answers natural language queries about the meeting with audio player sync",
+                "available": answer_meeting_question is not None
             }
         ],
         "fail_safe_mechanisms": [
             "Adaptive model selection (GPU vs CPU auto-detect)",
             "Ollama timeout with deterministic fallback summary",
             "Instant demo mode (zero-compute, <50ms response)",
-            "Presenter emergency skip button on UI"
+            "Presenter emergency skip button on UI",
+            "Deterministic heuristic fallback for Action Items & Governance Insights",
+            "Curated instant demo Q&A (<2ms response) & offline citation synthesizer"
         ],
         "supported_formats": list(SUPPORTED_AUDIO_EXTENSIONS),
         "max_file_size_mb": MAX_FILE_SIZE_BYTES // (1024 * 1024)
@@ -429,23 +482,6 @@ async def process_audio(
     # 0. Instant Demo Fail-Safe Trigger (Bypasses all heavy computation in 50ms)
     if demo_mode or model == "instant_demo" or is_demo_file:
         print(f"[Demo Mode] Instant presentation demo triggered (file: {safe_filename}, model: {model}).")
-        demo_transcript = (
-            "Speaker A: Welcome everyone. We need to finalize the marketing budget for Q3 today. "
-            "I propose an allocation of $50,000 for targeted social media ad campaigns.\n"
-            "Speaker B: That budget sounds reasonable and matches our projections. Let's lock it in. "
-            "Can you prepare the detailed financial report by Friday, John?\n"
-            "Speaker A: Will do. I'll have the complete breakdown ready by Friday afternoon."
-        )
-        demo_condensed = (
-            "Speaker A: We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns.\n"
-            "Speaker B: That budget sounds reasonable and matches our projections. Can you prepare the detailed financial report by Friday, John?\n"
-            "Speaker A: I'll have the complete breakdown ready by Friday afternoon."
-        )
-        demo_segments = [
-            {"id": 1, "start": 0.0, "end": 14.5, "timestamp": "[00:00 - 00:14]", "speaker": "Speaker A", "text": "Welcome everyone. We need to finalize the marketing budget for Q3 today. I propose an allocation of $50,000 for targeted social media ad campaigns."},
-            {"id": 2, "start": 14.5, "end": 28.0, "timestamp": "[00:14 - 00:28]", "speaker": "Speaker B", "text": "That budget sounds reasonable and matches our projections. Let's lock it in. Can you prepare the detailed financial report by Friday, John?"},
-            {"id": 3, "start": 28.0, "end": 38.5, "timestamp": "[00:28 - 00:38]", "speaker": "Speaker A", "text": "Will do. I'll have the complete breakdown ready by Friday afternoon."}
-        ]
         return {
             "status": "success",
             "mode": "instant_demo",
@@ -462,21 +498,16 @@ async def process_audio(
             },
             "data": {
                 "meeting_id": None,
-                "transcript": demo_transcript,
-                "condensed_transcript": demo_condensed,
-                "summary": (
-                    "- Approved $50,000 budget allocation for Q3 social media marketing campaigns.\n"
-                    "- Agreed to finalize executive financial report by Friday afternoon.\n"
-                    "- Confirmed John as lead deliverable owner for Q3 revenue reconciliation."
-                ),
-                "action_items": [
-                    {"task": "Prepare and submit Q3 financial report", "assignee": "John (Speaker A)", "deadline": "Friday afternoon", "status": "pending"},
-                    {"task": "Launch targeted social media ad campaigns", "assignee": "Marketing Team", "deadline": "Q3 Start", "status": "pending"}
-                ],
-                "duration": 38.5,
+                "transcript": DEMO_TRANSCRIPT,
+                "condensed_transcript": DEMO_CONDENSED,
+                "summary": DEMO_SUMMARY,
+                "action_items": DEMO_ACTION_ITEMS,
+                "insights": DEMO_INSIGHTS,
+                "chat_history": DEMO_CHAT_HISTORY,
+                "duration": DEMO_DURATION,
                 "language": "en",
                 "speakers": ["Speaker A", "Speaker B"],
-                "segments": demo_segments
+                "segments": DEMO_SEGMENTS
             }
         }
 
@@ -596,7 +627,24 @@ async def process_audio(
 
         if not action_items:
             action_items = []
-        
+
+        # 3.5. AGENT 5: Key Decisions & Risk Intelligence (Lương Việt Anh)
+        insights = {"decisions": [], "risks": [], "open_questions": []}
+        if extract_insights is not None:
+            try:
+                insights = extract_insights(
+                    transcript,
+                    summary=summary,
+                    segments=segments,
+                    model_name=selected_model,
+                    has_gpu=has_gpu,
+                    language=detected_language or "en"
+                )
+            except Exception as e:
+                print(f"[Warning] Insights extraction error: {e}")
+                if extract_insights_heuristic is not None:
+                    insights = extract_insights_heuristic(transcript, summary=summary, segments=segments)
+
         # 4. DATABASE: Persist Meeting Record to SQLite (Đoàn Hoàng Long)
         saved_meeting_id = None
         if crud is not None:
@@ -604,7 +652,7 @@ async def process_audio(
                 parsed_items = [
                     ActionItem(
                         task=item.get("task", ""),
-                        assignee=item.get("assignee", "Unassigned"),
+                        assignee=item.get("assignee") or "Unassigned",
                         deadline=item.get("deadline"),
                         status=item.get("status", "pending")
                     )
@@ -618,7 +666,9 @@ async def process_audio(
                     executive_summary=summary,
                     action_items=parsed_items,
                     duration=duration,
-                    language=detected_language
+                    language=detected_language,
+                    segments=segments,
+                    insights=insights
                 )
                 print(f"[DB] Meeting #{saved_meeting_id} saved successfully to SQLite.")
             except Exception as e:
@@ -637,6 +687,8 @@ async def process_audio(
                 "condensed_transcript": condensed_transcript if mmr_telemetry and mmr_telemetry.get("applied") else None,
                 "summary": summary,
                 "action_items": action_items,
+                "insights": insights,
+                "chat_history": [],
                 "duration": duration,
                 "language": detected_language,
                 "speakers": speakers,
@@ -735,6 +787,146 @@ async def delete_meeting_by_id(meeting_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Meeting not found.")
     return {"status": "success", "deleted": True}
+
+# ==========================================
+# AGENT 6 - INTERACTIVE MEETING CHAT (Lite-RAG)
+# ==========================================
+
+class ChatMessageRequest(BaseModel):
+    question: str
+    meeting_id: Optional[int] = None
+    transcript: Optional[str] = None
+    summary: Optional[str] = None
+    segments: Optional[List[Dict[str, Any]]] = None
+    model: Optional[str] = "auto"
+    language: Optional[str] = None
+    demo_mode: Optional[bool] = False
+
+
+@app.post("/api/meetings/{meeting_id}/chat")
+async def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageRequest):
+    """
+    Asks a question about a saved meeting record. Uses Lite-RAG with audio timestamp
+    citations and persists the conversation turn into SQLite.
+    """
+    if answer_meeting_question is None:
+        raise HTTPException(status_code=503, detail="Meeting chat module (Agent 6) is not available.")
+
+    record = None
+    if crud is not None and meeting_id > 0:
+        record = crud.get_meeting(meeting_id)
+
+    if record is None and payload.transcript is None and not payload.demo_mode:
+        raise HTTPException(status_code=404, detail="Meeting record not found.")
+
+    gpu_desc, has_gpu = get_gpu_info()
+    selected_model = resolve_model(payload.model or "auto", has_gpu=has_gpu)
+
+    transcript = record.raw_transcript if record else (payload.transcript or "")
+    summary = record.executive_summary if record else payload.summary
+    segments = record.segments if record and record.segments else payload.segments
+    lang = record.language if record and record.language else (payload.language or "en")
+    is_demo = payload.demo_mode or (record and "q3_product_budget_review" in (record.filename or "").lower())
+
+    result = answer_meeting_question(
+        question=payload.question,
+        transcript=transcript,
+        summary=summary,
+        segments=segments,
+        model_name=selected_model,
+        has_gpu=has_gpu,
+        language=lang,
+        is_demo=bool(is_demo)
+    )
+
+    user_msg = {"role": "user", "content": payload.question.strip()}
+    assistant_msg = {
+        "role": "assistant",
+        "content": result["answer"],
+        "citations": result.get("citations", []),
+        "mode": result.get("mode", "rag_llm")
+    }
+
+    updated_history = []
+    if crud is not None and record is not None and record.id:
+        crud.append_chat_messages(int(record.id), [user_msg, assistant_msg])
+        updated_history = crud.get_chat_history(int(record.id)) or []
+    else:
+        updated_history = [user_msg, assistant_msg]
+
+    return {
+        "status": "success",
+        "meeting_id": meeting_id,
+        "question": payload.question,
+        "answer": result["answer"],
+        "citations": result.get("citations", []),
+        "mode": result.get("mode", "rag_llm"),
+        "chat_history": updated_history
+    }
+
+
+@app.get("/api/meetings/{meeting_id}/chat")
+async def get_meeting_chat_history_endpoint(meeting_id: int):
+    """Retrieves persisted Q&A history for a specific meeting."""
+    if crud is None:
+        raise HTTPException(status_code=503, detail="Database module not available.")
+    history = crud.get_chat_history(meeting_id)
+    if history is None:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    return {"status": "success", "meeting_id": meeting_id, "chat_history": history}
+
+
+@app.delete("/api/meetings/{meeting_id}/chat")
+async def clear_meeting_chat_history_endpoint(meeting_id: int):
+    """Clears all persisted Q&A messages for a meeting."""
+    if crud is None:
+        raise HTTPException(status_code=503, detail="Database module not available.")
+    cleared = crud.clear_chat_history(meeting_id)
+    if not cleared:
+        raise HTTPException(status_code=404, detail="Meeting not found or history already empty.")
+    return {"status": "success", "meeting_id": meeting_id, "cleared": True}
+
+
+@app.post("/api/chat")
+async def standalone_chat_endpoint(payload: ChatMessageRequest):
+    """
+    Stateless / Instant-demo / unsaved session Q&A endpoint.
+    Answers natural language queries against uploaded audio transcript or demo showcase.
+    """
+    if answer_meeting_question is None:
+        raise HTTPException(status_code=503, detail="Meeting chat module (Agent 6) is not available.")
+
+    # If meeting_id provided and saved in DB, delegate to meeting chat
+    if payload.meeting_id and payload.meeting_id > 0 and crud is not None:
+        return await chat_with_meeting_endpoint(payload.meeting_id, payload)
+
+    gpu_desc, has_gpu = get_gpu_info()
+    selected_model = resolve_model(payload.model or "auto", has_gpu=has_gpu)
+
+    transcript = payload.transcript or (DEMO_TRANSCRIPT if payload.demo_mode else "")
+    summary = payload.summary or (DEMO_SUMMARY if payload.demo_mode else "")
+    segments = payload.segments or (DEMO_SEGMENTS if payload.demo_mode else None)
+    lang = payload.language or "en"
+
+    result = answer_meeting_question(
+        question=payload.question,
+        transcript=transcript,
+        summary=summary,
+        segments=segments,
+        model_name=selected_model,
+        has_gpu=has_gpu,
+        language=lang,
+        is_demo=bool(payload.demo_mode)
+    )
+
+    return {
+        "status": "success",
+        "meeting_id": payload.meeting_id,
+        "question": payload.question,
+        "answer": result["answer"],
+        "citations": result.get("citations", []),
+        "mode": result.get("mode", "rag_llm")
+    }
 
 if __name__ == "__main__":
     import uvicorn

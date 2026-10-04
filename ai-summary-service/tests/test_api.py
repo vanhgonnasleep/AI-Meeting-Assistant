@@ -290,3 +290,101 @@ def test_analytics_endpoint():
     assert "total_action_items" in stats
     assert "completion_rate_percent" in stats
     assert stats["total_meetings"] >= 1
+
+
+def test_meeting_insights_heuristic():
+    """Verify deterministic extraction of decisions, risks, and questions with segment evidence."""
+    from meeting_insights import extract_insights_heuristic
+    transcript = (
+        "Speaker A: We decided to approved $50,000 for the Q3 marketing budget.\n"
+        "Speaker B: However, the main risk is a potential delay if John slips on the financial report.\n"
+        "Speaker A: Who will oversee the social media ad accounts once launched?"
+    )
+    segments = [
+        {"id": 1, "start": 0.0, "end": 10.0, "timestamp": "[00:00 - 00:10]", "speaker": "Speaker A", "text": "We decided to approved $50,000 for the Q3 marketing budget."},
+        {"id": 2, "start": 10.5, "end": 20.0, "timestamp": "[00:10 - 00:20]", "speaker": "Speaker B", "text": "However, the main risk is a potential delay if John slips on the financial report."},
+        {"id": 3, "start": 20.5, "end": 28.0, "timestamp": "[00:20 - 00:28]", "speaker": "Speaker A", "text": "Who will oversee the social media ad accounts once launched?"}
+    ]
+    insights = extract_insights_heuristic(transcript, segments=segments)
+    assert "decisions" in insights
+    assert "risks" in insights
+    assert "open_questions" in insights
+    assert len(insights["decisions"]) >= 1
+    assert len(insights["risks"]) >= 1
+    assert len(insights["open_questions"]) >= 1
+    assert insights["decisions"][0].get("timestamp") is not None
+
+
+def test_instant_demo_mode_includes_insights_and_chat():
+    """Verify that instant demo returns rich insights, chat history, and corrected 29.05s duration."""
+    files = {"file": ("q3_product_budget_review.mp3", b"dummy audio", "audio/mp3")}
+    res = client.post("/api/process-audio?demo_mode=true", files=files)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["status"] == "success"
+    data = payload["data"]
+    assert "insights" in data
+    assert "decisions" in data["insights"] and len(data["insights"]["decisions"]) >= 2
+    assert "risks" in data["insights"] and len(data["insights"]["risks"]) >= 2
+    assert "open_questions" in data["insights"] and len(data["insights"]["open_questions"]) >= 2
+    assert "chat_history" in data and len(data["chat_history"]) >= 2
+    assert data["duration"] == 29.05
+
+
+def test_meeting_chat_standalone_and_demo():
+    """Verify /api/chat standalone endpoint with demo-matched questions."""
+    # Test English query matching budget intent
+    res = client.post("/api/chat", json={
+        "question": "What is the approved budget?",
+        "demo_mode": True
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert "50,000" in data["answer"]
+    assert len(data["citations"]) >= 1
+
+    # Test Vietnamese query matching deadline intent
+    res_vi = client.post("/api/chat", json={
+        "question": "Ai phụ trách báo cáo tài chính và hạn chót khi nào?",
+        "demo_mode": True,
+        "language": "vi"
+    })
+    assert res_vi.status_code == 200
+    assert "John" in res_vi.json()["answer"]
+    assert len(res_vi.json()["citations"]) >= 1
+
+
+def test_meeting_chat_crud_persistence():
+    """Verify meeting chat persistence: POST new question, GET history, and DELETE history."""
+    import database.crud as crud
+    mid = crud.create_meeting(
+        filename="chat_test_meeting.mp3",
+        raw_transcript="Speaker A: We finalized the cloud migration for August 15. Speaker B: Sounds great.",
+        executive_summary="Approved migration for August 15.",
+        action_items=[{"task": "Prepare migration plan", "assignee": "Alex"}]
+    )
+
+    # Ask question
+    res_post = client.post(f"/api/meetings/{mid}/chat", json={
+        "question": "When is the migration scheduled?"
+    })
+    assert res_post.status_code == 200
+    post_data = res_post.json()
+    assert post_data["status"] == "success"
+    assert len(post_data["chat_history"]) >= 2
+
+    # Get chat history
+    res_get = client.get(f"/api/meetings/{mid}/chat")
+    assert res_get.status_code == 200
+    assert len(res_get.json()["chat_history"]) >= 2
+
+    # Clear chat history
+    res_del = client.delete(f"/api/meetings/{mid}/chat")
+    assert res_del.status_code == 200
+    assert res_del.json()["cleared"] is True
+
+    # Verify history is now empty
+    res_get_empty = client.get(f"/api/meetings/{mid}/chat")
+    assert res_get_empty.json()["chat_history"] == []
+
