@@ -26,3 +26,29 @@ export function createRequestGate() {
     },
   };
 }
+
+export function resultFromMeeting(meeting) {
+  const segments = (Array.isArray(meeting.segments) ? meeting.segments : [])
+    .filter(segment => segment && typeof segment === 'object').map(segment => ({ ...segment, text: String(segment.text ?? '') }));
+  return {
+    transcript: meeting.raw_transcript || '', summary: meeting.executive_summary || '',
+    action_items: meeting.action_items || [], insights: meeting.insights || { decisions: [], risks: [], open_questions: [] },
+    chat_history: meeting.chat_history || [], duration: meeting.duration, language: meeting.language,
+    segments,
+    speakers: [...new Set(segments.map(segment => segment.speaker).filter(Boolean))],
+  };
+}
+
+export function editSpeakerAttribution(result, oldName, newName, segmentIndex = null) {
+  const affected = (result.segments || []).filter((segment, index) => segment.speaker === oldName && (segmentIndex === null || index === segmentIndex));
+  const starts = new Set(affected.map(segment => segment.start));
+  const evidence = item => item && typeof item === 'object' && item.speaker === oldName &&
+    (segmentIndex === null || (item.start != null && starts.has(item.start))) ? { ...item, speaker: newName } : item;
+  const segments = (result.segments || []).map((segment, index) =>
+    segment.speaker === oldName && (segmentIndex === null || index === segmentIndex) ? { ...segment, speaker: newName } : segment);
+  return { ...result, segments, speakers: [...new Set(segments.map(segment => segment.speaker).filter(Boolean))],
+    transcript: segments.filter(segment => segment.text?.trim()).map(segment => `${segment.timestamp || ''} ${segment.speaker || 'Speaker'}: ${segment.text}`.trim()).join('\n'),
+    insights: Object.fromEntries(Object.entries(result.insights || {}).map(([key, items]) => [key, Array.isArray(items) ? items.map(evidence) : items])),
+    chat_history: (result.chat_history || []).map(message => ({ ...message, citations: (message.citations || []).map(evidence) })),
+  };
+}

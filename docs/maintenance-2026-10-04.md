@@ -14,8 +14,13 @@ This maintenance pass prioritizes correctness and predictable resource usage in 
 - MMR computes relevance once and updates redundancy incrementally instead of repeatedly rescanning all selected sentences. It preserves selection behavior; cosine-comparison count is `O(K*N)`, and remains quadratic when the number selected `K` scales with transcript size `N`.
 - JSON export now includes insights, chat history, warnings and the demo flag. The UI accepts `VITE_API_BASE_URL` for a configurable backend address.
 - Tests use a separate temporary SQLite database, including during collection. GitHub Actions runs backend regressions and frontend lint, tests, build and production-dependency audit on pushes and pull requests.
+- History now uses bounded pages with deterministic ordering and a recent-meeting index. Compact UI pages exclude transcripts, segments and chat. Search runs across the database, handles Vietnamese casing, and treats wildcard characters literally. Analytics reads task data in batches rather than loading every full meeting.
+- Speaker corrections persist in a single transaction and update structured insight/chat attributions. Renaming changes attribution headers, preserving spoken words and manual transcript annotations. Reopening a meeting restores speaker controls; legacy null entries and numeric text are normalized. Generated summary and chat prose are not rewritten.
+- History detail requests are invalidated when the dialog closes. Failed loading keeps the previous result's demo label and warnings. An in-app rename form replaces the browser prompt.
+- Speaker refinement accepts line numbers only inside its current chunk. The final Map-Reduce prompt uses the same data boundary as the direct/partial prompts. Neither prompt boundaries nor low temperature guarantee factual accuracy.
+- The Windows launcher checks the project virtual environment and frontend dependencies, works from the repository directory, and binds the UI to a fixed local port. The low-spec setup reports failed model downloads correctly.
 
-The database migration adds `chat_generation` with a default value for existing meetings. No meeting records need to be deleted or replaced.
+The database migration adds `chat_generation` with a default value for existing meetings and a recent-meeting index. No meeting records need to be deleted or replaced. The history API now defaults to 50 records (maximum 100); clients needing the whole history must paginate.
 
 ## Validation
 
@@ -23,18 +28,18 @@ On Windows, Python 3.14.7 and Node 24.21.0:
 
 ```text
 python -m pytest ai-summary-service/tests -q --run-model-tests
-63 passed; 2 upstream deprecation warnings
+81 passed; 2 upstream deprecation warnings
 
 cd meeting-assistant-ui
 npm run lint
-npm test              # 4 passed
+npm test              # 7 passed
 npm run build
 npm audit --omit=dev   # 0 vulnerabilities
 ```
 
 The four Whisper integration tests require the full model dependencies and model weights. The default suite skips those tests so CI can use `ai-summary-service/requirements-test.txt` without downloading Whisper weights. CI uses Python 3.11; its remote result is separate from the local verification above.
 
-Browser checks covered explicit demo processing, object citations, a suggested chat question, and chat clearing without console errors. An independent code review also compared MMR output against the previous algorithm over 144 parameter/input combinations and checked oversized JSON and multipart streams.
+Browser checks covered explicit demo processing, object citations, a suggested chat question, and chat clearing. A second preview used a separate synthetic database to check history pagination, a transcript search outside the first page, speaker correction surviving reopening, and retained demo labeling after a failed detail request. The unsupported browser rename prompt discovered during this check was replaced and verified. An independent code review also compared MMR output against the previous algorithm over 144 parameter/input combinations and checked oversized JSON and multipart streams.
 
 ## Remaining limits
 
@@ -43,14 +48,16 @@ Browser checks covered explicit demo processing, object citations, a suggested c
 - Admission and Whisper locks are process-local. Multiple workers multiply resource usage. Stopping the browser's wait does not cancel server work; check meeting history for a completed result.
 - Upload byte limits do not bound decoded audio duration. Long audio can still consume substantial CPU and memory. A queued job system with cancellation and duration limits is a follow-up design task.
 - `npm audit` reports five high-severity development-tool findings through Tailwind 3 and `braces`. The [upstream advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) currently has no patched `braces` version. Production dependencies pass the audit. A Tailwind 4 migration needs separate layout/build validation; an automatic forced major upgrade was not applied.
-- Python dependency compatibility was checked with `pip check`; this is not a Python vulnerability audit. AI quality remains heuristic when Ollama is unavailable. Speaker diarization is approximate and has no representative accuracy evaluation in this pass.
+- Python dependency compatibility passed `pip check`. An OSV query of 46 installed backend packages returned no known findings, including paginated responses; this covers that environment and database, not every future installation. AI quality remains heuristic when Ollama is unavailable. Speaker diarization is approximate and has no representative accuracy evaluation in this pass.
+- Search still scans matching text; it is not an FTS index. Analytics remains proportional to task count. Large-scale use needs measured benchmarks and a separate indexing design.
+- Speaker corrections update structured labels. Previously generated narrative prose may still mention old names; review or regenerate it separately. Original audio is not persisted with history, and response warnings are not stored as separate database fields.
 
 ## Feature priorities after this pass
 
-1. Persist speaker-name edits and task metadata, with consistent behavior after reopening a meeting.
-2. Add meeting search, pagination and filtered analytics so history does not load every transcript into memory.
-3. Introduce background jobs with progress, cancellation, audio-duration limits and retry controls.
-4. Add accounts and meeting ownership before enabling shared hosting.
-5. Evaluate Vietnamese transcription, diarization and grounded answers on a representative set of meetings; migrate the styling toolchain after visual regression checks.
+1. Introduce background jobs with progress, cancellation, audio-duration limits and retry controls.
+2. Add accounts and meeting ownership before enabling shared hosting.
+3. Evaluate Vietnamese transcription, diarization and grounded answers on a representative set of meetings.
+4. Add durable warning/provenance fields and richer task editing; plan safe audio retention before enabling playback of stored meetings.
+5. Benchmark FTS search and analytics at scale; migrate the styling toolchain after visual regression checks.
 
-These larger features are follow-up proposals. This branch delivers the repairs, export additions, configuration and automated checks described above.
+These remaining features are follow-up proposals. This pass delivers the repairs, persistent speaker corrections, paginated history search, lighter analytics, exports, configuration and automated checks described above.

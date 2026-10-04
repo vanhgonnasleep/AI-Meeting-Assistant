@@ -14,7 +14,7 @@
 [![Whisper](https://img.shields.io/badge/STT-OpenAI_Whisper-412991.svg?logo=openai&logoColor=white)](https://github.com/openai/whisper)
 [![Ollama](https://img.shields.io/badge/LLM-Llama_3_(8B_/_3.2_1B)-white.svg?logo=ollama&logoColor=black)](https://ollama.com)
 [![SQLite](https://img.shields.io/badge/Database-SQLite_WAL-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org)
-[![Tests](https://img.shields.io/badge/Test_Suite-32/32_Passed-brightgreen.svg)](#-testing--quality-assurance)
+[![Quality checks](https://github.com/vanhgonnasleep/AI-Meeting-Assistant/actions/workflows/checks.yml/badge.svg)](https://github.com/vanhgonnasleep/AI-Meeting-Assistant/actions/workflows/checks.yml)
 [![Defense Guide](https://img.shields.io/badge/Technical_Defense-Master_Guide-orange.svg)](TECHNICAL_DEFENSE_GUIDE.md)
 
 ---
@@ -23,11 +23,11 @@
 
 > 📖 **TECHNICAL DEFENSE PREPARATION:** Check out the complete [TECHNICAL_DEFENSE_GUIDE.md](TECHNICAL_DEFENSE_GUIDE.md) for step-by-step live coding cheatsheets (adding fields, endpoints, algorithms, and bug fixes) tailored for instructor defense questions.
 
-**AI Meeting Assistant** is an enterprise-grade, privacy-first meeting intelligence system running **100% locally on edge devices** without transmitting proprietary conversational data to cloud vendors. Users upload audio or video recordings (.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv), and the system executes an automated, resilient multi-agent workflow:
+**AI Meeting Assistant** processes meetings using local Whisper and Ollama inference. The application currently targets single-user local operation and has no account authentication. Initial dependency/model downloads require internet access. Users upload audio or video recordings (.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv), and the system executes a modular pipeline:
 
-1. **Speech-to-Text & Diarization (Agent 1):** Ingests audio/video, transcribes clean conversational speech with timestamped segment alignment using OpenAI Whisper, and separates participants via acoustic voiceprint clustering.
-2. **Algorithmic Redundancy Reduction (MMR Filter):** Decomposes the transcript into vector space representations, executing Maximal Marginal Relevance to eliminate filler dialogue, rhetorical noise, and conversational repetition (~35–45% content compression).
-3. **Executive Summarization (Agent 2):** Synthesizes structured, non-hallucinatory executive briefings using a sliding-window Map-Reduce architecture powered by local Llama 3.
+1. **Speech-to-Text & Diarization (Agent 1):** Transcribes audio/video with Whisper timestamps and estimates speaker groups using acoustic features. Users can correct and persist speaker attribution; this is not verified speaker identification.
+2. **Algorithmic Redundancy Reduction (MMR Filter):** Uses sparse TF-IDF and Maximal Marginal Relevance to select less redundant sentences. Compression and retained information depend on the transcript and selected ratio.
+3. **Executive Summarization (Agent 2):** Produces summaries with local Ollama models and overlapping Map-Reduce chunks for long transcripts. Grounding instructions reduce risk but do not guarantee factual accuracy; review important decisions against the recording.
 4. **Action Item Extraction (Agent 3):** Employs constrained JSON schema parsing to extract deliverables, assignees, deadlines, and execution statuses.
 5. **Persistent History (Agent 4):** Records complete meeting sessions in SQLite via Python standard library dataclasses (`MeetingRecord`, `ActionItem`) with WAL concurrency mode for historical review.
 
@@ -283,17 +283,18 @@ Executes end-to-end ingestion: Whisper STT → MMR Redundancy Filter → Llama 3
 | `enable_mmr` | boolean | `true` | Toggles MMR extractive compression phase |
 | `mmr_lambda` | float | `0.65` | Relevance vs diversity balance ($0.0 \le \lambda \le 1.0$) |
 | `mmr_ratio` | float | `0.60` | Target retention ratio ($0.1 \le r \le 1.0$) |
-| `demo_mode` | boolean | `false` | Bypasses inference and returns instant presentation data in 50ms |
+| `demo_mode` | boolean | `false` | Explicitly bypasses inference and returns labeled sample data |
 
 #### 4. Dedicated Speech-to-Text Endpoint
 `POST /api/transcribe`
 Standalone endpoint for Agent 1. Ingests audio files and returns raw or timestamped transcriptions.
 
 #### 5. Meeting History Management
-- `GET /api/meetings?q={keyword}`: Returns all past meeting sessions, with optional search query filter.
+- `GET /api/meetings?q={keyword}&limit=20&offset=0&compact=true`: Searches the entire history and returns a page. Default `limit=50`, maximum `100`; the UI uses compact pages of 20. The response includes `total`, `offset`, and `has_more`. Vietnamese case-insensitive search treats `%` and `_` literally.
 - `GET /api/meetings/{id}`: Retrieves full meeting details by ID.
 - `PUT /api/meetings/{id}`: Updates meeting fields (summary, action items, filename).
 - `PATCH /api/meetings/{id}/tasks/{idx}`: Toggles/updates action item status directly in SQLite.
+- `PATCH /api/meetings/{id}/speakers`: Persists speaker-label corrections with `{old_name, new_name, segment_index?}`. Omit the index to rename all matching turns. Spoken words and manual transcript annotations remain intact; generated summary prose is not rewritten.
 - `DELETE /api/meetings/{id}`: Deletes a meeting record from local storage.
 
 #### 6. System Analytics Summary
@@ -309,6 +310,7 @@ See [maintenance notes](docs/maintenance-2026-10-04.md) for the verified fixes, 
 - Real AI failures show a transcript excerpt and warning; failed persistence shows an export reminder.
 - Stop waiting invalidates the browser request. Server work may continue and can appear in History later.
 - Set `VITE_API_BASE_URL` before starting/building the frontend to use another local backend address.
+- History searches all stored meetings without downloading full transcripts. Speaker names can be corrected and remain available after reopening.
 - The API is a local, single-user service. External deployment requires authentication and a separate deployment review.
 
 ## 🔒 Security, Isolation & Engineering Safeguards

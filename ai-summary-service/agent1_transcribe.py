@@ -379,7 +379,7 @@ Return ONLY the JSON array."""
                             line_no = int(item["line"]) - 1
                             spk = str(item["speaker"]).strip()
                             global_idx = offset + line_no
-                            if 0 <= global_idx < len(segments) and spk and len(spk) <= 30:
+                            if 0 <= line_no < len(chunk) and spk and len(spk) <= 30:
                                 # Standardize speaker label
                                 clean_spk = re.sub(r'^(Speaker\s*\d*[:\s]*|Person\s*\d*[:\s]*)', '', spk, flags=re.IGNORECASE).strip()
                                 segments[global_idx]["speaker"] = clean_spk if clean_spk else spk

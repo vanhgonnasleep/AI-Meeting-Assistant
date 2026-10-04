@@ -231,7 +231,7 @@ def call_ollama(prompt: str, model_name: str = "llama3", has_gpu: bool = False, 
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": 0.2,       # Low temperature prevents hallucination
+            "temperature": 0.2,       # Reduces sampling variability; facts still need review
             "num_ctx": num_ctx,       # Adjusted for CPU vs GPU memory constraints
             "top_p": 0.9,
             "num_predict": 1024
@@ -297,7 +297,7 @@ def summarize_with_llama(transcript: str, model_name: str = "llama3", has_gpu: b
     final_prompt = (
         f"{system_prompt}\n\n"
         f"Here are partial summaries from different segments of a long meeting. "
-        f"Please combine them into one coherent, final Executive Summary:\n\n<partial_summaries>\n{combined_text}\n</partial_summaries>\n\n"
+        f"Please combine them into one coherent, final Executive Summary:\n\n<meeting_transcript>\n{combined_text}\n</meeting_transcript>\n\n"
         f"Final Executive Summary:"
     )
 
@@ -357,7 +357,7 @@ def get_version():
                 "name": "MMR Redundancy Filter",
                 "algorithm": "Maximal Marginal Relevance + TF-IDF Cosine Similarity",
                 "lambda": 0.65,
-                "description": "Eliminates conversational redundancy before summarization (~35-45% compression)",
+                "description": "Selects transcript sentences using a configurable relevance/diversity balance",
                 "available": filter_meeting_transcript is not None
             },
             {
@@ -392,7 +392,7 @@ def get_version():
             {
                 "id": 6,
                 "name": "Interactive Meeting Chatbot",
-                "model": "Lite-RAG + Cosine Segment Ranking + Audio Timestamp Grounding",
+                "model": "Lite-RAG + BM25-style Keyword Ranking + Timestamp Citations",
                 "description": "Answers natural language queries about the meeting with audio player sync",
                 "available": answer_meeting_question is not None
             }
@@ -400,10 +400,10 @@ def get_version():
         "fail_safe_mechanisms": [
             "Adaptive model selection (GPU vs CPU auto-detect)",
             "Ollama timeout with explicitly labeled transcript excerpt",
-            "Instant demo mode (zero-compute, <50ms response)",
+            "Explicit demo mode without model inference",
             "Presenter emergency skip button on UI",
             "Deterministic heuristic fallback for Action Items & Governance Insights",
-            "Curated instant demo Q&A (<2ms response) & offline citation synthesizer"
+            "Curated explicit demo Q&A & offline transcript excerpt answers"
         ],
         "supported_formats": list(SUPPORTED_AUDIO_EXTENSIONS),
         "max_file_size_mb": MAX_FILE_SIZE_BYTES // (1024 * 1024)
@@ -740,16 +740,36 @@ class TaskStatusUpdateRequest(BaseModel):
     status: str
 
 @app.get("/api/meetings")
-def get_all_meetings_endpoint(q: Optional[str] = Query(None, description="Search query string")):
+def get_all_meetings_endpoint(q: Optional[str] = Query(None, max_length=500, description="Search query string"),
+                              limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
+                              compact: bool = Query(False)):
     """Retrieves all past meetings from SQLite database (Đoàn Hoàng Long), with optional search."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
-    records = crud.get_all_meetings(search=q)
-    return {
-        "status": "success",
-        "count": len(records),
-        "meetings": [jsonable_encoder(r) for r in records]
-    }
+    return {"status": "success", **crud.get_meeting_page(search=q, limit=limit, offset=offset, compact=compact)}
+
+
+class SpeakerEditRequest(BaseModel):
+    old_name: str = Field(min_length=1, max_length=128)
+    new_name: str = Field(min_length=1, max_length=128)
+    segment_index: Optional[int] = Field(None, ge=0)
+
+    @field_validator("old_name", "new_name")
+    @classmethod
+    def valid_name(cls, value):
+        if not value.strip() or any(ord(char) < 32 or ord(char) == 127 for char in value):
+            raise ValueError("Speaker names must contain text and no control characters.")
+        return value.strip()
+
+
+@app.patch("/api/meetings/{meeting_id}/speakers")
+def edit_meeting_speaker_endpoint(meeting_id: int, payload: SpeakerEditRequest):
+    if crud is None:
+        raise HTTPException(503, "Database module not available.")
+    record = crud.edit_meeting_speaker(meeting_id, payload.old_name, payload.new_name, payload.segment_index)
+    if record is None:
+        raise HTTPException(404, "Meeting or matching speaker turn not found.")
+    return {"status": "success", "meeting": jsonable_encoder(record)}
 
 @app.get("/api/meetings/{meeting_id}")
 def get_meeting_by_id(meeting_id: int):

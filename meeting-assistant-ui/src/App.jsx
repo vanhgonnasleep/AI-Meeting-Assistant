@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { normalizeCitation, createRequestGate } from './session';
+import { normalizeCitation, createRequestGate, resultFromMeeting, editSpeakerAttribution } from './session';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
@@ -118,6 +118,12 @@ function App() {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [systemAnalytics, setSystemAnalytics] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyError, setHistoryError] = useState(null);
+  const [loadingMeetingId, setLoadingMeetingId] = useState(null);
+  const [isSpeakerSaving, setIsSpeakerSaving] = useState(false);
+  const [speakerRename, setSpeakerRename] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
   // Agent 6 Interactive Chat state
@@ -128,6 +134,12 @@ function App() {
   const [warnings, setWarnings] = useState([]);
   const processGate = useRef(createRequestGate());
   const chatGate = useRef(createRequestGate());
+  const historyGate = useRef(createRequestGate());
+  const detailGate = useRef(createRequestGate());
+  const speakerGate = useRef(createRequestGate());
+  const speakerBusy = useRef(false);
+  const historyQueryRef = useRef('');
+  const historyOffsetRef = useRef(0);
   const sessionVersion = useRef(0);
   const audioRef = useRef(null);
   const chatBottomRef = useRef(null);
@@ -135,19 +147,27 @@ function App() {
   useEffect(() => {
     const process = processGate.current;
     const chat = chatGate.current;
-    return () => { process.cancel(); chat.cancel(); };
+    const history = historyGate.current;
+    const detail = detailGate.current;
+    const speaker = speakerGate.current;
+    return () => { process.cancel(); chat.cancel(); history.cancel(); detail.cancel(); speaker.cancel(); };
   }, []);
 
-  const invalidateSession = () => {
+  const invalidateSession = (preserveResultMetadata = false) => {
     sessionVersion.current += 1;
     processGate.current.cancel();
     chatGate.current.cancel();
+    detailGate.current.cancel();
+    speakerGate.current.cancel();
+    speakerBusy.current = false;
+    setIsSpeakerSaving(false);
+    setSpeakerRename(null);
+    setLoadingMeetingId(null);
     setIsProcessing(false);
     setIsChatLoading(false);
     setChatInput('');
     setUpdatingTasks({});
-    setWarnings([]);
-    setIsDemoResult(false);
+    if (!preserveResultMetadata) { setWarnings([]); setIsDemoResult(false); }
   };
 
   // Synchronize audio preview URL when file changes
@@ -161,42 +181,75 @@ function App() {
     }
   }, [file]);
 
-  const fetchMeetingHistory = async () => {
+  const fetchMeetingHistory = useCallback(async (query = historyQueryRef.current, offset = historyOffsetRef.current) => {
+    const request = historyGate.current.begin();
+    historyOffsetRef.current = offset;
+    setHistoryOffset(offset);
     setLoadingHistory(true);
+    setHistoryError(null);
     try {
+      const params = new URLSearchParams({ q: query, limit: '20', offset: String(offset), compact: 'true' });
       const [resMeetings, resAnalytics] = await Promise.all([
-        fetch(`${API_BASE}/api/meetings`),
-        fetch(`${API_BASE}/api/analytics`).catch(() => null)
+        fetch(`${API_BASE}/api/meetings?${params}`, { signal: request.signal }),
+        fetch(`${API_BASE}/api/analytics`, { signal: request.signal }).catch(() => null)
       ]);
-      if (resMeetings.ok) {
-        const data = await resMeetings.json();
-        setMeetingsHistory(data.meetings || []);
-      }
+      if (!resMeetings.ok) throw new Error('Unable to load meeting history. Please retry.');
+      const data = await resMeetings.json();
+      if (!request.isCurrent()) return;
+      if (offset > 0 && offset >= data.total) return fetchMeetingHistory(query, Math.max(0, offset - 20));
+      setMeetingsHistory(data.meetings || []);
+      setHistoryTotal(data.total || 0);
       if (resAnalytics && resAnalytics.ok) {
         const dataAnalytics = await resAnalytics.json();
-        setSystemAnalytics(dataAnalytics.analytics || null);
+        if (request.isCurrent()) setSystemAnalytics(dataAnalytics.analytics || null);
       }
     } catch (e) {
-      console.error("Failed to load meetings history:", e);
+      if (request.isCurrent()) setHistoryError(e.message || 'Unable to load history.');
     } finally {
-      setLoadingHistory(false);
+      if (request.isCurrent()) setLoadingHistory(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => fetchMeetingHistory(historySearchQuery, 0), 250);
+    return () => clearTimeout(timer);
+  }, [historySearchQuery, fetchMeetingHistory]);
+
+  const handleHistorySearch = (query) => {
+    historyQueryRef.current = query;
+    historyGate.current.cancel();
+    setLoadingHistory(true);
+    setHistorySearchQuery(query);
   };
 
-  const handleLoadPastMeeting = (item) => {
-    invalidateSession();
+  const handleCloseHistory = () => {
+    detailGate.current.cancel();
+    setLoadingMeetingId(null);
+    setShowHistory(false);
+  };
+
+  const handleLoadPastMeeting = async (entry) => {
+    invalidateSession(true);
+    const request = detailGate.current.begin();
+    setLoadingMeetingId(entry.id);
+    let item;
+    try {
+      const response = await fetch(`${API_BASE}/api/meetings/${entry.id}`, { signal: request.signal });
+      if (!response.ok) throw new Error('Unable to open this meeting. It may have been deleted.');
+      const data = await response.json();
+      if (!request.isCurrent()) return;
+      item = data.meeting;
+    } catch (error) {
+      if (request.isCurrent()) setHistoryError(error.message);
+      return;
+    } finally {
+      if (request.isCurrent()) setLoadingMeetingId(null);
+    }
     setFile(null);
     setAudioUrl(null);
-    setResult({
-      transcript: item.raw_transcript,
-      summary: item.executive_summary,
-      action_items: item.action_items || [],
-      insights: item.insights || { decisions: [], risks: [], open_questions: [] },
-      chat_history: item.chat_history || [],
-      duration: item.duration,
-      language: item.language,
-      segments: item.segments || []
-    });
+    setWarnings([]);
+    setIsDemoResult(false);
+    setResult(resultFromMeeting(item));
     const loadedChat = (item.chat_history && item.chat_history.length > 0)
       ? item.chat_history
       : getDefaultChatGreeting({
@@ -208,7 +261,7 @@ function App() {
     setChatMessages(loadedChat);
     setCurrentMeetingId(item.id);
     setMmrTelemetry(null);
-    setTranscriptView('raw');
+    setTranscriptView((item.segments || []).some(segment => segment.speaker) ? 'segments' : 'raw');
 
     // Populate completed tasks from database status
     const completed = {};
@@ -232,6 +285,8 @@ function App() {
   const handleDeletePastMeeting = async (id, e) => {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this meeting record?")) return;
+    const version = sessionVersion.current;
+    if (loadingMeetingId === id) { detailGate.current.cancel(); setLoadingMeetingId(null); }
     try {
       const res = await fetch(`${API_BASE}/api/meetings/${id}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -239,7 +294,7 @@ function App() {
         throw new Error(errData.detail || `Failed to delete meeting (HTTP ${res.status})`);
       }
       setMeetingsHistory(prev => prev.filter(m => m.id !== id));
-      if (currentMeetingId === id) setCurrentMeetingId(null);
+      if (version === sessionVersion.current && currentMeetingId === id) handleReset();
       await fetchMeetingHistory();
     } catch (err) {
       console.error("Failed to delete meeting:", err);
@@ -263,7 +318,6 @@ function App() {
       }
     };
     checkHealth();
-    fetchMeetingHistory();
     // Poll every 30s so the badge auto-updates if Ollama starts/stops
     const healthInterval = setInterval(checkHealth, 30000);
     return () => clearInterval(healthInterval);
@@ -487,7 +541,7 @@ function App() {
 
   const handleSendChatMessage = async (presetText) => {
     const textToSend = typeof presetText === 'string' ? presetText : chatInput;
-    if (!textToSend || !textToSend.trim() || isChatLoading) return;
+    if (!textToSend || !textToSend.trim() || isChatLoading || isSpeakerSaving) return;
     const cleanQ = textToSend.trim();
     const request = chatGate.current.begin();
     setChatInput('');
@@ -559,6 +613,7 @@ function App() {
   };
 
   const handleClearChat = async () => {
+    if (isSpeakerSaving) return;
     const version = sessionVersion.current;
     const request = chatGate.current.begin();
     setIsChatLoading(true);
@@ -675,33 +730,48 @@ function App() {
     });
   };
 
+  const applySpeakerEdit = async (oldName, newName, segmentIndex = null) => {
+    if (!result || speakerBusy.current) return;
+    if (!newName.trim() || newName.length > 128 || [...newName].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
+      setErrorMessage('Use a speaker name with 1–128 characters and no line breaks.');
+      return;
+    }
+    const request = speakerGate.current.begin();
+    speakerBusy.current = true;
+    setIsSpeakerSaving(true);
+    chatGate.current.cancel();
+    setIsChatLoading(false);
+    try {
+      let updated;
+      if (currentMeetingId) {
+        const response = await fetch(`${API_BASE}/api/meetings/${currentMeetingId}/speakers`, {
+          method: 'PATCH', signal: request.signal, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ old_name: oldName, new_name: newName.trim(), segment_index: segmentIndex }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Speaker edit could not be saved.');
+        if (!request.isCurrent()) return;
+        updated = { ...result, ...resultFromMeeting(data.meeting) };
+      } else {
+        updated = editSpeakerAttribution({ ...result, chat_history: chatMessages }, oldName, newName.trim(), segmentIndex);
+      }
+      if (!request.isCurrent()) return;
+      setResult(updated);
+      setTranscriptView('segments');
+      setChatMessages(updated.chat_history.length ? updated.chat_history : getDefaultChatGreeting(updated));
+      if (speakerFilter === oldName) setSpeakerFilter(newName.trim());
+      return true;
+    } catch (error) {
+      if (request.isCurrent()) setErrorMessage(error.message || 'Speaker edit could not be saved.');
+    } finally {
+      if (request.isCurrent()) { speakerBusy.current = false; setIsSpeakerSaving(false); }
+    }
+  };
+
   const handleRenameSpeaker = (oldName) => {
     if (!oldName || !result) return;
-    const newName = window.prompt(`Rename "${oldName}" to:`, oldName);
-    if (!newName || !newName.trim() || newName.trim() === oldName) return;
-    const cleanName = newName.trim();
-    
-    setResult(prev => {
-      if (!prev) return prev;
-      const updatedSegments = (prev.segments || []).map(s => 
-        s.speaker === oldName ? { ...s, speaker: cleanName } : s
-      );
-      const updatedSpeakers = (prev.speakers || []).map(spk => 
-        spk === oldName ? cleanName : spk
-      );
-      const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(escaped, 'g');
-      const updatedTranscript = prev.transcript ? prev.transcript.replace(regex, cleanName) : prev.transcript;
-      return {
-        ...prev,
-        transcript: updatedTranscript,
-        segments: updatedSegments,
-        speakers: updatedSpeakers
-      };
-    });
-    if (speakerFilter === oldName) {
-      setSpeakerFilter(cleanName);
-    }
+    setErrorMessage(null);
+    setSpeakerRename({ oldName, name: oldName });
   };
 
   const handleCycleSpeaker = (segmentIdx) => {
@@ -713,19 +783,9 @@ function App() {
     
     const currIdx = speakersList.indexOf(currentSpk);
     const nextSpk = speakersList[(currIdx + 1) % speakersList.length];
+    if (nextSpk === currentSpk) return;
 
-    setResult(prev => {
-      if (!prev) return prev;
-      const newSegments = [...prev.segments];
-      newSegments[segmentIdx] = {
-        ...newSegments[segmentIdx],
-        speaker: nextSpk
-      };
-      return {
-        ...prev,
-        segments: newSegments
-      };
-    });
+    applySpeakerEdit(currentSpk, nextSpk, segmentIdx);
   };
 
   const handleDownloadMarkdown = () => {
@@ -817,21 +877,27 @@ ${result.transcript || ""}
   const completedCount = Object.values(completedTasks).filter(Boolean).length;
   const completionPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  // Filter history items by search query across filename, summary, transcript, and action items
-  const filteredMeetings = meetingsHistory.filter(item => {
-    if (!historySearchQuery.trim()) return true;
-    const q = historySearchQuery.toLowerCase();
-    const fn = (item.filename || '').toLowerCase();
-    const sum = (item.executive_summary || '').toLowerCase();
-    const trans = (item.raw_transcript || '').toLowerCase();
-    const tasksMatch = (item.action_items || []).some(it => 
-      (it.task || '').toLowerCase().includes(q) || (it.assignee || '').toLowerCase().includes(q)
-    );
-    return fn.includes(q) || sum.includes(q) || trans.includes(q) || tasksMatch;
-  });
+  const filteredMeetings = meetingsHistory;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-hidden font-sans bg-grid-pattern">
+      {speakerRename && (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-6">
+          <form role="dialog" aria-modal="true" aria-labelledby="speaker-rename-title" className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-6 space-y-4" onSubmit={async event => {
+            event.preventDefault();
+            if (await applySpeakerEdit(speakerRename.oldName, speakerRename.name)) setSpeakerRename(null);
+          }} onKeyDown={event => { if (event.key === 'Escape' && !isSpeakerSaving) setSpeakerRename(null); }}>
+            <h3 id="speaker-rename-title" className="font-semibold text-white">Rename {speakerRename.oldName}</h3>
+            <label htmlFor="speaker-rename-input" className="block text-sm text-slate-300">New speaker name</label>
+            <input id="speaker-rename-input" autoFocus maxLength={128} value={speakerRename.name} onChange={event => setSpeakerRename(previous => ({ ...previous, name: event.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-white" disabled={isSpeakerSaving} />
+            {errorMessage && <p role="alert" className="text-sm text-rose-300">{errorMessage}</p>}
+            <div className="flex justify-end gap-3 text-sm">
+              <button type="button" disabled={isSpeakerSaving} onClick={() => setSpeakerRename(null)}>Cancel</button>
+              <button type="submit" disabled={isSpeakerSaving || !speakerRename.name.trim()} className="rounded-lg bg-indigo-600 px-3 py-2 disabled:opacity-40">{isSpeakerSaving ? 'Saving…' : 'Save speaker name'}</button>
+            </div>
+          </form>
+        </div>
+      )}
       
       {/* Background Ambient Glows */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[850px] h-[350px] bg-gradient-to-tr from-indigo-600/20 via-purple-600/15 to-blue-600/20 blur-[130px] pointer-events-none -z-10" />
@@ -872,7 +938,7 @@ ${result.transcript || ""}
                 <option value="llama3" className="bg-slate-900 text-slate-200">🚀 Llama 3 (8B - GPU)</option>
                 <option value="llama3.2:3b" className="bg-slate-900 text-slate-200">⚡ Llama 3.2 (3B - Fast CPU)</option>
                 <option value="llama3.2:1b" className="bg-slate-900 text-slate-200">🪶 Llama 3.2 (1B - Ultra Light)</option>
-                <option value="instant_demo" className="bg-slate-900 text-slate-200">🎯 Instant Demo (No GPU/RAM)</option>
+                <option value="instant_demo" className="bg-slate-900 text-slate-200">🎯 Instant Demo (No Model Inference)</option>
               </select>
             </div>
 
@@ -965,9 +1031,9 @@ ${result.transcript || ""}
             >
               <Database className="w-3.5 h-3.5 text-blue-400" />
               <span>History</span>
-              {meetingsHistory.length > 0 && (
+              {historyTotal > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-semibold">
-                  {meetingsHistory.length}
+                  {historyTotal}
                 </span>
               )}
             </button>
@@ -1159,7 +1225,7 @@ ${result.transcript || ""}
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-semibold text-slate-200">100% Private & Local</h3>
+                  <h3 className="text-xs font-semibold text-slate-200">Local Inference</h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">Runs on local Llama 3 via Ollama. No proprietary meeting data leaves your machine.</p>
                 </div>
               </div>
@@ -1170,7 +1236,7 @@ ${result.transcript || ""}
                 </div>
                 <div>
                   <h3 className="text-xs font-semibold text-slate-200">Map-Reduce Chunking</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Sliding-window algorithm supports 2+ hour long meetings with zero context overflow.</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Overlapping chunks handle long transcripts. Processing time depends on your hardware.</p>
                 </div>
               </div>
 
@@ -1180,7 +1246,7 @@ ${result.transcript || ""}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-slate-200">Fail-Safe Demo</h3>
+                    <h3 className="text-xs font-semibold text-slate-200">Sample Meeting</h3>
                     <button
                       type="button"
                       onClick={handleDemoSample}
@@ -1532,7 +1598,7 @@ ${result.transcript || ""}
                     {transcriptView === 'segments' && result.segments && result.segments.length > 0 ? (
                       <div className="space-y-3">
                         {/* Speaker filter pills if multiple speakers detected */}
-                        {result.speakers && result.speakers.length > 1 && (
+                        {result.speakers && result.speakers.length > 0 && (
                           <div className="flex items-center gap-1.5 pb-2 overflow-x-auto scrollbar-none border-b border-slate-800 text-[11px]">
                             <span className="text-slate-400 flex items-center gap-1 text-[10px] uppercase font-mono tracking-wider">
                               <Users className="w-3 h-3 text-purple-400" /> Filter:
@@ -1568,6 +1634,7 @@ ${result.transcript || ""}
                                   <button
                                     type="button"
                                     onClick={() => handleRenameSpeaker(spk)}
+                                    disabled={isSpeakerSaving}
                                     className="px-1.5 py-0.5 bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border-l border-slate-700/60"
                                     title={`Rename speaker "${spk}"`}
                                   >
@@ -1591,6 +1658,7 @@ ${result.transcript || ""}
                                     <button
                                       type="button"
                                       onClick={() => handleCycleSpeaker(originalIdx)}
+                                      disabled={isSpeakerSaving}
                                       title="Click to cycle speaker if misclassified"
                                       className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
                                     >
@@ -2125,12 +2193,12 @@ ${result.transcript || ""}
                       </span>
                     </h3>
                     <p className="text-xs text-slate-400">
-                      {meetingsHistory.length} meeting records stored locally
+                      {historyTotal} matching meeting records stored locally
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowHistory(false)}
+                  onClick={handleCloseHistory}
                   className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -2166,13 +2234,13 @@ ${result.transcript || ""}
                   <input 
                     type="text"
                     value={historySearchQuery}
-                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    onChange={(e) => handleHistorySearch(e.target.value)}
                     placeholder="Search by filename, summary, transcript, or action items..."
                     className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                   />
                   {historySearchQuery && (
                     <button 
-                      onClick={() => setHistorySearchQuery('')}
+                      onClick={() => handleHistorySearch('')}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -2182,6 +2250,8 @@ ${result.transcript || ""}
               </div>
 
               {/* Meetings List */}
+              {historyError && <p role="alert" className="text-sm text-rose-300">{historyError}</p>}
+              {loadingMeetingId && <p role="status" className="text-sm text-indigo-300">Opening meeting #{loadingMeetingId}…</p>}
               <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
                 {loadingHistory ? (
                   <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
@@ -2225,7 +2295,7 @@ ${result.transcript || ""}
                             {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
                           </span>
                           <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/50">
-                            {item.action_items?.length || 0} action items
+                            {item.action_item_count || 0} action items
                           </span>
                           {item.duration && (
                             <span className="text-teal-400">
@@ -2250,9 +2320,14 @@ ${result.transcript || ""}
               </div>
 
               {/* Modal Footer */}
-              <div className="pt-3 border-t border-slate-800 flex justify-end">
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 text-xs text-slate-300">
+                  <button type="button" disabled={loadingHistory || historyOffset === 0} onClick={() => fetchMeetingHistory(historyQueryRef.current, Math.max(0, historyOffset - 20))} className="disabled:opacity-40">Previous page</button>
+                  <span>{historyTotal ? `${historyOffset + 1}–${Math.min(historyOffset + 20, historyTotal)} / ${historyTotal}` : '0 records'}</span>
+                  <button type="button" disabled={loadingHistory || historyOffset + 20 >= historyTotal} onClick={() => fetchMeetingHistory(historyQueryRef.current, historyOffset + 20)} className="disabled:opacity-40">Next page</button>
+                </div>
                 <button
-                  onClick={() => setShowHistory(false)}
+                  onClick={handleCloseHistory}
                   className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors"
                 >
                   Close

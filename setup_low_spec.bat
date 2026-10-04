@@ -18,13 +18,18 @@ echo [OK] Ollama is installed.
 echo.
 
 echo [2/3] Pulling ultra-lightweight Llama 3.2 1B (Only ~1.3GB)...
-echo This model runs smoothly (~20-30 tokens/sec) on standard Intel/AMD CPUs with 8GB RAM!
+echo Processing speed depends on CPU, RAM and meeting length; start with this small model.
 echo.
 ollama pull llama3.2:1b
 if %ERRORLEVEL% neq 0 (
     echo [WARNING] Could not pull llama3.2:1b automatically.
     echo Trying fallback to llama3.2:3b...
     ollama pull llama3.2:3b
+    if ERRORLEVEL 1 (
+        echo [ERROR] Both model downloads failed. Check Ollama and your network, then retry.
+        pause
+        exit /b 1
+    )
 )
 echo.
 

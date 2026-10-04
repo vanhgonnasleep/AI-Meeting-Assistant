@@ -7,6 +7,7 @@ Task: SQLite CRUD operations and meeting history management
 """
 
 import json
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -280,6 +281,97 @@ def get_all_meetings(search: Optional[str] = None) -> list[MeetingRecord]:
     return [row_to_meeting(row) for row in rows]
 
 
+def get_meeting_page(search=None, limit=50, offset=0, compact=False):
+    """Search before pagination; compact rows exclude transcript, segments and chat."""
+    where, params = "", []
+    if search and search.strip():
+        where = "WHERE instr(casefold(filename), ?) > 0 OR instr(casefold(executive_summary), ?) > 0 OR instr(casefold(raw_transcript), ?) > 0 OR instr(casefold(action_items), ?) > 0"
+        params = [search.strip().casefold()] * 4
+    projection = "*" if not compact else "id, filename, substr(executive_summary, 1, 600) AS executive_summary, '' AS raw_transcript, action_items, duration, language, created_at, updated_at"
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN")
+        total = connection.execute(f"SELECT COUNT(*) FROM meetings {where}", params).fetchone()[0]
+        rows = connection.execute(
+            f"SELECT {projection} FROM meetings {where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+            [*params, limit, offset],
+        ).fetchall()
+        if compact:
+            records = []
+            for row in rows:
+                entry = {key: row[key] for key in ("id", "filename", "executive_summary", "duration", "language", "created_at", "updated_at")}
+                entry["action_item_count"] = len(row_to_meeting(row).action_items)
+                records.append(entry)
+        else:
+            records = [record.to_dict() for record in (row_to_meeting(row) for row in rows)]
+        return {"meetings": records, "count": len(records), "total": total, "limit": limit, "offset": offset,
+                "has_more": offset + len(records) < total}
+    finally:
+        connection.close()
+
+
+def edit_meeting_speaker(meeting_id, old_name, new_name, segment_index=None):
+    """Update only speaker attribution, atomically with transcript/evidence labels."""
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute("SELECT * FROM meetings WHERE id = ?", (meeting_id,)).fetchone()
+        record = row_to_meeting(row)
+        if record is None:
+            connection.rollback()
+            return None
+        indices = [i for i, segment in enumerate(record.segments)
+                   if isinstance(segment, dict) and segment.get("speaker") == old_name
+                   and (segment_index is None or i == segment_index)]
+        if not indices:
+            connection.rollback()
+            return None
+        affected_starts = {record.segments[i].get("start") for i in indices}
+        for index in indices:
+            record.segments[index]["speaker"] = new_name
+
+        def update_evidence(item):
+            if isinstance(item, dict) and item.get("speaker") == old_name:
+                if segment_index is None or (item.get("start") is not None and item.get("start") in affected_starts):
+                    item["speaker"] = new_name
+        for items in record.insights.values():
+            if isinstance(items, list):
+                for item in items:
+                    update_evidence(item)
+        for message in record.chat_history:
+            if isinstance(message, dict) and isinstance(message.get("citations"), list):
+                for item in message["citations"]:
+                    update_evidence(item)
+        # Only rewrite attribution headers, preserving spoken names and manual annotations.
+        pattern = re.compile(r"^(\[[^\r\n]*?\][ \t]*)?" + re.escape(old_name) + r":", re.MULTILINE)
+        matches = list(pattern.finditer(record.raw_transcript))
+        matching_turns = [i for i, segment in enumerate(record.segments)
+                          if i in indices or segment.get("speaker") == old_name]
+        ordinal = -1
+        def replace_header(match):
+            nonlocal ordinal
+            ordinal += 1
+            if segment_index is not None:
+                timestamp = str(record.segments[segment_index].get("timestamp") or "").strip()
+                same_timestamp = bool(timestamp and (match.group(1) or "").strip() == timestamp)
+                same_turn = len(matches) == len(matching_turns) and matching_turns[ordinal] == segment_index
+                if not (same_timestamp or same_turn):
+                    return match.group(0)
+            return (match.group(1) or "") + new_name + ":"
+        transcript = pattern.sub(replace_header, record.raw_transcript)
+        connection.execute(
+            "UPDATE meetings SET segments=?, raw_transcript=?, insights=?, chat_history=?, chat_generation=chat_generation+1, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (segments_to_json(record.segments), transcript, insights_to_json(record.insights), json.dumps(record.chat_history, ensure_ascii=False), meeting_id),
+        )
+        connection.commit()
+        return get_meeting(meeting_id)
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def update_meeting(
     meeting_id: int,
     filename: Optional[str] = None,
@@ -488,21 +580,23 @@ def get_analytics_summary() -> dict:
     Computes system-wide meeting analytics: total meetings, total duration,
     action items completion rate, and distinct languages detected.
     """
-    meetings = get_all_meetings()
-    total_meetings = len(meetings)
-    total_duration = sum(m.duration or 0.0 for m in meetings)
-    
     total_tasks = 0
     completed_tasks = 0
-    languages = set()
-
-    for m in meetings:
-        if m.language:
-            languages.add(m.language)
-        for item in m.action_items:
-            total_tasks += 1
-            if (item.status or "").lower() in ("completed", "done"):
-                completed_tasks += 1
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN")
+        total_meetings, total_duration = connection.execute("SELECT COUNT(*), COALESCE(SUM(duration),0) FROM meetings").fetchone()
+        languages = {r[0] for r in connection.execute("SELECT DISTINCT language FROM meetings WHERE language IS NOT NULL AND language != ''")}
+        # Stream task data only, without loading transcripts, segments or chat.
+        cursor = connection.execute("SELECT id, '' AS filename, '' AS raw_transcript, '' AS executive_summary, action_items, created_at, updated_at FROM meetings")
+        while rows := cursor.fetchmany(200):
+            for row in rows:
+                for item in row_to_meeting(row).action_items:
+                    total_tasks += 1
+                    if (item.status or "").lower() in ("completed", "done"):
+                        completed_tasks += 1
+    finally:
+        connection.close()
 
     pending_tasks = total_tasks - completed_tasks
     completion_rate = round((completed_tasks / max(total_tasks, 1)) * 100, 1)

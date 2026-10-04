@@ -20,6 +20,7 @@ MIGRATION_COLUMNS = {
 def get_connection():
     connection = sqlite3.connect(DB_PATH, timeout=15.0, check_same_thread=False)
     connection.row_factory = sqlite3.Row
+    connection.create_function("casefold", 1, lambda value: str(value or "").casefold(), deterministic=True)
     return connection
 
 
@@ -54,6 +55,7 @@ def init_db():
                 except Exception:
                     pass  # Column may already exist (concurrent startup race)
 
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_recent ON meetings(created_at DESC, id DESC)")
         connection.commit()
     finally:
         connection.close()

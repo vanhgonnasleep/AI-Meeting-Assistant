@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 title AI Meeting Assistant - Unified Launcher
 echo ========================================================
 echo   🎙️ AI MEETING ASSISTANT - 1-CLICK SYSTEM LAUNCHER
@@ -6,29 +7,32 @@ echo   Local Multi-Agent Intelligence System
 echo ========================================================
 echo.
 
-:: 1. Check Python
-where python >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Python is not installed or not in PATH!
-    echo Please install Python 3.10+ from python.org and try again.
-    pause
-    exit /b 1
-)
-
 :: 2. Check Node
 where npm >nul 2>nul
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Node.js / npm is not installed or not in PATH!
-    echo Please install Node.js 18+ from nodejs.org and try again.
+    echo Please install Node.js 24 LTS from nodejs.org and try again.
+    pause
+    exit /b 1
+)
+
+if not exist "ai-summary-service\venv\Scripts\python.exe" (
+    echo [ERROR] Backend virtual environment is missing.
+    echo Create ai-summary-service\venv and install requirements.txt first.
+    pause
+    exit /b 1
+)
+if not exist "meeting-assistant-ui\node_modules" (
+    echo [ERROR] Frontend dependencies are missing. Run npm ci in meeting-assistant-ui first.
     pause
     exit /b 1
 )
 
 echo [1/3] Launching FastAPI Backend (Port 8002)...
-start "AI Meeting Assistant - Backend (Port 8002)" cmd /k "cd ai-summary-service && if exist venv\Scripts\activate (call venv\Scripts\activate) && python main.py"
+start "AI Meeting Assistant - Backend (Port 8002)" cmd /k "cd ai-summary-service && venv\Scripts\python.exe main.py"
 
 echo [2/3] Launching React Vite Frontend (Port 5173)...
-start "AI Meeting Assistant - Frontend (Port 5173)" cmd /k "cd meeting-assistant-ui && npm run dev"
+start "AI Meeting Assistant - Frontend (Port 5173)" cmd /k "cd meeting-assistant-ui && npm run dev -- --host 127.0.0.1 --port 5173 --strictPort"
 
 echo [3/3] Waiting for servers to initialize...
 timeout /t 3 /nobreak >nul

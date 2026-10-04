@@ -243,3 +243,20 @@ def test_compute_admission_keeps_other_api_routes_available(monkeypatch):
         finally:
             release.set()
         assert all(request.result().status_code == 200 for request in pending)
+
+
+def test_reduce_prompt_keeps_context_inside_the_declared_transcript_boundary(monkeypatch):
+    prompts = []
+    monkeypatch.setattr(main, "call_ollama", lambda prompt, **kwargs: prompts.append(prompt) or "Derived summary")
+    main.summarize_with_llama("word " * 900, model_name="test", has_gpu=False)
+    assert "<meeting_transcript>\nDerived summary" in prompts[-1]
+    assert "</meeting_transcript>" in prompts[-1]
+
+
+def test_speaker_refinement_cannot_change_a_turn_outside_its_current_chunk(monkeypatch):
+    import agent1_transcribe as stt
+    from types import SimpleNamespace
+    replies = iter(['[{"line":41,"speaker":"Wrong"}]', '[]'])
+    monkeypatch.setattr(requests, "post", lambda *a, **k: SimpleNamespace(status_code=200, json=lambda: {"response": next(replies)}))
+    segments = [{"speaker": "Speaker 1", "text": "Review the roadmap."} for _ in range(41)]
+    assert stt.refine_speakers_with_llm(segments)[40]["speaker"] == "Speaker 1"

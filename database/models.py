@@ -89,10 +89,14 @@ class MeetingRecord:
             self.action_items = coerced
 
         # Normalize optional collections (tolerate None / malformed values from storage)
-        if not isinstance(self.segments, list):
-            self.segments = []
-        if not isinstance(self.chat_history, list):
-            self.chat_history = []
+        self.segments = [dict(segment, text=str(segment.get("text") or ""))
+                         for segment in (self.segments if isinstance(self.segments, list) else [])
+                         if isinstance(segment, dict)]
+        self.chat_history = [dict(message, content=str(message.get("content") or ""),
+                                  citations=[item for item in message.get("citations", []) if isinstance(item, (str, dict))]
+                                  if isinstance(message.get("citations"), list) else [])
+                             for message in (self.chat_history if isinstance(self.chat_history, list) else [])
+                             if isinstance(message, dict) and message.get("role") in ("user", "assistant")]
         normalized = empty_insights()
         if isinstance(self.insights, dict):
             for category in INSIGHT_CATEGORIES:

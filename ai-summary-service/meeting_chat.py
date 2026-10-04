@@ -4,10 +4,10 @@ INTERACTIVE MEETING Q&A: LITE-RAG CHATBOT ENGINE
 Author: Lương Việt Anh (Lead AI & Orchestration)
 
 Implements 100% Edge/Local Retrieval-Augmented Generation (RAG):
-  1. Semantic Chunking & Sparse Cosine / BM25 Segment Ranking (< 5ms)
+  1. Transcript Segments / Sentence Splitting & BM25-style Keyword Ranking
   2. Top-K Relevant Context Selection with Speaker & Audio Timestamp Attribution
-  3. Focused LLM Inference via Ollama (Llama 3) with Grounded Hallucination Guards
-  4. Instant Demo Intent Matcher for Presenter Showcases (< 2ms)
+  3. Focused LLM Inference via Ollama with Prompts Requesting Grounded Answers
+  4. Explicit Demo Intent Matcher for Presenter Showcases
   5. Deterministic Offline Fallback Synthesizer when LLM is unavailable
 =============================================================================
 """

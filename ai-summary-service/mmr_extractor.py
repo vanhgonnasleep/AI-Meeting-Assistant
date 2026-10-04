@@ -133,7 +133,7 @@ class MMRExtractor:
 
     @staticmethod
     def _cosine_similarity(vec1: Dict[str, float], vec2: Dict[str, float]) -> float:
-        """Computes Cosine Similarity between two sparse vectors in O(min(|vec1|, |vec2|))."""
+        """Computes sparse cosine similarity in O(|vec1| + |vec2|), including norms."""
         if not vec1 or not vec2:
             return 0.0
 
