@@ -1021,10 +1021,20 @@ ${result.transcript || ""}
             </button>
 
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400 capitalize">{page}</span>
+              <span className="text-slate-400 capitalize">
+                {page === 'studio' ? 'Studio' : page === 'overview' ? 'Overview' : page === 'meetings' ? 'Library' : page === 'tasks' ? 'Tasks' : 'Projects'}
+              </span>
               <span className="text-slate-600">/</span>
               <span className="font-semibold text-slate-200 truncate max-w-xs" title={file?.name || meetingTitle}>
-                {file?.name || meetingTitle || (isDemoResult ? 'Q3 Demo Meeting' : 'Studio Workspace')}
+                {page === 'overview'
+                  ? 'Dashboard'
+                  : page === 'tasks'
+                    ? 'Action Items'
+                    : page === 'projects'
+                      ? 'Projects & Decisions'
+                      : page === 'meetings'
+                        ? 'Meeting History'
+                        : file?.name || meetingTitle || (isDemoResult ? 'Q3 Demo Meeting' : 'Studio Workspace')}
               </span>
             </div>
           </div>

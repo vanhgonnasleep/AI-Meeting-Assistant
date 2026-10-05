@@ -180,36 +180,46 @@ export default function Sidebar({
       {!isCollapsed && (
         <>
           {/* Quick Page Links */}
-          <div className="px-3 pb-2 flex gap-1 text-xs shrink-0">
+          <div className="px-3 pb-2 grid grid-cols-4 gap-1 text-xs shrink-0">
+            <button
+              type="button"
+              onClick={() => onNavigate('studio')}
+              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
+                activePage === 'studio' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <FileAudio className="w-3.5 h-3.5" />
+              <span className="text-[10px]">Studio</span>
+            </button>
             <button
               type="button"
               onClick={() => onNavigate('overview')}
-              className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-                activePage === 'overview' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
+                activePage === 'overview' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <LayoutDashboard className="w-3 h-3" />
-              <span>Overview</span>
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span className="text-[10px]">Overview</span>
             </button>
             <button
               type="button"
               onClick={() => onNavigate('tasks')}
-              className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-                activePage === 'tasks' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
+                activePage === 'tasks' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Tasks</span>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span className="text-[10px]">Tasks</span>
             </button>
             <button
               type="button"
               onClick={() => onNavigate('projects')}
-              className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-                activePage === 'projects' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
+                activePage === 'projects' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <FolderOpen className="w-3 h-3" />
-              <span>Projects</span>
+              <FolderOpen className="w-3.5 h-3.5" />
+              <span className="text-[10px]">Projects</span>
             </button>
           </div>
 
