@@ -17,6 +17,8 @@ MIGRATION_COLUMNS = {
     "revision": "INTEGER NOT NULL DEFAULT 0",
     "review_status": "TEXT NOT NULL DEFAULT 'draft'",
     "project_id": "INTEGER",
+    "save_key": "TEXT",
+    "save_digest": "TEXT",
 }
 
 
@@ -60,6 +62,7 @@ def init_db():
                         raise
 
         connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_recent ON meetings(created_at DESC, id DESC)")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_meetings_save_key ON meetings(save_key) WHERE save_key IS NOT NULL")
         connection.execute("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_project ON meetings(project_id, created_at DESC, id DESC)")
         connection.commit()

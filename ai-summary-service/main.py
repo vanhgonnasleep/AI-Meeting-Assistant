@@ -533,7 +533,8 @@ def process_audio(
     mmr_ratio: float = Query(0.60, ge=0.1, le=1.0, description="MMR target compression ratio"),
     diarize: bool = Query(False, description="Enable Speaker Diarization to identify distinct speakers"),
     num_speakers: Optional[int] = Query(None, ge=1, le=32, description="Expected number of speakers (optional)"),
-    demo_mode: bool = Query(False, description="Instant demo presentation mode")
+    demo_mode: bool = Query(False, description="Instant demo presentation mode"),
+    save_to_library: bool = Query(True, description="Persist results; false keeps this meeting session-only")
 ):
     safe_filename = Path(file.filename).name if getattr(file, "filename", None) else ""
 
@@ -709,7 +710,7 @@ def process_audio(
 
         # 4. DATABASE: Persist Meeting Record to SQLite (Đoàn Hoàng Long)
         saved_meeting_id = None
-        if crud is not None:
+        if save_to_library and crud is not None:
             try:
                 parsed_items = [
                     ActionItem(
@@ -1048,6 +1049,8 @@ def standalone_chat_endpoint(payload: ChatMessageRequest):
     }
 
 from workspace_api import create_workspace_router
+from storage_api import router as storage_router
+app.include_router(storage_router)
 app.include_router(create_workspace_router(summarize_with_llama, model_resolver=resolve_model,
                                            hardware_detector=get_gpu_info))
 

@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as upload from './upload.js';
 
+test('session-only processing explicitly opts out of persistence while default processing saves', () => {
+  assert.equal(new URLSearchParams(upload.buildProcessingQuery({ saveToLibrary: false })).get('save_to_library'), 'false');
+  assert.equal(new URLSearchParams(upload.buildProcessingQuery({})).get('save_to_library'), 'true');
+});
+
 test('processing query carries spoken language without changing other options or enabling demo', () => {
   assert.equal(typeof upload.buildProcessingQuery, 'function');
   for (const language of ['', 'en', 'vi']) {

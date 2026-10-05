@@ -7,6 +7,7 @@ Task: SQLite CRUD operations and meeting history management
 """
 
 import json
+import hashlib
 import math
 import re
 from datetime import datetime
@@ -182,6 +183,11 @@ def insights_to_json(insights: Any) -> Optional[str]:
     return json.dumps(normalized, ensure_ascii=False)
 
 
+class SavedSessionConflict(ValueError):
+    def __init__(self, meeting_id):
+        super().__init__(f"This session is already saved as meeting #{meeting_id}. Open it from the library to review changes, or export your current notes.")
+
+
 def create_meeting(
     filename: str,
     raw_transcript: Optional[str] = None,
@@ -191,12 +197,25 @@ def create_meeting(
     language: Optional[str] = None,
     segments: Optional[List[Dict[str, Any]]] = None,
     insights: Optional[Dict[str, Any]] = None,
+    chat_history: Optional[List[Dict[str, Any]]] = None,
+    save_key: Optional[str] = None,
 ) -> int:
     """
     Create a new meeting and return its ID.
     """
     connection = get_connection()
     try:
+        values = (filename, raw_transcript, executive_summary, action_items_to_json(action_items),
+                  duration, language, segments_to_json(segments), insights_to_json(insights),
+                  json.dumps((chat_history or [])[-MAX_CHAT_MESSAGES:], ensure_ascii=False, allow_nan=False))
+        digest = hashlib.sha256(json.dumps(values, ensure_ascii=False, allow_nan=False).encode('utf-8')).hexdigest() if save_key else None
+        if save_key:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute("SELECT id, save_digest FROM meetings WHERE save_key=?", (save_key,)).fetchone()
+            if existing:
+                if existing['save_digest'] != digest:
+                    raise SavedSessionConflict(existing['id'])
+                return existing['id']
         cursor = connection.execute(
             """
             INSERT INTO meetings (
@@ -207,20 +226,14 @@ def create_meeting(
                 duration,
                 language,
                 segments,
-                insights
+                insights,
+                chat_history,
+                save_key,
+                save_digest
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                filename,
-                raw_transcript,
-                executive_summary,
-                action_items_to_json(action_items),
-                duration,
-                language,
-                segments_to_json(segments),
-                insights_to_json(insights),
-            ),
+            (*values, save_key, digest),
         )
         connection.commit()
         return cursor.lastrowid

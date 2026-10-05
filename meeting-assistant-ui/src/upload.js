@@ -5,9 +5,9 @@ export const DEFAULT_UPLOAD_LIMITS = Object.freeze({
 });
 
 export function buildProcessingQuery({ model = 'auto', language = '', enableMmr = true,
-  mmrLambda = 0.65, diarize = false, numSpeakers = '' }) {
+  mmrLambda = 0.65, diarize = false, numSpeakers = '', saveToLibrary = true }) {
   const query = new URLSearchParams({ model, enable_mmr: String(enableMmr),
-    mmr_lambda: String(mmrLambda), diarize: String(diarize) });
+    mmr_lambda: String(mmrLambda), diarize: String(diarize), save_to_library: String(saveToLibrary) });
   if (language) query.set('language', language);
   if (numSpeakers) query.set('num_speakers', numSpeakers);
   return query.toString();

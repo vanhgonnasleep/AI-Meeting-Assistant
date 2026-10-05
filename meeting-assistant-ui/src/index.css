@@ -2,60 +2,137 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Smooth font rendering */
-body {
+/* Inter / System Font rendering */
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #090d12;
+  color: #f1f5f9;
 }
 
-/* Custom dark scrollbar for sleek desktop aesthetics */
+/* WCAG AA Keyboard Accessibility Focus Ring */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex="0"]:focus-visible {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: 2px !important;
+}
+
+/* Sleek Minimalist Scrollbars (Linear / Apple aesthetic) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.3);
+  background: rgba(148, 163, 184, 0.2);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
+  background: rgba(148, 163, 184, 0.4);
 }
 
-/* Dark mode audio player styling */
+/* Audio Player Dark Theme */
 audio::-webkit-media-controls-panel {
-  background-color: #0f172a;
-  color: #e2e8f0;
+  background-color: #101722;
+  color: #f1f5f9;
 }
 
 audio::-webkit-media-controls-current-time-display,
 audio::-webkit-media-controls-time-remaining-display {
-  color: #94a3b8;
+  color: #94a5bb;
+  font-family: monospace;
+  font-size: 11px;
 }
 
-/* Subtle background grid pattern */
-.bg-grid-pattern {
-  background-size: 36px 36px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+/* Soundwave Equalizer Micro-Animation for Live Recording */
+@keyframes eq-bounce {
+  0%, 100% {
+    height: 4px;
+    opacity: 0.6;
+  }
+  50% {
+    height: 18px;
+    opacity: 1;
+  }
 }
 
-/* Print / PDF Export Styling */
+.eq-bar-1 { animation: eq-bounce 0.8s ease-in-out infinite; }
+.eq-bar-2 { animation: eq-bounce 0.8s ease-in-out 0.15s infinite; }
+.eq-bar-3 { animation: eq-bounce 0.8s ease-in-out 0.3s infinite; }
+.eq-bar-4 { animation: eq-bounce 0.8s ease-in-out 0.45s infinite; }
+.eq-bar-5 { animation: eq-bounce 0.8s ease-in-out 0.2s infinite; }
+
+/* Pulse Wave Ripple for Live Listening / Recording */
+@keyframes pulse-wave {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 16px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.animate-pulse-wave {
+  animation: pulse-wave 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+/* Skeleton Loading Shimmer Gradient */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.04) 20%,
+    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: shimmer 1.8s infinite;
+  content: '';
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Clean Print / PDF Export */
 @media print {
   body {
     background-color: #ffffff !important;
     color: #0f172a !important;
   }
-  header, footer, button, .no-print {
+  header, footer, button, .no-print, [role="dock"], aside {
     display: none !important;
   }
-  .bg-slate-900\/60, .bg-slate-950, .bg-slate-900, .bg-slate-950\/50, .bg-slate-950\/60 {
+  .bg-slate-900\/60, .bg-slate-950, .bg-slate-900, .bg-slate-950\/50, .bg-slate-950\/60, .bg-slate-900\/40 {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     color: #0f172a !important;

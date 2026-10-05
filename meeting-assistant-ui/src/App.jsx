@@ -1,75 +1,56 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import { normalizeCitation, normalizeChatMessages, createRequestGate, resultFromMeeting, editSpeakerAttribution, getSuggestedPrompts, buildChatPayload, getExportTasks, shouldSubmitChat } from './session';
+import { 
+  normalizeCitation, 
+  normalizeChatMessages, 
+  createRequestGate, 
+  resultFromMeeting, 
+  editSpeakerAttribution, 
+  getSuggestedPrompts, 
+  buildChatPayload, 
+  getExportTasks, 
+  shouldSubmitChat 
+} from './session.js';
 import Workspace, { WorkspaceDialog } from './Workspace.jsx';
 import MeetingEditor from './MeetingEditor.jsx';
-import { createMutationLock } from './workspace';
-import { DEFAULT_UPLOAD_LIMITS, getUploadLimits, getUploadError, formatUploadLimits, startHealthPolling, buildProcessingQuery } from './upload';
-import AppShell from './AppShell.jsx';
+import { createMutationLock } from './workspace.js';
+import { 
+  DEFAULT_UPLOAD_LIMITS, 
+  getUploadLimits, 
+  getUploadError, 
+  formatUploadLimits, 
+  startHealthPolling, 
+  buildProcessingQuery 
+} from './upload.js';
 import Overview from './Overview.jsx';
 import MeetingLibrary from './MeetingLibrary.jsx';
-import MeetingTabs from './MeetingTabs.jsx';
-import { canOpenAnotherMeeting, formatMeetingDuration, getNavigationPage, navigateTo, subscribeToNavigation } from './navigation.js';
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
-  UploadCloud, 
-  FileAudio, 
-  Loader2, 
-  CheckCircle2, 
-  Copy, 
-  Sparkles, 
-  Download, 
-  RefreshCw, 
-  Cpu, 
-  ListTodo, 
-  FileText, 
-  ShieldCheck, 
+  canOpenAnotherMeeting, 
+  formatMeetingDuration, 
+  getNavigationPage, 
+  navigateTo, 
+  subscribeToNavigation, 
+  appPageHref 
+} from './navigation.js';
+import { buildMeetingSavePayload } from './storage.js';
+import Sidebar from './Sidebar.jsx';
+import CommandCenter from './CommandCenter.jsx';
+import DocumentWorkspace from './DocumentWorkspace.jsx';
+
+import { 
+  AlertTriangle, 
   Check, 
-  X,
-  Clock,
-  Layers,
-  Zap,
-  Trash2,
-  Sliders,
-  Volume2,
-  FileCode,
-  Users,
-  Edit2,
-  Printer,
-  MessageSquare,
-  Send,
-  AlertTriangle,
-  HelpCircle,
-  Target,
+  X, 
+  PanelLeftOpen, 
+  PanelLeftClose, 
+  Zap, 
+  Loader2, 
+  Sparkles, 
+  FileAudio,
   Play
 } from 'lucide-react';
 
-const SPEAKER_BADGE_STYLES = [
-  'bg-blue-500/20 text-blue-300 border-blue-500/40',
-  'bg-purple-500/20 text-purple-300 border-purple-500/40',
-  'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-  'bg-amber-500/20 text-amber-300 border-amber-500/40',
-  'bg-pink-500/20 text-pink-300 border-pink-500/40',
-  'bg-teal-500/20 text-teal-300 border-teal-500/40',
-  'bg-orange-500/20 text-orange-300 border-orange-500/40',
-  'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-];
-
-const getSpeakerBadgeStyle = (speaker) => {
-  if (!speaker) return 'bg-slate-800 text-slate-300 border-slate-700';
-  // Deterministic hash so the same speaker always gets the same color,
-  // even after LLM rename (e.g. "Speaker 1" → "Alice").
-  const s = String(speaker);
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) {
-    hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
-  }
-  return SPEAKER_BADGE_STYLES[hash % SPEAKER_BADGE_STYLES.length];
-};
-
-const formatDuration = formatMeetingDuration;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 
 const getDefaultChatGreeting = (currResult) => {
   if (!currResult) return [];
@@ -78,11 +59,11 @@ const getDefaultChatGreeting = (currResult) => {
   }
   const turnsCount = currResult.segments?.length || 0;
   const itemsCount = currResult.action_items?.length || 0;
-  const durText = formatDuration(currResult.duration);
+  const durText = formatMeetingDuration(currResult.duration);
   return [
     {
       role: 'assistant',
-      content: `👋 **Welcome to AI Meeting Chat!**\n\nThis meeting${durText ? ` (${durText} duration)` : ''} has **${turnsCount} transcript segments** and **${itemsCount} extracted action items**.\n\nAsk a question about its content or choose a suggestion based on the transcript. Check the source excerpts when reviewing an answer.`,
+      content: `👋 **Welcome to AI Meeting Intelligence!**\n\nThis meeting${durText ? ` (${durText} duration)` : ''} has **${turnsCount} transcript segments** and **${itemsCount} extracted action items**.\n\nAsk a question about deliverables, decisions, or timeline commitments, or click a suggested prompt below.`,
       citations: [],
       mode: 'assistant',
       created_at: new Date().toISOString()
@@ -90,12 +71,27 @@ const getDefaultChatGreeting = (currResult) => {
   ];
 };
 
+/**
+ * Main Application Component
+ * 
+ * UX Architecture & Design System Decisions:
+ * 1. Apple & Linear Aesthetic: Deep Slate/Zinc neutrals (#090d12 base, #101722 panels) with
+ *    crisp typography (Inter) and single accent color (Indigo/Emerald).
+ * 2. 8pt Grid: Spacing strictly enforces 8px multiples (p-4=16px, p-6=24px, gap-3=12px/gap-4=16px).
+ * 3. 3-Component Core Layout:
+ *    - Collapsible Sidebar: Date-grouped past meetings (Today, Yesterday, Previous 7 Days, Older).
+ *    - Main Workspace: Refined document editor view with card treatments, audio seeking, and skeleton shimmer.
+ *    - Command Center: Floating frosted-glass dock at bottom with live audio recording and RAG chat.
+ * 4. WCAG AA Accessibility: Explicit focus-visible ring offsets, ARIA roles, and high contrast ratios.
+ */
 function App() {
-  const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'overview');
-  const reduceMotion = useReducedMotion();
+  const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'studio');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [notice, setNotice] = useState(null);
   const noticeId = useRef(0);
   const notify = (message, kind = 'success') => setNotice({ id: ++noticeId.current, message, kind });
+
+  // Core Session States
   const [file, setFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -105,6 +101,8 @@ function App() {
   const [currentMeetingId, setCurrentMeetingId] = useState(null);
   const [meetingTitle, setMeetingTitle] = useState('');
   const [showEditor, setShowEditor] = useState(false);
+  
+  // Pipeline Settings
   const [semanticChat, setSemanticChat] = useState(false);
   const [embeddingModel, setEmbeddingModel] = useState('embeddinggemma');
   const [enableMmr, setEnableMmr] = useState(true);
@@ -117,7 +115,6 @@ function App() {
   const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'segments' | 'mmr'
   const [isCopied, setIsCopied] = useState(false);
   const [summaryCopied, setSummaryCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState('split'); // 'split' | 'summary' | 'tasks' | 'transcript' | 'insights' | 'chat'
   const [completedTasks, setCompletedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
   const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
@@ -125,7 +122,13 @@ function App() {
   const uploadError = getUploadError(file, uploadLimits);
   const [selectedModel, setSelectedModel] = useState('auto');
   const [spokenLanguage, setSpokenLanguage] = useState('');
+  const [saveToLibrary, setSaveToLibrary] = useState(true);
+  const [isSavingMeeting, setIsSavingMeeting] = useState(false);
+  const saveKey = useRef(null);
+  const saveGate = useRef(createRequestGate());
   const [metaInfo, setMetaInfo] = useState(null);
+
+  // History & SQLite
   const [meetingsHistory, setMeetingsHistory] = useState([]);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -137,12 +140,13 @@ function App() {
   const [speakerRename, setSpeakerRename] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // Agent 6 Interactive Chat state
+  // Chat State
   const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isDemoResult, setIsDemoResult] = useState(false);
   const [warnings, setWarnings] = useState([]);
+
+  // Gates & Locks
   const processGate = useRef(createRequestGate());
   const chatGate = useRef(createRequestGate());
   const historyGate = useRef(createRequestGate());
@@ -154,10 +158,20 @@ function App() {
   const historyOffsetRef = useRef(0);
   const sessionVersion = useRef(0);
   const audioRef = useRef(null);
-  const chatBottomRef = useRef(null);
+
+  // Keyboard shortcut listener (Ctrl+B / Cmd+B for sidebar, Ctrl+N for new meeting)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => subscribeToNavigation(() => {
-    // Abandon saved-record requests when navigation changes; processing continues.
     detailGate.current.cancel();
     setLoadingMeetingId(null);
   }), []);
@@ -168,7 +182,8 @@ function App() {
     const history = historyGate.current;
     const detail = detailGate.current;
     const speaker = speakerGate.current;
-    return () => { process.cancel(); chat.cancel(); history.cancel(); detail.cancel(); speaker.cancel(); };
+    const save = saveGate.current;
+    return () => { process.cancel(); chat.cancel(); history.cancel(); detail.cancel(); speaker.cancel(); save.cancel(); };
   }, []);
 
   const invalidateSession = (preserveResultMetadata = false) => {
@@ -177,6 +192,8 @@ function App() {
     chatGate.current.cancel();
     detailGate.current.cancel();
     speakerGate.current.cancel();
+    saveGate.current.cancel();
+    setIsSavingMeeting(false);
     speakerBusy.current = false;
     contentMutations.current.reset();
     setIsSpeakerSaving(false);
@@ -184,7 +201,6 @@ function App() {
     setLoadingMeetingId(null);
     setIsProcessing(false);
     setIsChatLoading(false);
-    setChatInput('');
     setUpdatingTasks({});
     if (!preserveResultMetadata) { setWarnings([]); setIsDemoResult(false); }
   };
@@ -209,7 +225,7 @@ function App() {
     try {
       const params = new URLSearchParams({ q: query, limit: '20', offset: String(offset), compact: 'true' });
       const resMeetings = await fetch(`${API_BASE}/api/meetings?${params}`, { signal: request.signal });
-      if (!resMeetings.ok) throw new Error('Unable to load meeting history. Please retry.');
+      if (!resMeetings.ok) throw new Error('Unable to load meeting history.');
       const data = await resMeetings.json();
       if (!request.isCurrent()) return;
       if (offset > 0 && offset >= data.total) return fetchMeetingHistory(query, Math.max(0, offset - 20));
@@ -223,14 +239,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (page !== 'meetings') return;
-    const timer = setTimeout(() => fetchMeetingHistory(historySearchQuery, historyOffsetRef.current), 250);
-    return () => clearTimeout(timer);
-  }, [page, historySearchQuery, fetchMeetingHistory]);
-
-  useEffect(() => {
-    if (page !== 'studio') audioRef.current?.pause();
-  }, [page]);
+    fetchMeetingHistory();
+  }, [fetchMeetingHistory]);
 
   useEffect(() => {
     if (!notice) return;
@@ -256,7 +266,7 @@ function App() {
     let item;
     try {
       const response = await fetch(`${API_BASE}/api/meetings/${entry.id}`, { signal: request.signal });
-      if (!response.ok) throw new Error('Unable to open this meeting. It may have been deleted.');
+      if (!response.ok) throw new Error('Unable to open this meeting record.');
       const data = await response.json();
       if (!request.isCurrent()) return;
       item = data.meeting;
@@ -279,7 +289,6 @@ function App() {
     setMmrTelemetry(null);
     setTranscriptView(loadedResult.segments.some(segment => segment.speaker) ? 'segments' : 'raw');
 
-    // Populate completed tasks from database status
     const completed = {};
     loadedResult.action_items.forEach((act, idx) => {
       if (act.status === 'completed' || act.status === 'done') {
@@ -293,7 +302,6 @@ function App() {
       model: "SQLite Stored Record",
       hardware: `Meeting #${item.id} • ${item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved Record'}`
     });
-    setActiveTab('split');
     setSpeakerFilter('all');
     navigateTo('studio');
     return true;
@@ -327,6 +335,7 @@ function App() {
       setMeetingsHistory(prev => prev.filter(m => m.id !== id));
       if (version === sessionVersion.current && currentMeetingId === id) handleReset();
       await fetchMeetingHistory();
+      notify('Meeting record deleted');
     } catch (err) {
       console.error("Failed to delete meeting:", err);
       setErrorMessage(err.message || "Failed to delete meeting.");
@@ -358,6 +367,7 @@ function App() {
   }, [isProcessing]);
 
   const onDrop = (acceptedFiles) => {
+    if (contentMutations.current.isLocked()) return;
     if (acceptedFiles?.length > 0) { handleReset(); setFile(acceptedFiles[0]); }
   };
   
@@ -369,11 +379,12 @@ function App() {
     },
     maxSize: uploadLimits.maxFileSizeBytes,
     onDropRejected: () => setErrorMessage(`Choose one supported audio/video file up to ${uploadLimits.maxFileSizeMb} MiB.`),
-    disabled: isProcessing,
+    disabled: isProcessing || isSavingMeeting,
     maxFiles: 1
   });
 
   const handleProcessAudio = async () => {
+    if (contentMutations.current.isLocked() || isSavingMeeting || isProcessing) return;
     const limitError = getUploadError(file, uploadLimits);
     if (limitError) { setErrorMessage(limitError); return; }
     if (selectedModel === 'instant_demo') {
@@ -382,6 +393,7 @@ function App() {
 
     if (!file) return;
     invalidateSession();
+    saveKey.current = null;
     const request = processGate.current.begin();
     setIsProcessing(true);
     setResult(null);
@@ -396,8 +408,15 @@ function App() {
     formData.append("file", file);
 
     try {
-      const query = buildProcessingQuery({ model: selectedModel, language: spokenLanguage,
-        enableMmr, mmrLambda, diarize: enableDiarization, numSpeakers });
+      const query = buildProcessingQuery({ 
+        model: selectedModel, 
+        language: spokenLanguage,
+        enableMmr, 
+        mmrLambda, 
+        diarize: enableDiarization, 
+        numSpeakers, 
+        saveToLibrary 
+      });
       const url = `${API_BASE}/api/process-audio?${query}`;
       const response = await fetch(url, {
         method: "POST",
@@ -420,7 +439,7 @@ function App() {
         : getDefaultChatGreeting(data.data);
       setChatMessages(initialChat);
       setCurrentMeetingId(data.meeting_id || null);
-      notify('Meeting processed');
+      notify('Meeting analysis complete');
       setMmrTelemetry(data.mmr_telemetry || null);
       setMetaInfo({
         model: data.model_used || selectedModel,
@@ -429,15 +448,15 @@ function App() {
       fetchMeetingHistory();
     } catch (error) {
       if (!request.isCurrent()) return;
-      setErrorMessage(error.message || "An unexpected error occurred. Please try again.");
-      notify(error.message || 'Processing failed. Return to Meeting studio to retry.', 'error');
+      setErrorMessage(error.message || "An unexpected error occurred.");
+      notify(error.message || 'Processing failed.', 'error');
     } finally {
       if (request.isCurrent()) setIsProcessing(false);
     }
   };
 
-  // Fail-safe instant demo handler (Bypasses heavy inference in 50ms)
   const handleInstantDemo = async () => {
+    if (contentMutations.current.isLocked() || isProcessing) return;
     const limitError = getUploadError(file, uploadLimits);
     if (limitError) { setErrorMessage(limitError); return; }
     invalidateSession();
@@ -466,7 +485,7 @@ function App() {
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || `Demo mode server error (HTTP ${response.status})`);
+        throw new Error(errData.detail || `Demo mode error (HTTP ${response.status})`);
       }
       const data = await response.json();
       if (!request.isCurrent()) return;
@@ -491,15 +510,17 @@ function App() {
         model: "Instant Showcase (Zero Compute)",
         hardware: "Fail-Safe Demo Mode"
       });
+      notify('Demo meeting loaded');
     } catch (e) {
       if (!request.isCurrent()) return;
-      setErrorMessage(e.message || "Backend not reachable. Please start the FastAPI server on port 8002.");
+      setErrorMessage(e.message || "Backend server not reachable on port 8002.");
     } finally {
       if (request.isCurrent()) setIsProcessing(false);
     }
   };
 
   const handleDemoSample = async () => {
+    if (contentMutations.current.isLocked() || isProcessing) return;
     handleReset();
     const version = sessionVersion.current;
     setSelectedModel('instant_demo');
@@ -512,13 +533,14 @@ function App() {
         });
         if (version !== sessionVersion.current) return;
         setFile(sampleFile);
+        notify('Sample audio loaded');
         return;
       }
     } catch {
-      // Fallback to wav
+      // Fallback
     }
     try {
-      const resWav = await fetch('/sample_meeting_en.wav');
+      const resWav = await fetch('/q3_product_budget_review.wav');
       if (resWav.ok) {
         const blob = await resWav.blob();
         const sampleFile = new File([blob], "q3_product_budget_review.wav", {
@@ -526,20 +548,24 @@ function App() {
         });
         if (version !== sessionVersion.current) return;
         setFile(sampleFile);
+        notify('Sample audio loaded');
         return;
       }
     } catch {
       // Fallback
     }
-    const mockFile = new File(["sample meeting dummy binary content"], "q3_product_budget_review.mp3", {
+    const mockFile = new File(["sample meeting binary content"], "q3_product_budget_review.mp3", {
       type: "audio/mp3",
     });
     if (version !== sessionVersion.current) return;
     setFile(mockFile);
+    notify('Sample audio loaded');
   };
 
-  const handleReset = () => {
+  const handleReset = ({ resetStorage = false } = {}) => {
     invalidateSession();
+    saveKey.current = null;
+    if (resetStorage) setSaveToLibrary(true);
     setFile(null);
     setSpokenLanguage('');
     setAudioUrl(null);
@@ -553,13 +579,54 @@ function App() {
     setMetaInfo(null);
     setMmrTelemetry(null);
     setShowAdvancedMmr(false);
-    setActiveTab('split');
     setTranscriptView('raw');
     setSpeakerFilter('all');
     setErrorMessage(null);
     setChatMessages([]);
-    setChatInput('');
     setIsChatLoading(false);
+  };
+
+  const handleSaveMeeting = async () => {
+    if (!result || currentMeetingId || isDemoResult || isProcessing || isChatLoading || showEditor || speakerRename) return;
+    const release = contentMutations.current.tryAcquire();
+    if (!release) return;
+    const request = saveGate.current.begin();
+    setIsSavingMeeting(true);
+    setErrorMessage(null);
+    try {
+      saveKey.current ||= crypto.randomUUID();
+      const payload = buildMeetingSavePayload({ 
+        saveKey: saveKey.current, 
+        filename: file?.name || meetingTitle,
+        result, 
+        completedTasks, 
+        chatMessages, 
+        isDemo: isDemoResult 
+      });
+      const response = await fetch(`${API_BASE}/api/meetings`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload), 
+        signal: request.signal 
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Unable to save meeting.');
+      if (!request.isCurrent()) return;
+      if (!data.meeting?.id) throw new Error('Save was not confirmed. Please retry.');
+      const saved = resultFromMeeting(data.meeting);
+      setResult(previous => ({ ...previous, ...saved, meeting_id: data.meeting.id }));
+      setChatMessages(saved.chat_history);
+      setCurrentMeetingId(data.meeting.id);
+      setMeetingTitle(data.meeting.filename);
+      setWarnings(previous => previous.filter(warning => warning !== 'Meeting could not be saved. Export your results before leaving this page.'));
+      notify('Meeting saved to library');
+      fetchMeetingHistory();
+    } catch (error) {
+      if (request.isCurrent()) { setErrorMessage(error.message); notify(error.message, 'error'); }
+    } finally {
+      release();
+      if (request.isCurrent()) setIsSavingMeeting(false);
+    }
   };
 
   const handleSeekAudio = (seconds) => {
@@ -570,11 +637,10 @@ function App() {
   };
 
   const handleSendChatMessage = async (presetText) => {
-    const textToSend = typeof presetText === 'string' ? presetText : chatInput;
-    if (!textToSend || !textToSend.trim() || isChatLoading || isSpeakerSaving) return;
+    const textToSend = presetText;
+    if (!textToSend || !textToSend.trim() || isChatLoading || isSpeakerSaving || isSavingMeeting || contentMutations.current.isLocked()) return;
     const cleanQ = textToSend.trim();
     const request = chatGate.current.begin();
-    setChatInput('');
 
     const newUserMsg = { role: 'user', content: cleanQ, created_at: new Date().toISOString() };
     setChatMessages(prev => [...prev, newUserMsg]);
@@ -582,9 +648,15 @@ function App() {
 
     try {
       let endpoint = `${API_BASE}/api/chat`;
-      const payload = buildChatPayload({ question: cleanQ, meetingId: currentMeetingId,
-        isDemo: isDemoResult, result, model: selectedModel === 'instant_demo' ? 'auto' : selectedModel,
-        semantic: semanticChat, embeddingModel });
+      const payload = buildChatPayload({ 
+        question: cleanQ, 
+        meetingId: currentMeetingId,
+        isDemo: isDemoResult, 
+        result, 
+        model: selectedModel === 'instant_demo' ? 'auto' : selectedModel,
+        semantic: semanticChat, 
+        embeddingModel 
+      });
 
       if (currentMeetingId) {
         endpoint = `${API_BASE}/api/meetings/${currentMeetingId}/chat`;
@@ -604,50 +676,46 @@ function App() {
 
       const data = await res.json();
       if (!request.isCurrent()) return;
-      const assistantMsg = {
+
+      const aiMsg = {
         role: 'assistant',
-        content: String(data.answer ?? ''),
-        citations: normalizeChatMessages([{ citations: data.citations }])[0].citations,
-        mode: data.mode,
-        retrieval_warning: data.retrieval_warning,
+        content: data.answer || "I couldn't find relevant context in the meeting transcript to answer that.",
+        citations: data.citations || [],
+        mode: data.mode || (data.cached ? 'cached' : 'live'),
+        retrieval_warning: data.retrieval_warning || null,
         created_at: new Date().toISOString()
       };
-
-      setChatMessages(prev => [...prev, assistantMsg]);
+      setChatMessages(prev => [...prev, aiMsg]);
+      setResult(previous => previous ? { ...previous, chat_history: [...chatMessages, newUserMsg, aiMsg] } : previous);
     } catch (err) {
       if (!request.isCurrent()) return;
       console.error("Chat error:", err);
-      notify(err.message || 'Unable to connect to the AI service.', 'error');
-      setChatMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `Sorry, unable to connect to the AI service: ${err.message}. Please verify the FastAPI backend server is running.`,
-          citations: [],
-          mode: 'error'
-        }
-      ]);
+      const errorMsg = {
+        role: 'assistant',
+        content: `⚠️ ${err.message || 'Failed to generate answer. Please retry.'}`,
+        citations: [],
+        created_at: new Date().toISOString()
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
     } finally {
-      if (request.isCurrent()) {
-        setIsChatLoading(false);
-        chatBottomRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
-      }
+      if (request.isCurrent()) setIsChatLoading(false);
     }
   };
 
   const handleClearChat = async () => {
-    if (isSpeakerSaving) return;
+    if (isChatLoading || !result) return;
     const version = sessionVersion.current;
     const request = chatGate.current.begin();
     setIsChatLoading(true);
     try {
       if (currentMeetingId) {
         const response = await fetch(`${API_BASE}/api/meetings/${currentMeetingId}/chat`, { method: 'DELETE', signal: request.signal });
-        if (!response.ok) throw new Error('Could not clear saved chat. Please retry.');
+        if (!response.ok) throw new Error('Could not clear saved chat.');
       }
       if (version !== sessionVersion.current || !request.isCurrent()) return;
       setResult(previous => previous ? { ...previous, chat_history: [] } : previous);
       setChatMessages(getDefaultChatGreeting({ ...result, chat_history: [] }));
+      notify('Chat conversation cleared');
     } catch (error) {
       if (version === sessionVersion.current && request.isCurrent()) { setErrorMessage(error.message); notify(error.message, 'error'); }
     } finally {
@@ -670,7 +738,7 @@ function App() {
             disabled={!audioUrl || sec === null}
             onClick={() => handleSeekAudio(sec)}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded bg-indigo-500/25 hover:bg-indigo-500/40 text-indigo-300 hover:text-white border border-indigo-500/40 text-[11px] font-mono transition-all font-semibold active:scale-95 cursor-pointer disabled:cursor-default disabled:opacity-60"
-            title={!audioUrl ? 'Audio is not available for this meeting' : sec === null ? 'No audio timestamp available' : `Click to jump audio to ${ts}`}
+            title={!audioUrl ? 'Audio not available' : `Jump audio to ${ts}`}
           >
             <Play className="w-2 h-2 text-indigo-400 fill-indigo-400" />
             <span>{ts}</span>
@@ -698,11 +766,11 @@ function App() {
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.detail || `Failed to save task status (HTTP ${response.status})`);
+          throw new Error(errData.detail || `Failed to update task (HTTP ${response.status})`);
         }
         const data = await response.json();
         if (version !== sessionVersion.current) return;
-        if (data.meeting) { handleUpdatedMeeting(data.meeting); notify('Action item updated'); return; }
+        if (data.meeting) { handleUpdatedMeeting(data.meeting); notify('Task updated'); return; }
       }
 
       if (version !== sessionVersion.current) return;
@@ -710,10 +778,10 @@ function App() {
         ...prev,
         [idx]: isNowDone
       }));
-      notify('Action item updated');
+      notify('Task updated');
     } catch (err) {
       if (version !== sessionVersion.current) return;
-      console.error("Failed to sync task status to SQLite:", err);
+      console.error("Failed to update task:", err);
       setErrorMessage(err.message || "Failed to save task status.");
       notify(err.message || 'Failed to save task status.', 'error');
     } finally {
@@ -738,18 +806,16 @@ function App() {
       insightsBlock = `\n\n## KEY DECISIONS & GOVERNANCE INSIGHTS\n### Decisions\n${decs || 'None'}\n\n### Blockers & Delivery Risks\n${risks || 'None'}\n\n### Open Questions\n${ques || 'None'}`;
     }
 
-    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}${insightsBlock}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
+    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION DELIVERABLES\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}${insightsBlock}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
   };
 
   const handleCopyResult = () => {
     if (!result) return;
     navigator.clipboard.writeText(getFullMarkdown()).then(() => {
       setIsCopied(true);
-      notify('Meeting notes copied');
+      notify('Meeting notes copied to clipboard');
       setTimeout(() => setIsCopied(false), 2500);
-    }).catch((err) => {
-      console.error("Clipboard copy failed:", err);
-    });
+    }).catch(console.error);
   };
 
   const handleCopySummary = (e) => {
@@ -757,17 +823,15 @@ function App() {
     if (!result?.summary) return;
     navigator.clipboard.writeText(result.summary).then(() => {
       setSummaryCopied(true);
-      notify('Summary copied');
+      notify('Summary copied to clipboard');
       setTimeout(() => setSummaryCopied(false), 2000);
-    }).catch((err) => {
-      console.error("Clipboard copy summary failed:", err);
-    });
+    }).catch(console.error);
   };
 
   const applySpeakerEdit = async (oldName, newName, segmentIndex = null) => {
     if (!result || speakerBusy.current || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
     if (!newName.trim() || newName.length > 128 || [...newName].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
-      setErrorMessage('Use a speaker name with 1–128 characters and no line breaks.');
+      setErrorMessage('Use a speaker name with 1–128 characters.');
       return;
     }
     const release = contentMutations.current.tryAcquire();
@@ -781,7 +845,9 @@ function App() {
       let updated;
       if (currentMeetingId) {
         const response = await fetch(`${API_BASE}/api/meetings/${currentMeetingId}/speakers`, {
-          method: 'PATCH', signal: request.signal, headers: { 'Content-Type': 'application/json' },
+          method: 'PATCH', 
+          signal: request.signal, 
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ old_name: oldName, new_name: newName.trim(), segment_index: segmentIndex }),
         });
         const data = await response.json();
@@ -799,7 +865,7 @@ function App() {
       notify('Speaker name updated');
       return true;
     } catch (error) {
-      if (request.isCurrent()) { setErrorMessage(error.message || 'Speaker edit could not be saved.'); notify(error.message || 'Speaker edit could not be saved.', 'error'); }
+      if (request.isCurrent()) { setErrorMessage(error.message || 'Speaker edit failed.'); notify(error.message || 'Speaker edit failed.', 'error'); }
     } finally {
       release();
       if (request.isCurrent()) { speakerBusy.current = false; setIsSpeakerSaving(false); }
@@ -841,13 +907,13 @@ function App() {
 
   const handleDownloadJson = () => {
     if (!result) return;
+    const exportTasks = getExportTasks(result, completedTasks);
     const exportData = {
       meeting_id: currentMeetingId,
-      date: new Date().toISOString(),
-      metadata: metaInfo,
-      mmr_telemetry: mmrTelemetry,
+      filename: file?.name || meetingTitle,
+      created_at: new Date().toISOString(),
       summary: result.summary,
-      action_items: getExportTasks(result.action_items || [], completedTasks),
+      action_items: exportTasks,
       transcript: result.transcript,
       condensed_transcript: result.condensed_transcript,
       duration: result.duration,
@@ -898,1288 +964,322 @@ ${result.transcript || ""}
     URL.revokeObjectURL(url);
   };
 
-  const formatFileSize = (bytes) => {
-    if (!bytes || bytes <= 0) return "0 KB";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
-  const wordCount = result?.transcript ? result.transcript.split(/\s+/).filter(Boolean).length : 0;
-  const estimatedReadTime = Math.ceil(wordCount / 200);
-  const totalTasks = result?.action_items?.length || 0;
-  const completedCount = Object.values(completedTasks).filter(Boolean).length;
-  const completionPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
-
-  const isContentSaving = isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
+  const isContentSaving = isSavingMeeting || isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
   const canOpenMeeting = canOpenAnotherMeeting({ processing: isProcessing, saving: isContentSaving, editing: showEditor || Boolean(speakerRename) });
+
   const handleNewMeeting = () => {
     if (!canOpenMeeting || contentMutations.current.isLocked()) return;
-    handleReset();
+    handleReset({ resetStorage: true });
     navigateTo('studio');
   };
 
   return (
-    <AppShell page={page} processing={isProcessing} elapsedTime={elapsedTime}
-      meetingName={file?.name || meetingTitle || (isDemoResult ? 'Demo meeting' : result ? 'Saved meeting' : '')}
-      canStartNew={canOpenMeeting} onNewMeeting={handleNewMeeting} health={healthStatus}
-      notice={notice} onDismissNotice={() => setNotice(null)}
-      overview={<Overview apiBase={API_BASE} refreshKey={currentMeetingId} onOpen={handleLoadPastMeeting}
-        canOpen={canOpenMeeting} onNewMeeting={handleNewMeeting} processing={isProcessing} />}
-      library={<MeetingLibrary meetings={meetingsHistory} total={historyTotal} loading={loadingHistory}
-        error={historyError} opening={loadingMeetingId} query={historySearchQuery} offset={historyOffset}
-        onSearch={handleHistorySearch} onPage={offset => fetchMeetingHistory(historyQueryRef.current, offset)}
-        onOpen={handleLoadPastMeeting} onDelete={handleDeletePastMeeting} canOpen={canOpenMeeting} onNewMeeting={handleNewMeeting} />}
-      workspace={<Workspace key={page} presentation="page" initialSection={page === 'projects' ? 'projects' : 'tasks'}
-        apiBase={API_BASE} canOpenMeeting={canOpenMeeting} onSectionChange={navigateTo}
-        onOpenMeeting={id => handleLoadPastMeeting({ id })} />}
-      dialogs={<>{speakerRename && (
-        <WorkspaceDialog title={`Rename ${speakerRename.oldName}`} maxWidth="max-w-sm" onClose={() => { if (!isSpeakerSaving) setSpeakerRename(null); }}>
-          <form className="space-y-4 pt-4" onSubmit={async event => {
-            event.preventDefault();
-            if (contentMutations.current.isLocked() || isContentSaving) return;
-            if (await applySpeakerEdit(speakerRename.oldName, speakerRename.name)) setSpeakerRename(null);
-          }}>
-            <label htmlFor="speaker-rename-input" className="block text-sm text-slate-300">New speaker name</label>
-            <input id="speaker-rename-input" autoFocus maxLength={128} value={speakerRename.name} onChange={event => setSpeakerRename(previous => ({ ...previous, name: event.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-white" disabled={isContentSaving} />
-            {errorMessage && <p role="alert" className="text-sm text-rose-300">{errorMessage}</p>}
-            <div className="flex justify-end gap-3 text-sm">
-              <button type="button" disabled={isSpeakerSaving} onClick={() => setSpeakerRename(null)}>Cancel</button>
-              <button type="submit" disabled={isContentSaving || !speakerRename.name.trim()} className="rounded-lg bg-indigo-600 px-3 py-2 disabled:opacity-40">{isSpeakerSaving ? 'Saving…' : 'Save speaker name'}</button>
-            </div>
-          </form>
-        </WorkspaceDialog>
-      )}
-        {showEditor && currentMeetingId && !isDemoResult && <MeetingEditor key={currentMeetingId} apiBase={API_BASE} meetingId={currentMeetingId} model={selectedModel} onClose={() => setShowEditor(false)} onUpdated={handleUpdatedMeeting} />}
-      </>}>
-      <div className="studio-layout">
-        
-        {/* Navbar / Top Bar */}
-        <header className="studio-heading">
-          <div><h1>{result ? 'Meeting details' : 'Meeting studio'}</h1>
-            <p className="studio-filename" title={file?.name || meetingTitle}>{file?.name || meetingTitle || 'Upload a recording, review the transcript, and work with the results.'}</p></div>
-          <div className="studio-settings flex flex-wrap items-center w-full">
-            
-            {/* Model Profile Switcher */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs shadow-sm">
-              <Cpu className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <select
-                aria-label="Processing model"
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer font-medium"
-              >
-                <option value="auto" className="bg-slate-900 text-slate-200">🤖 Auto (Adaptive)</option>
-                <option value="llama3" className="bg-slate-900 text-slate-200">🚀 Llama 3 (8B - GPU)</option>
-                <option value="llama3.2:3b" className="bg-slate-900 text-slate-200">⚡ Llama 3.2 (3B - Fast CPU)</option>
-                <option value="llama3.2:1b" className="bg-slate-900 text-slate-200">🪶 Llama 3.2 (1B - Ultra Light)</option>
-                <option value="instant_demo" className="bg-slate-900 text-slate-200">🎯 Instant Demo (No Model Inference)</option>
-              </select>
-            </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans antialiased selection:bg-indigo-500/30 selection:text-white">
+      
+      {/* 1. COLLAPSIBLE SIDEBAR */}
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        meetings={meetingsHistory}
+        currentMeetingId={currentMeetingId}
+        onSelectMeeting={handleLoadPastMeeting}
+        onDeleteMeeting={handleDeletePastMeeting}
+        onNewMeeting={handleNewMeeting}
+        canStartNew={canOpenMeeting}
+        searchQuery={historySearchQuery}
+        onSearchChange={handleHistorySearch}
+        loadingHistory={loadingHistory}
+        loadingMeetingId={loadingMeetingId}
+        healthStatus={healthStatus}
+        activePage={page}
+        onNavigate={navigateTo}
+      />
 
-            <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
-              Spoken language
-              <select value={spokenLanguage} onChange={event => setSpokenLanguage(event.target.value)}
-                disabled={isProcessing || selectedModel === 'instant_demo'}
-                className="bg-slate-900 text-slate-200 rounded px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50">
-                <option value="">Auto</option>
-                <option value="en">English</option>
-                <option value="vi">Tiếng Việt</option>
-              </select>
-            </label>
+      {/* 2. MAIN APPLICATION CONTENT AREA */}
+      <div 
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-250 ease-out ${
+          isSidebarCollapsed ? 'md:ml-16 ml-0' : 'md:ml-72 ml-0'
+        }`}
+      >
+        {/* Top Navbar */}
+        <header className="h-16 px-4 md:px-8 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl sticky top-0 z-20 shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              aria-label={isSidebarCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 border border-slate-800 transition-all active:scale-95 cursor-pointer"
+              title="Toggle sidebar (Ctrl+B)"
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
 
-            {/* MMR Redundancy Filter Toggle & Tuning Trigger */}
-            <div className="flex items-center">
-              <button
-                type="button"
-                onClick={() => setEnableMmr(prev => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-l-xl border text-xs font-medium transition-all shadow-sm ${
-                  enableMmr 
-                    ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 hover:bg-indigo-600/30' 
-                    : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-slate-200'
-                }`}
-                title="Maximal Marginal Relevance (MMR) Redundancy Filter Algorithm"
-              >
-                <Sparkles className={`w-3.5 h-3.5 ${enableMmr ? 'text-indigo-400' : 'text-slate-500'}`} />
-                <span className="hidden sm:inline">MMR</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
-                  enableMmr ? 'bg-indigo-500/30 text-indigo-300' : 'bg-slate-700 text-slate-400'
-                }`}>
-                  {enableMmr ? 'ON' : 'OFF'}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAdvancedMmr(prev => !prev)}
-                className={`px-2 py-1.5 rounded-r-xl border border-l-0 text-xs font-medium transition-all ${
-                  showAdvancedMmr 
-                    ? 'bg-indigo-600 text-white border-indigo-500' 
-                    : 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700/60 text-slate-300'
-                }`}
-                title="Configure MMR λ hyperparameter"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Speaker Diarization Toggle */}
-            <div className="flex items-center">
-              <button
-                type="button"
-                onClick={() => setEnableDiarization(prev => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 ${enableDiarization ? 'rounded-l-xl' : 'rounded-xl'} border text-xs font-semibold transition-all ${
-                  enableDiarization 
-                    ? 'bg-purple-600/20 border-purple-500/50 text-purple-200 hover:bg-purple-600/30' 
-                    : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-slate-200'
-                }`}
-                title="Speaker Diarization (Agent 1: Identify distinct speakers)"
-              >
-                <Users className={`w-3.5 h-3.5 ${enableDiarization ? 'text-purple-400' : 'text-slate-500'}`} />
-                <span className="hidden sm:inline">Diarize</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
-                  enableDiarization ? 'bg-purple-500/30 text-purple-300' : 'bg-slate-700 text-slate-400'
-                }`}>
-                  {enableDiarization ? 'ON' : 'OFF'}
-                </span>
-              </button>
-              {enableDiarization && (
-                <select
-                  value={numSpeakers}
-                  onChange={(e) => setNumSpeakers(e.target.value)}
-                  className="bg-slate-800/90 text-slate-300 border border-l-0 border-purple-500/50 rounded-r-xl px-2 py-1.5 text-xs font-medium focus:outline-none focus:border-purple-400"
-                  title="Expected speakers (Auto / 2 / 3 / 4)"
-                >
-                  <option value="">Auto</option>
-                  <option value="2">2 Spk</option>
-                  <option value="3">3 Spk</option>
-                  <option value="4">4 Spk</option>
-                </select>
-              )}
-            </div>
-
-            {/* Health Status Indicator */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs">
-              <span className={`w-2 h-2 rounded-full ${healthStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span className="text-slate-300 font-medium">
-                {healthStatus.checking 
-                  ? 'Checking...' 
-                  : healthStatus.online 
-                    ? `Llama 3 (${healthStatus.data?.gpu || 'GPU Ready'})` 
-                    : 'Ollama Offline'}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-400 capitalize">{page}</span>
+              <span className="text-slate-600">/</span>
+              <span className="font-semibold text-slate-200 truncate max-w-xs" title={file?.name || meetingTitle}>
+                {file?.name || meetingTitle || (isDemoResult ? 'Q3 Demo Meeting' : 'Studio Workspace')}
               </span>
             </div>
+          </div>
 
-            {/* Reset / New Meeting */}
-            {result && !isProcessing && (
+          {/* Quick Actions in Navbar */}
+          <div className="flex items-center gap-2">
+            {file && !result && !isProcessing && (
               <button
-                onClick={handleNewMeeting}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all shadow-sm"
+                type="button"
+                onClick={handleProcessAudio}
+                disabled={Boolean(uploadError) || isProcessing || isContentSaving}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                New Meeting
+                <Zap className="w-3.5 h-3.5" />
+                <span>Start Processing</span>
               </button>
             )}
 
-            <button 
-              onClick={handleProcessAudio}
-              disabled={Boolean(uploadError) || (!file && selectedModel !== 'instant_demo') || isProcessing}
-              className={`studio-process px-5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all flex items-center gap-2
-                ${uploadError || (!file && selectedModel !== 'instant_demo') || isProcessing
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/40' 
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white active:scale-[0.98]'}`}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Zap className="w-4 h-4" />
-                  Start Processing
-                </>
-              )}
-            </button>
+            {result && !isProcessing && (
+              <button
+                type="button"
+                onClick={handleNewMeeting}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-slate-200 hover:text-white text-xs font-medium transition-all active:scale-95 cursor-pointer"
+              >
+                New Meeting
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Advanced MMR Hyperparameter Slider Panel */}
-        {showAdvancedMmr && (
-          <div className="bg-slate-900/90 border border-indigo-500/40 rounded-2xl p-4 shadow-xl backdrop-blur-md animate-in fade-in duration-150 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  MMR Hyperparameter Tuning: Relevance vs Diversity
-                </h3>
-              </div>
-              <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                λ = {mmrLambda.toFixed(2)}
-              </span>
-            </div>
-            
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[11px] text-slate-400">
-                <span>Maximum Diversity (λ = 0.1)</span>
-                <span>Balanced Default (λ = 0.65)</span>
-                <span>Maximum Centroid Relevance (λ = 0.9)</span>
-              </div>
-              <input 
-                type="range"
-                aria-label="MMR relevance and diversity balance"
-                min="0.10"
-                max="0.90"
-                step="0.05"
-                value={mmrLambda}
-                onChange={(e) => setMmrLambda(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-              />
-              <p className="text-[11px] text-slate-400 leading-normal">
-                Formula: <code className="text-indigo-300 font-mono">MMR(s) = λ·Sim₁(s, Q) - (1-λ)·max Sim₂(s, s_j)</code>. 
-                Higher λ preserves sentences closest to the central meeting theme; lower λ penalizes repetition and extracts broader conversational variety.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Ollama Offline Warning Banner */}
-        {!healthStatus.checking && !healthStatus.online && (
-          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
-            <span className="text-amber-400 text-base leading-none mt-0.5">⚠</span>
-            <div>
-              <p className="font-semibold text-amber-300">Ollama AI Engine Offline</p>
-              <p className="text-amber-400/80 mt-0.5">
-                Llama 3 is not running. Open a terminal and run:{" "}
-                <code className="px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 font-mono">ollama run llama3.2:1b</code>
-                {" "}— or use <strong>Instant Demo</strong> mode to bypass AI inference entirely.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Inline Error Banner */}
+        {/* Global Error Banner */}
         {(uploadError || errorMessage) && (
-          <div role="alert" className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs">
+          <div role="alert" className="mx-4 md:mx-8 mt-4 flex items-start justify-between gap-3 px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs">
             <div className="flex items-start gap-2.5">
-              <span className="text-rose-400 text-base leading-none mt-0.5">✕</span>
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-rose-300">Processing Error</p>
-                <p className="text-rose-400/80 mt-0.5">{uploadError || errorMessage}</p>
+                <p className="font-semibold text-rose-300">Notice</p>
+                <p className="text-rose-400/90 mt-0.5">{uploadError || errorMessage}</p>
               </div>
             </div>
             <button
               aria-label="Dismiss error"
               onClick={() => setErrorMessage(null)}
-              className="text-rose-500 hover:text-rose-300 transition-colors shrink-0 mt-0.5"
+              className="text-rose-400 hover:text-rose-200 p-1 rounded-lg"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* Upload Hero Section (When no active result and not processing) */}
-        {!isProcessing && !result && (
-          <div className="space-y-6">
-            <div 
-              {...getRootProps({ role: 'button', 'aria-label': 'Choose meeting audio or video file' })}
-              className={`relative group rounded-3xl p-10 md:p-14 text-center cursor-pointer transition-all duration-300 border-2 border-dashed overflow-hidden
-                ${isDragActive 
-                  ? 'border-indigo-400 bg-indigo-950/30' 
-                  : file 
-                    ? 'border-emerald-500/50 bg-slate-900/60 hover:border-emerald-400' 
-                    : 'border-slate-800 hover:border-indigo-500/50 bg-slate-900/40 hover:bg-slate-900/70'}`}
+        {/* Dynamic Page Content */}
+        <main className="flex-1 p-4 md:p-8 pb-32 overflow-y-auto">
+          {page === 'overview' ? (
+            <Overview
+              apiBase={API_BASE}
+              refreshKey={currentMeetingId}
+              onOpen={handleLoadPastMeeting}
+              canOpen={canOpenMeeting}
+              onNewMeeting={handleNewMeeting}
+              processing={isProcessing}
+            />
+          ) : page === 'meetings' ? (
+            <MeetingLibrary
+              meetings={meetingsHistory}
+              total={historyTotal}
+              loading={loadingHistory}
+              error={historyError}
+              opening={loadingMeetingId}
+              query={historySearchQuery}
+              offset={historyOffset}
+              onSearch={handleHistorySearch}
+              onPage={offset => fetchMeetingHistory(historyQueryRef.current, offset)}
+              onOpen={handleLoadPastMeeting}
+              onDelete={handleDeletePastMeeting}
+              canOpen={canOpenMeeting}
+              onNewMeeting={handleNewMeeting}
+            />
+          ) : page === 'tasks' || page === 'projects' ? (
+            <Workspace
+              key={page}
+              presentation="page"
+              initialSection={page === 'projects' ? 'projects' : 'tasks'}
+              apiBase={API_BASE}
+              canOpenMeeting={canOpenMeeting}
+              onSectionChange={navigateTo}
+              onOpenMeeting={id => handleLoadPastMeeting({ id })}
+            />
+          ) : (
+            /* Default: Document Workspace */
+            <DocumentWorkspace
+              result={result}
+              isProcessing={isProcessing}
+              elapsedTime={elapsedTime}
+              file={file}
+              audioUrl={audioUrl}
+              audioRef={audioRef}
+              currentMeetingId={currentMeetingId}
+              meetingTitle={meetingTitle}
+              isDemoResult={isDemoResult}
+              warnings={warnings}
+              completedTasks={completedTasks}
+              updatingTasks={updatingTasks}
+              onToggleTask={toggleTask}
+              onSeekAudio={handleSeekAudio}
+              onCopyAll={handleCopyResult}
+              isCopied={isCopied}
+              onCopySummary={handleCopySummary}
+              summaryCopied={summaryCopied}
+              onDownloadMarkdown={handleDownloadMarkdown}
+              onDownloadJson={handleDownloadJson}
+              onDownloadTxt={handleDownloadTxt}
+              onSaveMeeting={handleSaveMeeting}
+              isSavingMeeting={isSavingMeeting}
+              onShowEditor={() => { if (!contentMutations.current.isLocked()) setShowEditor(true); }}
+              onRenameSpeaker={handleRenameSpeaker}
+              onCycleSpeaker={handleCycleSpeaker}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
+              spokenLanguage={spokenLanguage}
+              setSpokenLanguage={setSpokenLanguage}
+              enableMmr={enableMmr}
+              setEnableMmr={setEnableMmr}
+              mmrLambda={mmrLambda}
+              setMmrLambda={setMmrLambda}
+              showAdvancedMmr={showAdvancedMmr}
+              setShowAdvancedMmr={setShowAdvancedMmr}
+              enableDiarization={enableDiarization}
+              setEnableDiarization={setEnableDiarization}
+              numSpeakers={numSpeakers}
+              setNumSpeakers={setNumSpeakers}
+              speakerFilter={speakerFilter}
+              setSpeakerFilter={setSpeakerFilter}
+              transcriptView={transcriptView}
+              setTranscriptView={setTranscriptView}
+              mmrTelemetry={mmrTelemetry}
+              metaInfo={metaInfo}
+              saveToLibrary={saveToLibrary}
+              setSaveToLibrary={setSaveToLibrary}
+              getRootProps={getRootProps}
+              getInputProps={getInputProps}
+              isDragActive={isDragActive}
+              uploadError={uploadError}
+              uploadLimits={uploadLimits}
+              handleReset={handleReset}
+              handleDemoSample={handleDemoSample}
+              handleInstantDemo={handleInstantDemo}
+              onStopWaiting={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }}
+              healthStatus={healthStatus}
+            />
+          )}
+        </main>
+
+        {/* 3. FLOATING FROSTED-GLASS COMMAND CENTER DOCK */}
+        <CommandCenter
+          onSendChatMessage={handleSendChatMessage}
+          chatMessages={chatMessages}
+          isChatLoading={isChatLoading}
+          onClearChat={handleClearChat}
+          onRecordedAudio={(recordedFile) => {
+            handleReset();
+            setFile(recordedFile);
+            setSelectedModel('auto');
+            navigateTo('studio');
+            notify('Audio recorded successfully. Click Start Processing to analyze!');
+          }}
+          suggestedPrompts={suggestedPrompts}
+          audioUrl={audioUrl}
+          onSeekAudio={handleSeekAudio}
+          isMeetingLoaded={Boolean(result)}
+          semanticChat={semanticChat}
+          onToggleSemantic={() => setSemanticChat(!semanticChat)}
+          renderFormattedChatText={renderFormattedChatText}
+        />
+
+        {/* Toast Notifications */}
+        {notice && (
+          <div
+            role={notice.kind === 'error' ? 'alert' : 'status'}
+            className={`fixed bottom-24 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-xl text-xs font-medium animate-in fade-in slide-in-from-bottom-2 ${
+              notice.kind === 'error'
+                ? 'bg-rose-950/90 border-rose-500/40 text-rose-200'
+                : 'bg-slate-900/90 border-emerald-500/40 text-emerald-300'
+            }`}
+          >
+            {notice.kind === 'error' ? <AlertTriangle className="w-4 h-4 text-rose-400" /> : <Check className="w-4 h-4 text-emerald-400" />}
+            <span>{notice.message}</span>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              aria-label="Dismiss notification"
+              className="ml-2 text-slate-400 hover:text-white p-0.5 rounded"
             >
-              <input {...getInputProps()} />
-
-              <div className="flex flex-col items-center gap-5 relative z-10">
-                {file ? (
-                  <div className="flex flex-col items-center gap-3 w-full max-w-md">
-                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl shadow-inner shadow-emerald-500/10">
-                      <FileAudio className="w-10 h-10" />
-                    </div>
-                    <div>
-                      <p className="text-base font-semibold text-white truncate max-w-sm">{file.name}</p>
-                      <p className="text-xs text-slate-400 mt-1">{formatFileSize(file.size)} • {uploadError ? 'Exceeds upload limit' : 'Ready to analyze'}</p>
-                      <p className="text-xs text-slate-400 mt-1">{formatUploadLimits(uploadLimits)}</p>
-                    </div>
-
-                    {/* Inline HTML5 Audio Player for preview */}
-                    {audioUrl && (
-                      <div className="w-full pt-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-2 mb-1 text-[11px] text-slate-400">
-                          <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>Preview Audio File:</span>
-                        </div>
-                        <audio 
-                          ref={audioRef}
-                          controls 
-                          src={audioUrl} 
-                          className="w-full h-9 rounded-xl bg-slate-950/80 border border-slate-700/60"
-                        />
-                      </div>
-                    )}
-
-                    <button 
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleReset(); }}
-                      className="mt-2 flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-medium px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 transition-colors"
-                    >
-                      <X className="w-3 h-3" /> Change File
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="p-5 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 text-indigo-400 rounded-3xl shadow-inner shadow-indigo-500/5 group-hover:scale-105 transition-transform duration-300">
-                      <UploadCloud className="w-10 h-10" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-semibold text-slate-100">
-                        Drag and drop your meeting audio or video here
-                      </p>
-                      <p className="text-sm text-slate-400 mt-1">
-                        or click anywhere to browse from your device ({formatUploadLimits(uploadLimits)})
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap justify-center items-center gap-2 mt-1">
-                      {['.MP3', '.WAV', '.M4A', '.OGG', '.FLAC', '.MP4', '.WEBM', '.MKV'].map((ext) => (
-                        <span key={ext} className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
-                          {ext}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Feature Highlights & Demo Option */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm">
-                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-200">Local Inference</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Runs on local Llama 3 via Ollama. No proprietary meeting data leaves your machine.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm">
-                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-200">Map-Reduce Chunking</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Overlapping chunks handle long transcripts. Processing time depends on your hardware.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm">
-                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
-                  <Zap className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-slate-200">Sample Meeting</h3>
-                    <button
-                      type="button"
-                      onClick={handleDemoSample}
-                      className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
-                    >
-                      Load Sample File
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Click to auto-load a mock Q3 budget meeting audio sample.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Processing State (Interactive Stepper with Fail-Safe Skip Button) */}
-        {isProcessing && (
-          <div className="py-14 flex flex-col items-center justify-center space-y-6 bg-slate-900/50 backdrop-blur-xl rounded-3xl border border-slate-800/80 shadow-2xl">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full border-2 border-indigo-500/20 flex items-center justify-center">
-                <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-              </div>
-              <div className="absolute inset-0 rounded-full bg-indigo-500/15 blur-xl animate-pulse -z-10" />
-            </div>
-
-            <div className="text-center space-y-2 max-w-md px-4">
-              <h3 className="text-lg font-bold text-white">Transcribing & Analyzing Meeting</h3>
-              <p className="text-xs text-slate-400">
-                Executing multi-agent pipeline with {selectedModel === 'auto' ? 'adaptive Llama model' : selectedModel}...
-              </p>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-mono mt-1">
-                <Clock className="w-3 h-3" /> Elapsed: {elapsedTime}s
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 text-xs text-slate-300" role="status">
-              <span className="processing-cadence" aria-hidden="true"><i /><i /><i /><i /><i /></span>
-              <span>Processing on this computer. You can browse the other pages while you wait.</span>
-            </div>
-
-            <button type="button" onClick={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }} className="text-sm text-slate-300 underline">
-              Stop waiting
+              <X className="w-3.5 h-3.5" />
             </button>
-            {/* Explicit demo switch invalidates the previous response. */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleInstantDemo}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-all shadow-lg shadow-amber-500/5 active:scale-95 animate-pulse"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                Show labeled demo instead ⏩
-              </button>
-            </div>
           </div>
         )}
 
-        {/* Results Dashboard */}
-        {result && !isProcessing && (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <button type="button" onClick={() => { if (!contentMutations.current.isLocked()) setShowEditor(true); }} disabled={!currentMeetingId || isDemoResult || isContentSaving}
-                className="rounded-xl border border-indigo-500/40 bg-indigo-600/20 px-3 py-2 text-xs text-indigo-200 disabled:opacity-40">
-                Edit & review
-              </button>
-              {currentMeetingId && !isDemoResult ? <span className="text-xs text-slate-400">{result.review_status === 'reviewed' ? 'Reviewed' : 'Draft'} · Project {result.project_id == null ? 'unassigned' : `#${result.project_id}`} · Assign a project in Edit & review</span>
-                : <span className="text-xs text-slate-400">Editing is available for saved meetings.</span>}
-            </div>
-            
-            {(isDemoResult || warnings.length > 0) && (
-              <div role="status" className="p-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm">
-                {isDemoResult && <p>Demo data — these results are from the sample meeting, not your uploaded recording.</p>}
-                {warnings.map((warning, index) => <p key={index}>{warning}</p>)}
-              </div>
-            )}
-            {/* Quick Metrics Bar (5 cards) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
-                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Transcript Size</p>
-                  <p className="text-base font-bold text-white mt-0.5">~{wordCount} words</p>
-                  <p className="text-[10px] text-slate-400">~{estimatedReadTime} min read</p>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex flex-col justify-between shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
-                    <ListTodo className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Action Items</p>
-                    <p className="text-base font-bold text-white mt-0.5">{totalTasks} tasks</p>
-                    <p className="text-[10px] text-emerald-400">
-                      {completedCount} completed {totalTasks > 0 ? `(${completionPercent}%)` : ''}
-                    </p>
-                  </div>
-                </div>
-                {totalTasks > 0 && (
-                  <div className="w-full bg-slate-800/90 rounded-full h-1.5 mt-2.5 overflow-hidden">
-                    <div 
-                      className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500 ease-out"
-                      style={{ width: `${completionPercent}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
-                <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Model & Engine</p>
-                  <p className="text-xs font-bold text-white mt-0.5 truncate max-w-[130px]">
-                    {metaInfo?.model || 'Llama 3 Map-Reduce'}
-                  </p>
-                  <p className="text-[10px] text-slate-400 truncate max-w-[130px]">{metaInfo?.hardware || 'Local Mode'}</p>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
-                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">MMR Compression</p>
-                  {mmrTelemetry?.applied ? (
-                    <>
-                      <p className="text-base font-bold text-emerald-400 mt-0.5">
-                        -{mmrTelemetry.reduction_percent}% noise
-                      </p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {mmrTelemetry.filtered_words} / {mmrTelemetry.original_words} w (λ={mmrTelemetry.lambda_param})
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs font-bold text-slate-300 mt-0.5">100% Raw</p>
-                      <p className="text-[10px] text-slate-400">Filter bypassed</p>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 transition-all duration-200 flex items-center gap-3 shadow-sm">
-                <div className="p-2.5 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Audio Telemetry</p>
-                  <p className="text-base font-bold text-white mt-0.5">
-                    {result.duration ? formatDuration(result.duration) : '--:--'}
-                  </p>
-                  <p className="text-[10px] text-teal-300 uppercase">
-                    {result.language ? `Lang: ${result.language}` : 'Auto-detected'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Audio Recording Player & Seek Bar */}
-            {audioUrl && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/60 backdrop-blur-xl p-3 px-4 rounded-2xl border border-slate-800 shadow-md">
-                <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                  <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 shrink-0">
-                    <Volume2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold text-white">Audio Sync Player</p>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                        Interactive
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-400">
-                      Click any [MM:SS] citation timestamp in Chat or Insights to seek audio
-                    </p>
-                  </div>
-                </div>
-                <div className="w-full sm:w-auto flex-1 max-w-sm">
-                  <audio
-                    ref={audioRef}
-                    src={audioUrl}
-                    controls
-                    className="w-full h-8 rounded-lg outline-none"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* View Switcher & Export Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/40 p-2 rounded-2xl border border-slate-800/80">
-              <MeetingTabs active={activeTab} onSelect={setActiveTab} counts={{ tasks: totalTasks,
-                insights: (result.insights?.decisions?.length || 0) + (result.insights?.risks?.length || 0), chat: chatMessages.length }} />
-
-              {/* Export Toolbar */}
-              <div className="flex flex-wrap items-center gap-2 justify-end">
-                <button
-                  onClick={handleCopyResult}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border shadow-sm ${
-                    isCopied 
-                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' 
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                  }`}
+        {/* Modals & Dialogs */}
+        {speakerRename && (
+          <WorkspaceDialog 
+            title={`Rename ${speakerRename.oldName}`} 
+            maxWidth="max-w-sm" 
+            onClose={() => { if (!isSpeakerSaving) setSpeakerRename(null); }}
+          >
+            <form 
+              className="space-y-4 pt-4" 
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (contentMutations.current.isLocked() || isContentSaving) return;
+                if (await applySpeakerEdit(speakerRename.oldName, speakerRename.name)) {
+                  setSpeakerRename(null);
+                }
+              }}
+            >
+              <label htmlFor="speaker-rename-input" className="block text-xs font-semibold text-slate-300">
+                New speaker name
+              </label>
+              <input 
+                id="speaker-rename-input" 
+                autoFocus 
+                maxLength={128} 
+                value={speakerRename.name} 
+                onChange={(e) => setSpeakerRename(prev => ({ ...prev, name: e.target.value }))} 
+                className="w-full rounded-xl bg-slate-950 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-indigo-500" 
+                disabled={isContentSaving} 
+              />
+              {errorMessage && <p role="alert" className="text-xs text-rose-300">{errorMessage}</p>}
+              <div className="flex justify-end gap-2 text-xs">
+                <button 
+                  type="button" 
+                  disabled={isSpeakerSaving} 
+                  onClick={() => setSpeakerRename(null)}
+                  className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white"
                 >
-                  {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  {isCopied ? 'Copied!' : 'Copy All'}
+                  Cancel
                 </button>
-
-                <button
-                  onClick={handleDownloadMarkdown}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 transition-colors shadow-sm"
-                  title="Export Markdown file"
+                <button 
+                  type="submit" 
+                  disabled={isContentSaving || !speakerRename.name.trim()} 
+                  className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1.5 text-white font-semibold disabled:opacity-40"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  .MD
-                </button>
-
-                <button
-                  onClick={handleDownloadJson}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 transition-colors shadow-sm"
-                  title="Export JSON format"
-                >
-                  <FileCode className="w-3.5 h-3.5" />
-                  .JSON
-                </button>
-
-                <button
-                  onClick={handleDownloadTxt}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors shadow-sm"
-                  title="Export plain text report"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  .TXT
-                </button>
-
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition-colors shadow-sm active:scale-95"
-                  title="Print or Save as PDF"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  PDF / Print
+                  {isSpeakerSaving ? 'Saving…' : 'Save Speaker'}
                 </button>
               </div>
-            </div>
-
-            {/* Dashboard Content Panels */}
-            <motion.div key={activeTab} id="meeting-results-content" role="tabpanel" tabIndex={0}
-              aria-labelledby={`meeting-tab-${activeTab}`} initial={{ opacity: 0, x: reduceMotion ? 0 : 10 }}
-              animate={{ opacity: 1, x: 0 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* Left Column: Raw/Segmented/MMR Transcript */}
-              {(activeTab === 'split' || activeTab === 'transcript') && (
-                <div className={`${activeTab === 'split' ? 'lg:col-span-5' : 'lg:col-span-12'} bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-slate-800/80 shadow-xl space-y-4`}>
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                    <div className="flex items-center gap-2 text-slate-200 font-bold text-sm">
-                      <FileText className="w-4 h-4 text-blue-400" />
-                      <h2>
-                        {transcriptView === 'mmr' ? 'MMR Filtered Sentences' : transcriptView === 'segments' ? 'Timestamped Segments' : 'Raw Transcript (Agent 1)'}
-                      </h2>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => setTranscriptView('raw')}
-                        className={`px-2 py-0.5 rounded font-medium transition-all ${
-                          transcriptView === 'raw' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Text
-                      </button>
-                      {result.segments && result.segments.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setTranscriptView('segments')}
-                          className={`px-2 py-0.5 rounded font-medium transition-all ${
-                            transcriptView === 'segments' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          Segments
-                        </button>
-                      )}
-                      {result.condensed_transcript && (
-                        <button
-                          type="button"
-                          onClick={() => setTranscriptView('mmr')}
-                          className={`px-2 py-0.5 rounded font-medium transition-all ${
-                            transcriptView === 'mmr' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          MMR
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Transcript Content based on view mode */}
-                  <div className="max-h-[550px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
-                    {transcriptView === 'segments' && result.segments && result.segments.length > 0 ? (
-                      <div className="space-y-3">
-                        {/* Speaker filter pills if multiple speakers detected */}
-                        {result.speakers && result.speakers.length > 0 && (
-                          <div className="flex items-center gap-1.5 pb-2 overflow-x-auto scrollbar-none border-b border-slate-800 text-[11px]">
-                            <span className="text-slate-400 flex items-center gap-1 text-[10px] uppercase font-mono tracking-wider">
-                              <Users className="w-3 h-3 text-purple-400" /> Filter:
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setSpeakerFilter('all')}
-                              className={`px-2 py-0.5 rounded-lg font-medium transition-all ${
-                                speakerFilter === 'all'
-                                  ? 'bg-purple-600 text-white shadow-sm'
-                                  : 'bg-slate-800 text-slate-400 hover:text-white'
-                              }`}
-                            >
-                              All ({result.segments.length})
-                            </button>
-                            {result.speakers.map((spk) => {
-                              const count = result.segments.filter(s => s.speaker === spk).length;
-                              const badgeStyle = getSpeakerBadgeStyle(spk);
-                              return (
-                                <div key={spk} className="inline-flex items-center rounded-lg border overflow-hidden text-[11px] shadow-sm">
-                                  <button
-                                    type="button"
-                                    onClick={() => setSpeakerFilter(speakerFilter === spk ? 'all' : spk)}
-                                    className={`px-2 py-0.5 font-medium transition-all ${
-                                      speakerFilter === spk 
-                                        ? 'bg-purple-600 text-white' 
-                                        : `${badgeStyle} hover:opacity-80`
-                                    }`}
-                                    title={`Filter by ${spk}`}
-                                  >
-                                    {spk} ({count})
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRenameSpeaker(spk)}
-                                    disabled={isContentSaving}
-                                    className="px-1.5 py-0.5 bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border-l border-slate-700/60"
-                                    title={`Rename speaker "${spk}"`}
-                                  >
-                                    <Edit2 className="w-2.5 h-2.5" />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        <div className="space-y-2.5">
-                          {result.segments
-                            .map((seg, originalIdx) => ({ seg, originalIdx }))
-                            .filter(({ seg }) => speakerFilter === 'all' || !seg.speaker || seg.speaker === speakerFilter)
-                            .map(({ seg, originalIdx }, displayIdx) => (
-                              <div key={originalIdx} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 text-xs transition-colors space-y-1">
-                                <div className="flex items-center justify-between text-[10px]">
-                                  <span className="text-teal-400 font-mono">{seg.timestamp || `Turn #${displayIdx + 1}`}</span>
-                                  {seg.speaker && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCycleSpeaker(originalIdx)}
-                                      disabled={isContentSaving}
-                                      title="Click to cycle speaker if misclassified"
-                                      className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
-                                    >
-                                      <span>{seg.speaker}</span>
-                                      <span className="text-[9px] opacity-60">⇄</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <p className="text-slate-300 leading-relaxed">{seg.text}</p>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    ) : transcriptView === 'mmr' && result.condensed_transcript ? (
-                      <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">
-                        {result.condensed_transcript}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">
-                        {result.transcript}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Right Column: AI Outputs */}
-              {(activeTab === 'split' || activeTab === 'summary' || activeTab === 'tasks') && (
-                <div className={`${activeTab === 'split' ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-6`}>
-                  
-                  {/* Executive Summary Card */}
-                  {(activeTab === 'split' || activeTab === 'summary') && (
-                    <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-purple-950/20 backdrop-blur-xl p-6 rounded-3xl border border-purple-500/30 shadow-xl shadow-purple-950/10 space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-purple-500/20">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300">
-                            <Sparkles className="w-4 h-4" />
-                          </div>
-                          <h2 className="text-sm font-bold text-white">Executive Summary (Agent 2)</h2>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={handleCopySummary}
-                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border shadow-sm active:scale-95 ${
-                              summaryCopied
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                                : 'bg-purple-950/40 hover:bg-purple-900/50 text-purple-200 border-purple-500/30'
-                            }`}
-                            title="Copy summary text"
-                          >
-                            {summaryCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-purple-300" />}
-                            <span>{summaryCopied ? 'Copied' : 'Copy'}</span>
-                          </button>
-                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                            {metaInfo?.model || 'Llama 3 Map-Reduce'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
-                        {result.summary}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action Items Interactive Checklist Card */}
-                  {(activeTab === 'split' || activeTab === 'tasks') && (
-                    <div className="bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-slate-800/80 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300">
-                            <ListTodo className="w-4 h-4" />
-                          </div>
-                          <h2 className="text-sm font-bold text-white">Extracted Action Plan (Agent 3)</h2>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400 font-mono">
-                            {completedCount}/{totalTasks} completed
-                          </span>
-                          {currentMeetingId && (
-                            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
-                              SQLite synced
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* All deliverables completed celebration state */}
-                      {totalTasks > 0 && completedCount === totalTasks && (
-                        <div className="flex items-center gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs animate-in fade-in duration-300">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                          <span>All {totalTasks} action deliverables are completed! Great work. 🎉</span>
-                        </div>
-                      )}
-
-                      <ul className="space-y-2.5">
-                        {result.action_items?.map((item, idx) => {
-                          const isDone = completedTasks[idx];
-                          return (
-                            <li key={idx}>
-                            <button type="button"
-                              onClick={() => toggleTask(idx)}
-                              disabled={isContentSaving}
-                              aria-pressed={Boolean(isDone)}
-                              aria-busy={Boolean(updatingTasks[idx])}
-                              className={`group w-full text-left flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
-                                isContentSaving ? 'opacity-60 cursor-wait' : 'cursor-pointer'
-                              } ${
-                                isDone 
-                                  ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-400' 
-                                  : 'bg-slate-950/50 hover:bg-slate-800/50 border-slate-800/80 hover:border-slate-700 text-slate-200'
-                              }`}
-                            >
-                              <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 active:scale-90 ${
-                                isDone 
-                                  ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20' 
-                                  : 'border-slate-600 group-hover:border-indigo-400'
-                              }`}>
-                                {isDone && <Check className="w-3 h-3 stroke-[3]" />}
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-xs font-medium leading-snug ${isDone ? 'line-through text-slate-500' : 'text-slate-100'}`}>
-                                  {item.task}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                  <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                                    <Users className="w-2.5 h-2.5 text-indigo-400" />
-                                    Assignee: {item.assignee || 'Unassigned'}
-                                  </span>
-                                  {item.deadline && (
-                                    <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                                      <Clock className="w-2.5 h-2.5" /> Due: {item.deadline}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-
-                </div>
-              )}
-
-              {/* Agent 5: Key Decisions & Risk/Blocker Matrix Panel */}
-              {activeTab === 'insights' && (
-                <div className="lg:col-span-12 space-y-6">
-                  {/* Panel Header */}
-                  <div className="bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                        <Target className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base font-bold text-white">
-                            Key Decisions & Risk/Blocker Matrix
-                          </h2>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono">
-                            Agent 5 Intelligence
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Automated 3-pillar governance extraction: Key Decisions, Risks & Blockers, and Open Questions with audio evidence
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-                      <span>{(result.insights?.decisions || []).length} decisions</span>
-                      <span>•</span>
-                      <span>{(result.insights?.risks || []).length} risks</span>
-                      <span>•</span>
-                      <span>{(result.insights?.open_questions || []).length} open questions</span>
-                    </div>
-                  </div>
-
-                  {/* 3 Pillars Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Pillar 1: Decisions */}
-                    <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-emerald-500/30 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-emerald-500/20">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300">
-                            <CheckCircle2 className="w-4 h-4" />
-                          </div>
-                          <h3 className="text-sm font-bold text-white">Key Decisions</h3>
-                        </div>
-                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                          {(result.insights?.decisions || []).length}
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {(!result.insights?.decisions || result.insights.decisions.length === 0) ? (
-                          <p className="text-xs text-slate-500 italic py-4 text-center">No key decisions recorded in this meeting.</p>
-                        ) : (
-                          result.insights.decisions.map((dec, idx) => (
-                            <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-emerald-500/40 transition-all space-y-2 group">
-                              <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                                {dec.text}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                <span className="text-[10px] px-2 py-0.5 rounded-md border border-slate-700 text-slate-300">{dec.status || 'proposed'}</span>
-                                {dec.speaker && (
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${getSpeakerBadgeStyle(dec.speaker)}`}>
-                                    {dec.speaker}
-                                  </span>
-                                )}
-                                {dec.timestamp && (
-                                  <button
-                                    type="button"
-                                    disabled={!audioUrl || normalizeCitation(dec).seconds === null}
-                                    onClick={() => handleSeekAudio(normalizeCitation(dec).seconds)}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono transition-all group-hover:border-emerald-400 cursor-pointer active:scale-95"
-                                    title={`Click to jump audio to ${dec.timestamp}`}
-                                  >
-                                    <Play className="w-2.5 h-2.5 fill-emerald-300" />
-                                    <span>{dec.timestamp}</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Pillar 2: Risks & Blockers */}
-                    <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-amber-500/30 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-amber-500/20">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300">
-                            <AlertTriangle className="w-4 h-4" />
-                          </div>
-                          <h3 className="text-sm font-bold text-white">Risks & Blockers</h3>
-                        </div>
-                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                          {(result.insights?.risks || []).length}
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {(!result.insights?.risks || result.insights.risks.length === 0) ? (
-                          <p className="text-xs text-slate-500 italic py-4 text-center">No critical risks or delivery blockers detected.</p>
-                        ) : (
-                          result.insights.risks.map((risk, idx) => (
-                            <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-amber-500/40 transition-all space-y-2 group">
-                              <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                                {risk.text}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                {risk.speaker && (
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${getSpeakerBadgeStyle(risk.speaker)}`}>
-                                    {risk.speaker}
-                                  </span>
-                                )}
-                                {risk.timestamp && (
-                                  <button
-                                    type="button"
-                                    disabled={!audioUrl || normalizeCitation(risk).seconds === null}
-                                    onClick={() => handleSeekAudio(normalizeCitation(risk).seconds)}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-mono transition-all group-hover:border-amber-400 cursor-pointer active:scale-95"
-                                    title={`Click to jump audio to ${risk.timestamp}`}
-                                  >
-                                    <Play className="w-2.5 h-2.5 fill-amber-300" />
-                                    <span>{risk.timestamp}</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Pillar 3: Open Questions */}
-                    <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-blue-500/30 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-blue-500/20">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-300">
-                            <HelpCircle className="w-4 h-4" />
-                          </div>
-                          <h3 className="text-sm font-bold text-white">Open Questions</h3>
-                        </div>
-                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                          {(result.insights?.open_questions || []).length}
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {(!result.insights?.open_questions || result.insights.open_questions.length === 0) ? (
-                          <p className="text-xs text-slate-500 italic py-4 text-center">No open questions extracted.</p>
-                        ) : (
-                          result.insights.open_questions.map((q, idx) => (
-                            <div key={idx} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-blue-500/40 transition-all space-y-2 group">
-                              <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                                {q.text}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                {q.speaker && (
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${getSpeakerBadgeStyle(q.speaker)}`}>
-                                    {q.speaker}
-                                  </span>
-                                )}
-                                {q.timestamp && (
-                                  <button
-                                    type="button"
-                                    disabled={!audioUrl || normalizeCitation(q).seconds === null}
-                                    onClick={() => handleSeekAudio(normalizeCitation(q).seconds)}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[10px] font-mono transition-all group-hover:border-blue-400 cursor-pointer active:scale-95"
-                                    title={`Click to jump audio to ${q.timestamp}`}
-                                  >
-                                    <Play className="w-2.5 h-2.5 fill-blue-300" />
-                                    <span>{q.timestamp}</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Agent 6: Interactive Meeting Chatbot Panel */}
-              {activeTab === 'chat' && (
-                <div className="lg:col-span-12 space-y-4">
-                  {/* Chat Header Card */}
-                  <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="p-2.5 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">
-                        <MessageSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base font-bold text-white">
-                            Interactive Meeting Assistant Chatbot
-                          </h2>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">
-                            Agent 6 Lite-RAG
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Context-grounded Lite-RAG assistant with timestamped turn citations and audio seek synchronization
-                        </p>
-                      </div>
-                    </div>
-                    {chatMessages.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleClearChat}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 transition-all cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Clear Chat</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Quick Suggestion Prompts */}
-                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs">
-                    <label className="flex items-center gap-2 text-slate-300">
-                      <input type="checkbox" checked={semanticChat} disabled={isChatLoading} onChange={event => setSemanticChat(event.target.checked)} /> Local semantic retrieval
-                    </label>
-                    {semanticChat && <label className="flex items-center gap-2 text-slate-400">Embedding model
-                      <input type="text" value={embeddingModel} maxLength={128} disabled={isChatLoading} onChange={event => setEmbeddingModel(event.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-200" />
-                    </label>}
-                  </div>
-                  {suggestedPrompts.length > 0 && <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
-                    <span className="text-slate-500 text-[11px] whitespace-nowrap flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Suggested Prompts:
-                    </span>
-                    {suggestedPrompts.map((promptText, pIdx) => (
-                      <button
-                        key={pIdx}
-                        type="button"
-                        onClick={() => handleSendChatMessage(promptText)}
-                        disabled={isChatLoading || isSpeakerSaving}
-                        className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-indigo-600/20 border border-slate-800 hover:border-indigo-500/40 text-slate-300 hover:text-white text-xs text-left min-w-48 max-w-80 shrink-0 whitespace-normal transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                      >
-                        {promptText}
-                      </button>
-                    ))}
-                  </div>}
-
-                  {/* Messages Container */}
-                  <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col h-[520px]">
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-slate-700">
-                      {chatMessages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-                          <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                            <MessageSquare className="w-8 h-8" />
-                          </div>
-                          <div className="max-w-md space-y-2">
-                            <h3 className="text-sm font-semibold text-white">AI Meeting Assistant Ready</h3>
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              Ask a question about this meeting's transcript. Suggestions appear when source text is available.
-                            </p>
-                            <div className="pt-2 flex flex-wrap justify-center gap-2">
-                              {suggestedPrompts.slice(0, 2).map(promptText => <button
-                                key={promptText}
-                                type="button"
-                                onClick={() => handleSendChatMessage(promptText)}
-                                disabled={isChatLoading || isSpeakerSaving}
-                                className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-all cursor-pointer"
-                              >
-                                {promptText}
-                              </button>)}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        chatMessages.map((msg, idx) => {
-                          const isUser = msg.role === 'user';
-                          return (
-                            <div
-                              key={idx}
-                              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
-                            >
-                              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 px-1 font-mono">
-                                <span>{isUser ? 'You' : 'Meeting Assistant AI'}</span>
-                                {msg.mode && (
-                                  <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                                    {msg.mode === 'instant_demo_faq' ? 'Instant Matcher' : msg.mode}
-                                  </span>
-                                )}
-                              </div>
-                              <div
-                                className={`p-4 rounded-2xl max-w-[85%] text-xs leading-relaxed shadow-sm ${
-                                  isUser
-                                    ? 'bg-indigo-600 text-white rounded-tr-none'
-                                    : 'bg-slate-950/80 text-slate-200 border border-slate-800/80 rounded-tl-none'
-                                }`}
-                              >
-                                <div className="whitespace-pre-wrap">
-                                  {isUser ? msg.content : renderFormattedChatText(msg.content)}
-                                </div>
-                                {!isUser && msg.retrieval_warning && <p role="status" className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-amber-200">{msg.retrieval_warning}</p>}
-
-                                {/* Citations Quick Buttons if present on assistant msg */}
-                                {!isUser && msg.citations && msg.citations.length > 0 && (
-                                  <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
-                                    <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                                      <Play className="w-2.5 h-2.5 text-indigo-400" /> Source Excerpts:
-                                    </span>
-                                    {msg.citations.map((cit, citIdx) => {
-                                      const citation = normalizeCitation(cit);
-                                      return (
-                                      <button
-                                        key={citIdx}
-                                        type="button"
-                                        disabled={!audioUrl || citation.seconds === null}
-                                        onClick={() => handleSeekAudio(citation.seconds)}
-                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-mono transition-all cursor-pointer active:scale-95"
-                                        title={citation.seconds === null ? "No audio timestamp available" : `Jump audio player to ${citation.label}`}
-                                      >
-                                        <Play className="w-2 h-2 fill-indigo-300" />
-                                        <span>{citation.label}</span>
-                                      </button>
-                                    ); })}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                      {isChatLoading && (
-                        <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs w-fit">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-                          <span>AI is analyzing transcript context and retrieving citations...</span>
-                        </div>
-                      )}
-                      <div ref={chatBottomRef} />
-                    </div>
-
-                    {/* Chat Input Bar */}
-                    <div className="pt-3 border-t border-slate-800/80">
-                      <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-1.5 focus-within:border-indigo-500/80 transition-colors">
-                        <input
-                          type="text"
-                          aria-label="Question about this meeting"
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (shouldSubmitChat(e)) {
-                              e.preventDefault();
-                              handleSendChatMessage();
-                            }
-                          }}
-                          placeholder="Ask a question about this meeting's content..."
-                          maxLength={4000}
-                          className="flex-1 bg-transparent px-3 py-2 text-xs text-white placeholder-slate-500 outline-none"
-                          disabled={isChatLoading}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleSendChatMessage()}
-                          disabled={!chatInput.trim() || isChatLoading}
-                          className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all active:scale-95 shrink-0 cursor-pointer"
-                          title="Send question"
-                        >
-                          {isChatLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Send className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </motion.div>
-
-          </div>
+            </form>
+          </WorkspaceDialog>
         )}
 
-        <footer className="pt-5 border-t border-slate-800 text-xs text-slate-400">
-          Review generated content against the transcript before using it.
-        </footer>
+        {showEditor && currentMeetingId && !isDemoResult && (
+          <MeetingEditor 
+            key={currentMeetingId} 
+            apiBase={API_BASE} 
+            meetingId={currentMeetingId} 
+            model={selectedModel} 
+            onClose={() => setShowEditor(false)} 
+            onUpdated={handleUpdatedMeeting} 
+          />
+        )}
 
       </div>
-    </AppShell>
+    </div>
   );
 }
 

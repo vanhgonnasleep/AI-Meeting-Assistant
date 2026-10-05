@@ -21,6 +21,10 @@ class RequestLimitsMiddleware:
         if origin and origin not in self.allowed_origins:
             return await JSONResponse({"detail": "Browser origin is not allowed."}, status_code=403)(scope, receive, send)
         limit = self.upload_limit if headers.get("content-type", "").startswith("multipart/form-data") else self.json_limit
+        # A saved long-meeting snapshot includes source metadata as well as text.
+        # Keep other JSON routes at their existing 4 MiB budget.
+        if scope.get("method") == "POST" and scope.get("path") == "/api/meetings":
+            limit = 16 * 1024 * 1024
         try:
             declared_size = int(headers.get("content-length", "0"))
         except ValueError:
