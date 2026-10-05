@@ -157,7 +157,20 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
             if start == -1:
                 return text  # no array found, try to parse the whole thing
             depth = 0
+            quote = None
+            escaped = False
             for i, ch in enumerate(text[start:], start=start):
+                if quote:
+                    if escaped:
+                        escaped = False
+                    elif ch == '\\':
+                        escaped = True
+                    elif ch == quote:
+                        quote = None
+                    continue
+                if ch in ('"', "'"):
+                    quote = ch
+                    continue
                 if ch == '[':
                     depth += 1
                 elif ch == ']':
@@ -169,7 +182,9 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
         clean_json_str = extract_first_json_array(raw_content)
 
         # 4. Sanitize trailing commas before closing brackets/braces (common LLM glitch)
-        clean_json_str = re.sub(r',\s*([\]\}])', r'\1', clean_json_str)
+        # Remove only syntax commas outside quoted text; task punctuation is data.
+        clean_json_str = re.sub(r'''("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|,\s*(?=[\]}])''',
+                                lambda match: match.group(1) or '', clean_json_str)
 
         # 5. Parse into Python List of Dicts with fallback tolerance
         try:

@@ -3,7 +3,7 @@ export function normalizeCitation(citation) {
   if (citation && typeof citation === 'object') {
     return { label, seconds: Number.isFinite(citation.start) && citation.start >= 0 ? citation.start : null };
   }
-  const match = label.match(/\b(\d{1,3}:\d{2}(?::\d{2})?)\b/);
+  const match = label.match(/(?<![\d:-])(\d{1,3}:\d{2}(?::\d{2})?)(?![\d:])/);
   if (!match) return { label, seconds: null };
   const parts = match[1].split(':').map(Number);
   if (parts.slice(1).some(part => part >= 60)) return { label, seconds: null };
@@ -85,18 +85,36 @@ export function buildChatPayload({ question, meetingId, model, isDemo, result, s
 
 export function resultFromMeeting(meeting) {
   const objects = value => Array.isArray(value) ? value.filter(item => item && typeof item === 'object' && !Array.isArray(item)) : [];
+  const text = value => String(value ?? '');
   const insights = meeting.insights && typeof meeting.insights === 'object' && !Array.isArray(meeting.insights) ? meeting.insights : {};
   const segments = (Array.isArray(meeting.segments) ? meeting.segments : [])
     .filter(segment => segment && typeof segment === 'object').map(segment => ({ ...segment, text: String(segment.text ?? '') }));
   return {
     revision: meeting.revision || 0, review_status: meeting.review_status || 'draft', project_id: meeting.project_id ?? null,
-    transcript: meeting.raw_transcript || '', summary: meeting.executive_summary || '',
-    action_items: Array.isArray(meeting.action_items) ? meeting.action_items.map(item => item && typeof item === 'object' && !Array.isArray(item) ? item : { task: String(item ?? ''), status: 'pending' }) : [],
-    insights: { ...insights, ...Object.fromEntries(['decisions', 'risks', 'open_questions'].map(key => [key, objects(insights[key])])) },
-    chat_history: objects(meeting.chat_history), duration: meeting.duration, language: meeting.language,
+    transcript: text(meeting.raw_transcript), summary: text(meeting.executive_summary),
+    action_items: Array.isArray(meeting.action_items) ? meeting.action_items.map(item => item && typeof item === 'object' && !Array.isArray(item)
+      ? { ...item, task: text(item.task), assignee: text(item.assignee), deadline: text(item.deadline) } : { task: text(item), status: 'pending' }) : [],
+    insights: { ...insights, ...Object.fromEntries(['decisions', 'risks', 'open_questions'].map(key => [key, objects(insights[key]).map(item => ({ ...item, text: text(item.text) }))])) },
+    chat_history: normalizeChatMessages(meeting.chat_history), duration: meeting.duration, language: meeting.language,
     segments,
     speakers: [...new Set(segments.map(segment => segment.speaker).filter(Boolean))],
   };
+}
+
+export function getExportTasks(items, completedTasks) {
+  return items.map((item, index) => ({ ...item, status: completedTasks[index] ? 'completed'
+    : Object.hasOwn(completedTasks, index) && ['completed', 'done'].includes(item.status) ? 'pending' : item.status || 'pending' }));
+}
+
+export function shouldSubmitChat(event) {
+  return event.key === 'Enter' && !event.shiftKey && !event.nativeEvent?.isComposing;
+}
+
+export function normalizeChatMessages(messages) {
+  return (Array.isArray(messages) ? messages : []).filter(message => message && typeof message === 'object' && !Array.isArray(message))
+    .map(message => ({ ...message, content: String(message.content ?? ''),
+      citations: (Array.isArray(message.citations) ? message.citations : []).filter(citation =>
+        typeof citation === 'string' || (citation && typeof citation === 'object' && !Array.isArray(citation))) }));
 }
 
 export function editSpeakerAttribution(result, oldName, newName, segmentIndex = null) {

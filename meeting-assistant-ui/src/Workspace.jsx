@@ -1,22 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createRequestGate } from './session';
 import { buildTaskQuery, workspaceRequest } from './workspace';
 
 const inputStyle = 'w-full rounded-xl bg-slate-950 border border-slate-700 p-2 text-sm text-white focus:outline-none focus:border-indigo-400';
 const buttonStyle = 'rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-40';
 
-export function WorkspaceDialog({ title, onClose, children }) {
+export function WorkspaceDialog({ title, onClose, children, maxWidth = 'max-w-4xl' }) {
   const dialog = useRef(null);
+  const titleId = useId();
   useEffect(() => {
     const element = dialog.current;
     const previousFocus = document.activeElement;
     element.showModal();
     return () => { element.close(); previousFocus?.focus(); };
   }, []);
-  return <dialog ref={dialog} aria-labelledby="workspace-dialog-title" onCancel={event => { event.preventDefault(); onClose(); }}
-    className="w-[calc(100%_-_2rem)] max-w-4xl max-h-[90vh] rounded-3xl border border-slate-700 bg-slate-900 p-5 text-slate-200 shadow-2xl backdrop:bg-slate-950/80">
+  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onClose(); }}
+    className={`w-[calc(100%_-_2rem)] ${maxWidth} max-h-[90vh] rounded-3xl border border-slate-700 bg-slate-900 p-5 text-slate-200 shadow-2xl backdrop:bg-slate-950/80`}>
     <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-800">
-      <h2 id="workspace-dialog-title" className="text-lg font-semibold text-white">{title}</h2>
+      <h2 id={titleId} className="text-lg font-semibold text-white">{title}</h2>
       <button type="button" onClick={onClose} className={buttonStyle} aria-label={`Close ${title}`}>Close</button>
     </div>
     {children}

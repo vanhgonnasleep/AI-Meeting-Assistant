@@ -255,7 +255,7 @@ pytest -v tests/ --run-model-tests
 | `test_stt.py` | `test_transcribe_audio_detailed` | Agent 1 (STT) | Validates detailed metadata, duration, and segment arrays |
 | `test_stt.py` | `test_transcribe_endpoint_success` | REST API | Verifies `POST /api/transcribe` with valid audio payload |
 | `test_stt.py` | `test_transcribe_invalid_extension`| Validation | Ensures invalid file extensions return HTTP 400 |
-| `test_stt.py` | `test_transcribe_file_too_large` | Security | Rejects oversized files (>50MB) with HTTP 413 |
+| `test_stt.py` | `test_transcribe_file_too_large` | Security | Rejects files above the configured upload limit with HTTP 413 |
 | `test_stt.py` | `test_cluster_speaker_embeddings` | Diarization | Verifies acoustic feature clustering assigns distinct speakers accurately |
 | `test_stt.py` | `test_cluster_speaker_embeddings_edge_cases` | Robustness | Validates empty embedding list and single segment edge cases |
 | `test_stt.py` | `test_format_diarized_transcript` | Diarization | Verifies conversational pause gap detection and turn merging |
@@ -321,7 +321,7 @@ See [maintenance notes](docs/maintenance-2026-10-04.md) for the verified fixes, 
 
 - **LLM Grounding:** Prompts ask the LLM to treat transcript content as data. Prompt instructions are not a security boundary or a guarantee of factual accuracy; generated decisions and speaker names still require review.
 - **Upload Handling:** Filename basenames are normalized for Windows and POSIX separators; temporary audio files use generated names. Whisper model parameters accept named models only.
-- **Request Limits:** Upload ingestion is bounded before multipart parsing, then each audio file is checked against the 50 MB limit. JSON requests and chat context have separate budgets; at most two compute requests and one transcription run concurrently.
+- **Request Limits:** Upload ingestion is bounded before multipart parsing, then each audio file is checked against a configurable limit (default 256 MiB). Decoded audio is limited to 3 hours by default and processed in 5-minute windows. JSON requests and chat context have separate budgets; at most two compute requests and one transcription run concurrently. See [media configuration](docs/media-limits.md) for machine-specific settings and remaining limits.
 - **CORS Specification Compliance:** Allowlisted local UI origins, explicit rejection of other browser origins, host validation, and loopback-only server defaults. Set `CORS_ORIGINS` when using a different local UI port.
 - **Database Concurrency Protection:** SQLite connections use `PRAGMA journal_mode=WAL;` and 15-second busy timeouts to ensure thread-safe concurrent access.
 - **Defensive JSON Sanitization:** Multi-layered parsing handles bracket extraction, trailing comma cleanup, and Python single-quote normalization to guard against LLM formatting anomalies.

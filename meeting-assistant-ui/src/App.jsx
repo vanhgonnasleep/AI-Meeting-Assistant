@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { normalizeCitation, createRequestGate, resultFromMeeting, editSpeakerAttribution, getSuggestedPrompts, buildChatPayload } from './session';
-import Workspace from './Workspace.jsx';
+import { normalizeCitation, normalizeChatMessages, createRequestGate, resultFromMeeting, editSpeakerAttribution, getSuggestedPrompts, buildChatPayload, getExportTasks, shouldSubmitChat } from './session';
+import Workspace, { WorkspaceDialog } from './Workspace.jsx';
 import MeetingEditor from './MeetingEditor.jsx';
 import { createMutationLock } from './workspace';
+import { DEFAULT_UPLOAD_LIMITS, getUploadLimits, getUploadError, formatUploadLimits, startHealthPolling } from './upload';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
@@ -117,6 +118,8 @@ function App() {
   const [completedTasks, setCompletedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
   const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
+  const [uploadLimits, setUploadLimits] = useState(DEFAULT_UPLOAD_LIMITS);
+  const uploadError = getUploadError(file, uploadLimits);
   const [selectedModel, setSelectedModel] = useState('auto');
   const [metaInfo, setMetaInfo] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -318,26 +321,14 @@ function App() {
     }
   };
 
-  // Check backend and Ollama health on mount; re-check every 30s until online
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/health`);
-        if (res.ok) {
-          const data = await res.json();
-          setHealthStatus({ online: data.ollama_online, checking: false, data });
-        } else {
-          setHealthStatus({ online: false, checking: false });
-        }
-      } catch {
-        setHealthStatus({ online: false, checking: false });
-      }
-    };
-    checkHealth();
-    // Poll every 30s so the badge auto-updates if Ollama starts/stops
-    const healthInterval = setInterval(checkHealth, 30000);
-    return () => clearInterval(healthInterval);
-  }, []);
+  useEffect(() => startHealthPolling({
+    fetchHealth: options => fetch(`${API_BASE}/api/health`, options),
+    onHealth: data => {
+      setHealthStatus({ online: Boolean(data.ollama_online), checking: false, data });
+      setUploadLimits(previous => getUploadLimits(data, previous));
+    },
+    onFailure: () => setHealthStatus(previous => ({ ...previous, online: false, checking: false })),
+  }), []);
 
   // Timer while processing
   useEffect(() => {
@@ -363,13 +354,15 @@ function App() {
       'audio/*': ['.mp3', '.wav', '.m4a', '.ogg', '.flac'],
       'video/*': ['.mp4', '.webm', '.mkv']
     },
-    maxSize: 50 * 1024 * 1024,
-    onDropRejected: () => setErrorMessage('Choose one supported audio/video file up to 50 MB.'),
+    maxSize: uploadLimits.maxFileSizeBytes,
+    onDropRejected: () => setErrorMessage(`Choose one supported audio/video file up to ${uploadLimits.maxFileSizeMb} MiB.`),
     disabled: isProcessing,
     maxFiles: 1
   });
 
   const handleProcessAudio = async () => {
+    const limitError = getUploadError(file, uploadLimits);
+    if (limitError) { setErrorMessage(limitError); return; }
     if (selectedModel === 'instant_demo') {
       return handleInstantDemo();
     }
@@ -409,7 +402,7 @@ function App() {
       setWarnings(data.warnings || []);
       setResult(data.data);
       const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
-        ? data.data.chat_history
+        ? normalizeChatMessages(data.data.chat_history)
         : getDefaultChatGreeting(data.data);
       setChatMessages(initialChat);
       setCurrentMeetingId(data.meeting_id || null);
@@ -429,6 +422,8 @@ function App() {
 
   // Fail-safe instant demo handler (Bypasses heavy inference in 50ms)
   const handleInstantDemo = async () => {
+    const limitError = getUploadError(file, uploadLimits);
+    if (limitError) { setErrorMessage(limitError); return; }
     invalidateSession();
     const request = processGate.current.begin();
     setIsProcessing(true);
@@ -462,7 +457,7 @@ function App() {
       setWarnings(data.warnings || []);
       setResult(data.data);
       const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
-        ? data.data.chat_history
+        ? normalizeChatMessages(data.data.chat_history)
         : getDefaultChatGreeting(data.data);
       setChatMessages(initialChat);
       setAudioUrl('/q3_product_budget_review.wav');
@@ -592,8 +587,8 @@ function App() {
       if (!request.isCurrent()) return;
       const assistantMsg = {
         role: 'assistant',
-        content: data.answer,
-        citations: data.citations || [],
+        content: String(data.answer ?? ''),
+        citations: normalizeChatMessages([{ citations: data.citations }])[0].citations,
         mode: data.mode,
         retrieval_warning: data.retrieval_warning,
         created_at: new Date().toISOString()
@@ -827,10 +822,7 @@ function App() {
       metadata: metaInfo,
       mmr_telemetry: mmrTelemetry,
       summary: result.summary,
-      action_items: (result.action_items || []).map((item, idx) => ({
-        ...item,
-        status: completedTasks[idx] ? 'completed' : 'pending'
-      })),
+      action_items: getExportTasks(result.action_items || [], completedTasks),
       transcript: result.transcript,
       condensed_transcript: result.condensed_transcript,
       duration: result.duration,
@@ -901,13 +893,12 @@ ${result.transcript || ""}
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-hidden font-sans bg-grid-pattern">
       {speakerRename && (
-        <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-6">
-          <form role="dialog" aria-modal="true" aria-labelledby="speaker-rename-title" className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-6 space-y-4" onSubmit={async event => {
+        <WorkspaceDialog title={`Rename ${speakerRename.oldName}`} maxWidth="max-w-sm" onClose={() => { if (!isSpeakerSaving) setSpeakerRename(null); }}>
+          <form className="space-y-4 pt-4" onSubmit={async event => {
             event.preventDefault();
             if (contentMutations.current.isLocked() || isContentSaving) return;
             if (await applySpeakerEdit(speakerRename.oldName, speakerRename.name)) setSpeakerRename(null);
-          }} onKeyDown={event => { if (event.key === 'Escape' && !isSpeakerSaving) setSpeakerRename(null); }}>
-            <h3 id="speaker-rename-title" className="font-semibold text-white">Rename {speakerRename.oldName}</h3>
+          }}>
             <label htmlFor="speaker-rename-input" className="block text-sm text-slate-300">New speaker name</label>
             <input id="speaker-rename-input" autoFocus maxLength={128} value={speakerRename.name} onChange={event => setSpeakerRename(previous => ({ ...previous, name: event.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-white" disabled={isContentSaving} />
             {errorMessage && <p role="alert" className="text-sm text-rose-300">{errorMessage}</p>}
@@ -916,7 +907,7 @@ ${result.transcript || ""}
               <button type="submit" disabled={isContentSaving || !speakerRename.name.trim()} className="rounded-lg bg-indigo-600 px-3 py-2 disabled:opacity-40">{isSpeakerSaving ? 'Saving…' : 'Save speaker name'}</button>
             </div>
           </form>
-        </div>
+        </WorkspaceDialog>
       )}
       
       {/* Background Ambient Glows */}
@@ -950,6 +941,7 @@ ${result.transcript || ""}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs shadow-sm">
               <Cpu className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <select
+                aria-label="Processing model"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="bg-transparent text-slate-200 text-xs focus:outline-none cursor-pointer font-medium"
@@ -1075,9 +1067,9 @@ ${result.transcript || ""}
 
             <button 
               onClick={handleProcessAudio}
-              disabled={(!file && selectedModel !== 'instant_demo') || isProcessing}
+              disabled={Boolean(uploadError) || (!file && selectedModel !== 'instant_demo') || isProcessing}
               className={`px-5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all flex items-center gap-2
-                ${(!file && selectedModel !== 'instant_demo') || isProcessing 
+                ${uploadError || (!file && selectedModel !== 'instant_demo') || isProcessing
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/40' 
                   : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 hover:opacity-95 text-white shadow-lg shadow-indigo-500/25 active:scale-[0.98]'}`}
             >
@@ -1119,6 +1111,7 @@ ${result.transcript || ""}
               </div>
               <input 
                 type="range"
+                aria-label="MMR relevance and diversity balance"
                 min="0.10"
                 max="0.90"
                 step="0.05"
@@ -1150,16 +1143,17 @@ ${result.transcript || ""}
         )}
 
         {/* Inline Error Banner */}
-        {errorMessage && (
-          <div className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs">
+        {(uploadError || errorMessage) && (
+          <div role="alert" className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs">
             <div className="flex items-start gap-2.5">
               <span className="text-rose-400 text-base leading-none mt-0.5">✕</span>
               <div>
                 <p className="font-semibold text-rose-300">Processing Error</p>
-                <p className="text-rose-400/80 mt-0.5">{errorMessage}</p>
+                <p className="text-rose-400/80 mt-0.5">{uploadError || errorMessage}</p>
               </div>
             </div>
             <button
+              aria-label="Dismiss error"
               onClick={() => setErrorMessage(null)}
               className="text-rose-500 hover:text-rose-300 transition-colors shrink-0 mt-0.5"
             >
@@ -1172,7 +1166,7 @@ ${result.transcript || ""}
         {!isProcessing && !result && (
           <div className="space-y-6">
             <div 
-              {...getRootProps()} 
+              {...getRootProps({ role: 'button', 'aria-label': 'Choose meeting audio or video file' })}
               className={`relative group rounded-3xl p-10 md:p-14 text-center cursor-pointer transition-all duration-300 border-2 border-dashed overflow-hidden
                 ${isDragActive 
                   ? 'border-indigo-400 bg-indigo-950/30' 
@@ -1190,7 +1184,8 @@ ${result.transcript || ""}
                     </div>
                     <div>
                       <p className="text-base font-semibold text-white truncate max-w-sm">{file.name}</p>
-                      <p className="text-xs text-slate-400 mt-1">{formatFileSize(file.size)} • Ready to analyze</p>
+                      <p className="text-xs text-slate-400 mt-1">{formatFileSize(file.size)} • {uploadError ? 'Exceeds upload limit' : 'Ready to analyze'}</p>
+                      <p className="text-xs text-slate-400 mt-1">{formatUploadLimits(uploadLimits)}</p>
                     </div>
 
                     {/* Inline HTML5 Audio Player for preview */}
@@ -1226,7 +1221,7 @@ ${result.transcript || ""}
                         Drag and drop your meeting audio or video here
                       </p>
                       <p className="text-sm text-slate-400 mt-1">
-                        or click anywhere to browse from your device (Max 50MB)
+                        or click anywhere to browse from your device ({formatUploadLimits(uploadLimits)})
                       </p>
                     </div>
 
@@ -1906,7 +1901,8 @@ ${result.transcript || ""}
                                 {dec.timestamp && (
                                   <button
                                     type="button"
-                                    onClick={() => handleSeekAudio(normalizeCitation(dec.timestamp).seconds)}
+                                    disabled={!audioUrl || normalizeCitation(dec).seconds === null}
+                                    onClick={() => handleSeekAudio(normalizeCitation(dec).seconds)}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono transition-all group-hover:border-emerald-400 cursor-pointer active:scale-95"
                                     title={`Click to jump audio to ${dec.timestamp}`}
                                   >
@@ -1952,7 +1948,8 @@ ${result.transcript || ""}
                                 {risk.timestamp && (
                                   <button
                                     type="button"
-                                    onClick={() => handleSeekAudio(normalizeCitation(risk.timestamp).seconds)}
+                                    disabled={!audioUrl || normalizeCitation(risk).seconds === null}
+                                    onClick={() => handleSeekAudio(normalizeCitation(risk).seconds)}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-mono transition-all group-hover:border-amber-400 cursor-pointer active:scale-95"
                                     title={`Click to jump audio to ${risk.timestamp}`}
                                   >
@@ -1998,7 +1995,8 @@ ${result.transcript || ""}
                                 {q.timestamp && (
                                   <button
                                     type="button"
-                                    onClick={() => handleSeekAudio(normalizeCitation(q.timestamp).seconds)}
+                                    disabled={!audioUrl || normalizeCitation(q).seconds === null}
+                                    onClick={() => handleSeekAudio(normalizeCitation(q).seconds)}
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[10px] font-mono transition-all group-hover:border-blue-400 cursor-pointer active:scale-95"
                                     title={`Click to jump audio to ${q.timestamp}`}
                                   >
@@ -2173,10 +2171,11 @@ ${result.transcript || ""}
                       <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-1.5 focus-within:border-indigo-500/80 transition-colors">
                         <input
                           type="text"
+                          aria-label="Question about this meeting"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
+                            if (shouldSubmitChat(e)) {
                               e.preventDefault();
                               handleSendChatMessage();
                             }
@@ -2218,34 +2217,9 @@ ${result.transcript || ""}
         }} />}
         {showEditor && currentMeetingId && !isDemoResult && <MeetingEditor key={currentMeetingId} apiBase={API_BASE} meetingId={currentMeetingId} model={selectedModel} onClose={() => setShowEditor(false)} onUpdated={handleUpdatedMeeting} />}
         {showHistory && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]">
-              
-              {/* Modal Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
-                    <Database className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      Saved Meeting History & Analytics
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                        SQLite WAL
-                      </span>
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      {historyTotal} matching meeting records stored locally
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleCloseHistory}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+          <WorkspaceDialog title="Saved Meeting History & Analytics" maxWidth="max-w-3xl" onClose={handleCloseHistory}>
+            <div className="relative w-full pt-4 overflow-hidden flex flex-col max-h-[75vh]">
+              <p className="text-xs text-slate-400">{historyTotal} matching meeting records stored locally</p>
 
               {/* Analytics Quick Badges Bar (if available) */}
               {systemAnalytics && (
@@ -2275,6 +2249,7 @@ ${result.transcript || ""}
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input 
                     type="text"
+                    aria-label="Search meeting history"
                     value={historySearchQuery}
                     onChange={(e) => handleHistorySearch(e.target.value)}
                     placeholder="Search by filename, summary, transcript, or action items..."
@@ -2282,6 +2257,7 @@ ${result.transcript || ""}
                   />
                   {historySearchQuery && (
                     <button 
+                      aria-label="Clear history search"
                       onClick={() => handleHistorySearch('')}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                     >
@@ -2312,10 +2288,9 @@ ${result.transcript || ""}
                   filteredMeetings.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() => handleLoadPastMeeting(item)}
                       className="group flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-800/60 border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition-all"
                     >
-                      <div className="flex-1 min-w-0">
+                      <button type="button" onClick={() => handleLoadPastMeeting(item)} className="flex-1 min-w-0 text-left" aria-label={`Open meeting ${item.filename}`}>
                         <div className="flex items-center gap-2">
                           <FileAudio className="w-4 h-4 text-indigo-400 shrink-0" />
                           <h4 className="text-xs font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
@@ -2345,7 +2320,7 @@ ${result.transcript || ""}
                             </span>
                           )}
                         </div>
-                      </div>
+                      </button>
 
                       <div className="flex items-center gap-1 shrink-0 pt-1">
                         <button
@@ -2376,7 +2351,7 @@ ${result.transcript || ""}
                 </button>
               </div>
             </div>
-          </div>
+          </WorkspaceDialog>
         )}
 
         {/* Minimalist Dashboard Footer */}

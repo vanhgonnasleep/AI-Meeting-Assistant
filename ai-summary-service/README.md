@@ -45,3 +45,5 @@ pytest -v tests/
 For local Whisper integration, run `pytest -v tests/ --run-model-tests`.
 The server binds to loopback by default. Configure `CORS_ORIGINS` for a different local UI port; external deployment requires authentication.
 See [maintenance notes](../docs/maintenance-2026-10-04.md) for current behavior and limitations.
+
+Uploads now default to 256 MiB and decoded recordings to 3 hours. Configure `MAX_UPLOAD_MB`, `MAX_AUDIO_DURATION_SECONDS` and `AUDIO_CHUNK_SECONDS` before starting the backend; see [media limits](../docs/media-limits.md) for ranges, low-spec settings and temporary disk requirements.

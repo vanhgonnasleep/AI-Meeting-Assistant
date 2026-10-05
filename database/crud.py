@@ -7,6 +7,7 @@ Task: SQLite CRUD operations and meeting history management
 """
 
 import json
+import math
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -27,7 +28,7 @@ def _load_json_column(row, column: str, default: Any) -> Any:
     try:
         if column not in row.keys() or not row[column]:
             return default
-        value = json.loads(row[column])
+        value = json.loads(row[column], parse_constant=lambda _: None)
         return value if isinstance(value, type(default)) else default
     except Exception:
         return default
@@ -44,7 +45,7 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
 
     if row["action_items"]:
         try:
-            raw_items = json.loads(row["action_items"])
+            raw_items = json.loads(row["action_items"], parse_constant=lambda _: None)
 
             # Normalize raw_items to a list if wrapped in a dict
             if isinstance(raw_items, dict):
@@ -61,10 +62,10 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
                 if isinstance(item, dict):
                     action_items.append(
                         ActionItem(
-                            task=str(item.get("task", "")).strip(),
-                            assignee=item.get("assignee") or "Unassigned",
-                            deadline=item.get("deadline"),
-                            status=item.get("status", "pending"),
+                            task=str(item.get("task") or "").strip(),
+                            assignee=str(item.get("assignee") or "Unassigned"),
+                            deadline=str(item["deadline"]) if item.get("deadline") is not None else None,
+                            status=str(item.get("status") or "pending"),
                         )
                     )
                 elif isinstance(item, str) and item.strip():
@@ -84,6 +85,8 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
     try:
         if "duration" in row.keys() and row["duration"] is not None:
             duration = float(row["duration"])
+            if not math.isfinite(duration) or duration < 0:
+                duration = None
         if "language" in row.keys() and row["language"] is not None:
             language = str(row["language"])
     except Exception:
@@ -303,7 +306,9 @@ def get_meeting_page(search=None, limit=50, offset=0, compact=False):
             records = []
             for row in rows:
                 entry = {key: row[key] for key in ("id", "filename", "executive_summary", "duration", "language", "created_at", "updated_at")}
-                entry["action_item_count"] = len(row_to_meeting(row).action_items)
+                record = row_to_meeting(row)
+                entry["duration"] = record.duration
+                entry["action_item_count"] = len(record.action_items)
                 records.append(entry)
         else:
             records = [record.to_dict() for record in (row_to_meeting(row) for row in rows)]
@@ -606,13 +611,18 @@ def get_analytics_summary() -> dict:
     connection = get_connection()
     try:
         connection.execute("BEGIN")
-        total_meetings, total_duration = connection.execute("SELECT COUNT(*), COALESCE(SUM(duration),0) FROM meetings").fetchone()
+        total_meetings = connection.execute("SELECT COUNT(*) FROM meetings").fetchone()[0]
+        total_duration = 0.0
         languages = {r[0] for r in connection.execute("SELECT DISTINCT language FROM meetings WHERE language IS NOT NULL AND language != ''")}
         # Stream task data only, without loading transcripts, segments or chat.
-        cursor = connection.execute("SELECT id, '' AS filename, '' AS raw_transcript, '' AS executive_summary, action_items, created_at, updated_at FROM meetings")
+        cursor = connection.execute("SELECT id, '' AS filename, '' AS raw_transcript, '' AS executive_summary, action_items, duration, created_at, updated_at FROM meetings")
         while rows := cursor.fetchmany(200):
             for row in rows:
-                for item in row_to_meeting(row).action_items:
+                record = row_to_meeting(row)
+                if record.duration is not None and total_duration is not None:
+                    candidate = total_duration + record.duration
+                    total_duration = candidate if math.isfinite(candidate) else None
+                for item in record.action_items:
                     total_tasks += 1
                     if (item.status or "").lower() in ("completed", "done"):
                         completed_tasks += 1
@@ -624,7 +634,7 @@ def get_analytics_summary() -> dict:
 
     return {
         "total_meetings": total_meetings,
-        "total_duration_seconds": round(total_duration, 1),
+        "total_duration_seconds": round(total_duration, 1) if total_duration is not None else None,
         "total_action_items": total_tasks,
         "completed_action_items": completed_tasks,
         "pending_action_items": pending_tasks,

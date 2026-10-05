@@ -10,10 +10,17 @@ Task: Integrate OpenAI Whisper (or equivalent) to transcribe
 import os
 import shutil
 import tempfile
+from contextlib import nullcontext
 from threading import Lock
 from pathlib import Path
 from typing import Union, Optional, Dict, Any, List, BinaryIO, Tuple
 from fastapi import UploadFile
+from audio_preparation import PreparedAudio, MediaLimitError, SAMPLE_RATE, ffmpeg_executable
+from runtime_config import MAX_AUDIO_DURATION_SECONDS, AUDIO_CHUNK_SECONDS
+
+CHUNK_OVERLAP_SECONDS = 3.0
+MAX_TRANSCRIPT_SEGMENTS = 20000
+MAX_EXACT_SPEAKER_EMBEDDINGS = 128
 
 # Safe import for PyTorch to allow running on lightweight/CPU-only devices
 try:
@@ -29,35 +36,12 @@ _MODEL_LOAD_LOCK = Lock()
 
 
 def ensure_ffmpeg() -> bool:
-    """
-    Ensures that ffmpeg is available in the system PATH.
-    If ffmpeg is not found, dynamically checks imageio_ffmpeg bundled binary
-    and adds its location to os.environ["PATH"].
-    """
-    if shutil.which("ffmpeg"):
-        return True
-
+    """Report availability without changing installed packages or process PATH."""
     try:
-        import imageio_ffmpeg
-        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-        ffmpeg_dir = os.path.dirname(ffmpeg_exe)
-        standard_name = os.path.join(ffmpeg_dir, "ffmpeg.exe" if os.name == "nt" else "ffmpeg")
-        
-        # If standard executable name doesn't exist, create an alias/copy
-        if not os.path.exists(standard_name) and os.path.exists(ffmpeg_exe):
-            try:
-                shutil.copy2(ffmpeg_exe, standard_name)
-            except Exception:
-                pass
-
-        if os.path.exists(standard_name) or os.path.exists(ffmpeg_exe):
-            if ffmpeg_dir not in os.environ.get("PATH", ""):
-                os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
-            return True
-    except Exception as e:
-        print(f"[Agent 1 STT Warning] Could not configure imageio_ffmpeg: {e}")
-
-    return shutil.which("ffmpeg") is not None
+        ffmpeg_executable()
+        return True
+    except RuntimeError:
+        return False
 
 
 def get_whisper_device() -> str:
@@ -173,6 +157,7 @@ def split_segments_into_sentences(segments: List[Dict[str, Any]]) -> List[Dict[s
             part_end = curr_t + part_dur if idx < len(parts) - 1 else end
 
             refined.append({
+                **seg,
                 "id": seg_id,
                 "start": round(curr_t, 2),
                 "end": round(part_end, 2),
@@ -181,6 +166,9 @@ def split_segments_into_sentences(segments: List[Dict[str, Any]]) -> List[Dict[s
             })
             seg_id += 1
             curr_t = part_end
+
+            if len(refined) > MAX_TRANSCRIPT_SEGMENTS:
+                raise MediaLimitError("Transcription segment limit exceeded after sentence subdivision.")
 
     return refined
 
@@ -255,6 +243,25 @@ def cluster_speaker_embeddings(
     # Edge case: caller explicitly wants exactly 1 speaker → all same label
     if num_speakers == 1:
         return [0] * n
+
+    # Exact merging repeatedly scans all cluster pairs. Bound that work for
+    # long meetings, then use the same representative speaker centroids for
+    # every segment. Rare voices absent from the sample may be merged.
+    if n > MAX_EXACT_SPEAKER_EMBEDDINGS:
+        indices = [round(i * (n - 1) / (MAX_EXACT_SPEAKER_EMBEDDINGS - 1))
+                   for i in range(MAX_EXACT_SPEAKER_EMBEDDINGS)]
+        representatives = [embeddings[i] for i in indices]
+        representative_labels = cluster_speaker_embeddings(representatives, num_speakers, distance_threshold)
+        centroids = []
+        for label in range(max(representative_labels) + 1):
+            members = [e / torch.norm(e).clamp_min(1e-8)
+                       for e, assigned in zip(representatives, representative_labels) if assigned == label]
+            centroid = torch.stack(members).mean(dim=0)
+            centroids.append(centroid / torch.norm(centroid).clamp_min(1e-8))
+        basis = torch.stack(centroids)
+        labels = [int(torch.argmax(basis @ e).item()) for e in embeddings]
+        chronological = {}
+        return [chronological.setdefault(label, len(chronological)) for label in labels]
 
     vecs = []
     for e in embeddings:
@@ -397,7 +404,8 @@ def diarize_segments(
     distance_threshold: float = 0.12,
     subdivide_sentences: bool = True,
     use_llm_refinement: bool = True,
-    llm_model: Optional[str] = None
+    llm_model: Optional[str] = None,
+    prepared_audio: Optional[PreparedAudio] = None
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
     """
     Enriches segment metadata with speaker tags ('Speaker 1', 'Speaker 2', etc.).
@@ -427,13 +435,13 @@ def diarize_segments(
         if subdivide_sentences:
             segments = split_segments_into_sentences(segments)
 
-        audio = whisper.load_audio(audio_path)
-        mel = whisper.log_mel_spectrogram(audio)
-
-        embeddings = [
-            extract_segment_embedding(mel, seg.get("start", 0.0), seg.get("end", 0.0))
-            for seg in segments
-        ]
+        if len(segments) > MAX_TRANSCRIPT_SEGMENTS:
+            raise MediaLimitError("Transcription segment limit exceeded.")
+        # Reuse transcription's PCM. Standalone callers still decode once into
+        # the same bounded context, rather than loading the full recording.
+        context = nullcontext(prepared_audio) if prepared_audio is not None else PreparedAudio(audio_path, MAX_AUDIO_DURATION_SECONDS)
+        with context as pcm:
+            embeddings = [_embedding_from_pcm(pcm, seg, whisper) for seg in segments]
         speaker_indices = cluster_speaker_embeddings(
             embeddings,
             num_speakers=num_speakers,
@@ -449,11 +457,35 @@ def diarize_segments(
 
         unique_speakers = list(dict.fromkeys(seg["speaker"] for seg in segments if seg.get("speaker")))
         return segments, unique_speakers
+    except MediaLimitError:
+        raise
     except Exception as e:
         print(f"[Agent 1 STT Warning] Diarization fallback triggered: {e}")
         for seg in segments:
             seg["speaker"] = "Speaker 1"
         return segments, ["Speaker 1"]
+
+
+def _embedding_from_pcm(pcm, segment, whisper):
+    """Keep mel allocation bounded even for a single unusually long segment."""
+    start = max(0, int(float(segment.get("start", 0)) * SAMPLE_RATE))
+    end = min(pcm.sample_count, int(float(segment.get("end", 0)) * SAMPLE_RATE))
+    chunk_samples = max(1, int(AUDIO_CHUNK_SECONDS * SAMPLE_RATE))
+    total = None
+    weight = 0
+    for offset in range(start, max(start + 1, end), chunk_samples):
+        audio = pcm.read_samples(offset, min(offset + chunk_samples, max(start + 1, end)))
+        if len(audio) < 400:
+            # Whisper's STFT requires enough samples for reflection padding.
+            import numpy as np
+            audio = np.pad(audio, (0, 400 - len(audio)))
+        mel = whisper.log_mel_spectrogram(audio)
+        feature = extract_segment_embedding(mel, 0, len(audio) / SAMPLE_RATE)
+        count = min(chunk_samples, max(1, end - offset))
+        total = feature * count if total is None else total + feature * count
+        weight += count
+    feature = total / max(1, weight)
+    return feature / torch.norm(feature).clamp_min(1e-8)
 
 
 def format_diarized_transcript(
@@ -550,6 +582,10 @@ def _save_input_to_temp(file_input: Union[UploadFile, str, Path, bytes, BinaryIO
         temp_file = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
         try:
             shutil.copyfileobj(file_input.file, temp_file)
+        except BaseException:
+            temp_file.close()
+            os.unlink(temp_file.name)
+            raise
         finally:
             temp_file.close()
 
@@ -566,6 +602,10 @@ def _save_input_to_temp(file_input: Union[UploadFile, str, Path, bytes, BinaryIO
         temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         try:
             temp_file.write(file_input)
+        except BaseException:
+            temp_file.close()
+            os.unlink(temp_file.name)
+            raise
         finally:
             temp_file.close()
         return temp_file.name, True
@@ -580,6 +620,10 @@ def _save_input_to_temp(file_input: Union[UploadFile, str, Path, bytes, BinaryIO
         temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         try:
             shutil.copyfileobj(file_input, temp_file)
+        except BaseException:
+            temp_file.close()
+            os.unlink(temp_file.name)
+            raise
         finally:
             temp_file.close()
         return temp_file.name, True
@@ -633,58 +677,98 @@ def transcribe_audio_detailed(
             "diarized_transcript": str
         }
     """
-    ensure_ffmpeg()
-    model = get_whisper_model(model_name=model_name)
-    device = get_whisper_device()
-    use_fp16 = (device == "cuda")
-
     temp_path, is_temp = _save_input_to_temp(file_input)
     try:
-        transcribe_options: Dict[str, Any] = {
-            "fp16": use_fp16,
-            "temperature": temperature,
-            **whisper_kwargs
-        }
-        if language:
-            transcribe_options["language"] = language
+        with PreparedAudio(temp_path, MAX_AUDIO_DURATION_SECONDS) as pcm:
+            # Invalid or excessive media must fail before allocating model weights.
+            model = get_whisper_model(model_name=model_name)
+            transcribe_options: Dict[str, Any] = {
+                "fp16": get_whisper_device() == "cuda",
+                "temperature": temperature,
+                **whisper_kwargs,
+            }
+            if language:
+                transcribe_options["language"] = language
+            detected_language = transcribe_options.get("language") or ""
+            segments = []
+            short_text = ""
+            total_source_segments = 0
+            clip_ranges = None
+            if "clip_timestamps" in whisper_kwargs and pcm.duration > AUDIO_CHUNK_SECONDS:
+                clips = whisper_kwargs["clip_timestamps"]
+                points = [float(value) for value in (clips.split(",") if clips else [])] if isinstance(clips, str) else list(clips)
+                if not points:
+                    points = [0.0]
+                if len(points) % 2:
+                    points.append(pcm.duration)
+                clip_ranges = list(zip(points[::2], points[1::2]))
+            for core_start, core_end, padded_start, padded_end in pcm.windows(AUDIO_CHUNK_SECONDS, CHUNK_OVERLAP_SECONDS):
+                options = dict(transcribe_options)
+                if clip_ranges is not None:
+                    local_clips = []
+                    for clip_start, clip_end in clip_ranges:
+                        # Only process windows with requested audio in the core;
+                        # keep overlap as context within that requested range.
+                        if clip_end <= core_start / SAMPLE_RATE or clip_start >= core_end / SAMPLE_RATE:
+                            continue
+                        local_start = max(clip_start, padded_start / SAMPLE_RATE)
+                        local_end = min(clip_end, padded_end / SAMPLE_RATE)
+                        if local_end > local_start:
+                            local_clips.extend([local_start - padded_start / SAMPLE_RATE,
+                                                local_end - padded_start / SAMPLE_RATE])
+                    if not local_clips:
+                        continue
+                    options["clip_timestamps"] = local_clips
+                audio = pcm.read_samples(padded_start, padded_end)
+                result = model.transcribe(audio, **options)
+                if not detected_language:
+                    detected_language = result.get("language", "")
+                    # Use the first detected language for all subsequent chunks.
+                    if detected_language:
+                        transcribe_options.setdefault("language", detected_language)
+                if pcm.duration <= AUDIO_CHUNK_SECONDS:
+                    short_text = result.get("text", "").strip()
+                source_segments = result.get("segments", [])
+                total_source_segments += len(source_segments)
+                if total_source_segments > MAX_TRANSCRIPT_SEGMENTS:
+                    raise MediaLimitError("Transcription segment limit exceeded.")
+                offset = padded_start / SAMPLE_RATE
+                for source in source_segments:
+                    start = max(0.0, min(pcm.duration, offset + float(source.get("start", 0))))
+                    end = max(start, min(pcm.duration, offset + float(source.get("end", 0))))
+                    midpoint_sample = (start + end) * SAMPLE_RATE / 2
+                    if not (core_start <= midpoint_sample < core_end or
+                            core_end == pcm.sample_count and midpoint_sample == core_end):
+                        continue
+                    segment = dict(source)
+                    segment.update({"id": len(segments), "start": start, "end": end,
+                                    "timestamp": f"[{format_timestamp(start)} - {format_timestamp(end)}]",
+                                    "text": source.get("text", "").strip()})
+                    # Whisper's word timestamps and seek positions are local too.
+                    if "seek" in source:
+                        segment["seek"] = source["seek"] + int(offset * 100)
+                    if "words" in source:
+                        segment["words"] = [{**word,
+                            "start": max(0.0, min(pcm.duration, offset + float(word.get("start", 0)))),
+                            "end": max(0.0, min(pcm.duration, offset + float(word.get("end", 0)))),
+                        } for word in source["words"]]
+                    segments.append(segment)
+                del audio, result
 
-        result = model.transcribe(temp_path, **transcribe_options)
-
-        segments = []
-        for seg in result.get("segments", []):
-            start = seg.get("start", 0.0)
-            end = seg.get("end", 0.0)
-            text = seg.get("text", "").strip()
-            segments.append({
-                "id": seg.get("id"),
-                "start": start,
-                "end": end,
-                "timestamp": f"[{format_timestamp(start)} - {format_timestamp(end)}]",
-                "text": text
-            })
-
-        duration = segments[-1]["end"] if segments else 0.0
-        speakers: List[str] = []
-        diarized_transcript: str = ""
-
-        if diarize and segments:
-            segments, speakers = diarize_segments(
-                segments=segments,
-                audio_path=temp_path,
-                num_speakers=num_speakers,
-                distance_threshold=distance_threshold,
-                llm_model=llm_model
-            )
-            diarized_transcript = format_diarized_transcript(segments)
-
-        return {
-            "text": result.get("text", "").strip(),
-            "language": result.get("language", ""),
-            "duration": duration,
-            "segments": segments,
-            "speakers": speakers,
-            "diarized_transcript": diarized_transcript
-        }
+            speakers: List[str] = []
+            diarized_transcript = ""
+            text = short_text if pcm.duration <= AUDIO_CHUNK_SECONDS else " ".join(s["text"] for s in segments if s["text"])
+            if diarize and segments:
+                segments, speakers = diarize_segments(
+                    segments=segments, audio_path=temp_path, num_speakers=num_speakers,
+                    distance_threshold=distance_threshold, llm_model=llm_model,
+                    prepared_audio=pcm,
+                )
+                diarized_transcript = format_diarized_transcript(segments)
+            return {"text": text, "language": detected_language, "duration": pcm.duration,
+                    "segments": segments, "speakers": speakers, "diarized_transcript": diarized_transcript}
+    except MediaLimitError:
+        raise
     except Exception as e:
         raise RuntimeError(f"Transcription failed: {str(e)}") from e
     finally:

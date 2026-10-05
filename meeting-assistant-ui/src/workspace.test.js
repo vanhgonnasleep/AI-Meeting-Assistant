@@ -145,3 +145,14 @@ test('semantic chat is opt-in and sends the chosen embedding model for saved and
     assert.equal(payload.embedding_model, 'embeddinggemma');
   }
 });
+
+test('editing a legacy string task preserves it and its index instead of silently deleting it', () => {
+  const original = { revision: 1, action_items: ['Legacy task', null, { task: 'Third task' }] };
+  const draft = workspace.createMeetingDraft(original);
+  assert.equal(draft.action_items.length, 3);
+  assert.equal(draft.action_items[0].task, 'Legacy task');
+  draft.action_items[2].task = 'Corrected third task';
+  const payload = workspace.buildReviewPayload(original, draft);
+  assert.equal(payload.action_items[0].task, 'Legacy task');
+  assert.equal(payload.action_items[2].task, 'Corrected third task');
+});

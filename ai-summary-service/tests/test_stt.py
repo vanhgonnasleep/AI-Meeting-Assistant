@@ -121,9 +121,12 @@ def test_transcribe_endpoint_invalid_extension():
     assert "Only .mp3, .wav, .m4a" in response.json()["detail"]
 
 
-def test_transcribe_endpoint_file_too_large():
+def test_transcribe_endpoint_file_too_large(monkeypatch):
     """Verify POST /api/transcribe rejects oversized audio files."""
-    oversized_bytes = b"0" * (51 * 1024 * 1024)
+    import main
+    # Exercise the same configurable endpoint boundary without allocating 257 MiB.
+    monkeypatch.setattr(main, "MAX_FILE_SIZE_BYTES", 1024)
+    oversized_bytes = b"0" * 1025
     files = {"file": ("large_audio.wav", oversized_bytes, "audio/wav")}
     response = client.post("/api/transcribe", files=files)
     assert response.status_code == 413

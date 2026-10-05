@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as session from './session.js';
 import { normalizeCitation, createRequestGate, editSpeakerAttribution, resultFromMeeting } from './session.js';
 
 test('speaker edits change labels without replacing names in spoken content', () => {
@@ -50,4 +51,45 @@ test('new sessions invalidate pending requests even if transport ignores abort',
   assert.equal(second.isCurrent(), true);
   gate.cancel();
   assert.equal(second.isCurrent(), false);
+});
+
+test('invalid timestamp components cannot become seekable through a valid suffix', () => {
+  for (const label of ['01:99:12', '1:2:03', '1234:56', '-00:14']) {
+    assert.equal(normalizeCitation(label).seconds, null, label);
+  }
+});
+
+test('persisted chat content and citation collections are safe to render and edit', () => {
+  const result = resultFromMeeting({ chat_history: [{ role: 'assistant', content: 42, citations: 'bad' }, { content: null, citations: [null, '00:14'] }] });
+  assert.equal(result.chat_history[0].content, '42');
+  assert.deepEqual(result.chat_history[0].citations, []);
+  assert.equal(result.chat_history[1].content, '');
+  assert.deepEqual(result.chat_history[1].citations, ['00:14']);
+  assert.doesNotThrow(() => editSpeakerAttribution({ ...result, segments: [] }, 'Alice', 'Bob'));
+});
+
+test('JSON export retains in-progress task status until the user changes completion', () => {
+  assert.equal(typeof session.getExportTasks, 'function');
+  const tasks = [{ task: 'Release', status: 'in_progress' }, { task: 'Review', status: 'done' }];
+  assert.equal(session.getExportTasks(tasks, { 0: false, 1: true })[0].status, 'in_progress');
+  assert.equal(session.getExportTasks(tasks, { 0: true, 1: false })[0].status, 'completed');
+  assert.equal(session.getExportTasks(tasks, { 0: true, 1: false })[1].status, 'pending');
+  assert.equal(session.getExportTasks(tasks, {})[1].status, 'done');
+});
+
+test('Enter used to finish input composition does not submit an unfinished chat question', () => {
+  assert.equal(typeof session.shouldSubmitChat, 'function');
+  assert.equal(session.shouldSubmitChat({ key: 'Enter', nativeEvent: { isComposing: true } }), false);
+  assert.equal(session.shouldSubmitChat({ key: 'Enter', nativeEvent: { isComposing: false } }), true);
+  assert.equal(session.shouldSubmitChat({ key: 'Enter', shiftKey: true }), false);
+});
+
+test('legacy scalar display fields become safe transcript and summary text', () => {
+  const result = resultFromMeeting({ raw_transcript: 42, executive_summary: { text: 'legacy' },
+    action_items: [{ task: 17, assignee: 20 }], insights: { decisions: [{ text: 45 }] } });
+  assert.equal(result.transcript, '42');
+  assert.equal(typeof result.summary, 'string');
+  assert.equal(result.action_items[0].task, '17');
+  assert.equal(result.action_items[0].assignee, '20');
+  assert.equal(result.insights.decisions[0].text, '45');
 });

@@ -1,9 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
 from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from starlette.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from request_limits import RequestLimitsMiddleware
+from runtime_config import MAX_FILE_SIZE_BYTES, MAX_UPLOAD_MB, MAX_AUDIO_DURATION_SECONDS, MediaLimitError
 import requests
 import json
 import time
@@ -20,6 +23,8 @@ from typing import List, Dict, Optional, Tuple, Any, Literal
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
+
+from workspace_api import EditableTask
 
 # Dynamic Integration with Team Modules (Plug-and-Play)
 try:
@@ -92,6 +97,15 @@ except ImportError:
     retrieve_relevant_segments = None
 
 app = FastAPI(title="AI Meeting Assistant API", version="2.1.0")
+
+
+@app.exception_handler(RequestValidationError)
+async def safe_validation_error(request, error):
+    # Malformed nonfinite JSON numbers cannot be echoed by a JSON response;
+    # transcript bodies and validator exceptions need not be echoed either.
+    details = [{key: item[key] for key in ('loc', 'msg', 'type') if key in item} for item in error.errors()]
+    return JSONResponse({'detail': details}, status_code=422)
+
 ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv(
     "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 ).split(",") if origin.strip()]
@@ -99,7 +113,6 @@ ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv(
 # ==========================================
 # CONSTANTS & CONFIGURATION
 # ==========================================
-MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB limit
 app.add_middleware(RequestLimitsMiddleware, allowed_origins=ALLOWED_ORIGINS,
                    upload_limit=MAX_FILE_SIZE_BYTES + 1024 * 1024)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]", "testserver", "test"])
@@ -140,7 +153,7 @@ def validate_audio_upload(file: UploadFile) -> str:
     if size == 0:
         raise HTTPException(400, "Uploaded audio is empty.")
     if size > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(413, "File too large. Maximum supported audio file size is 50MB.")
+        raise HTTPException(413, f"File too large. Maximum supported audio file size is {MAX_UPLOAD_MB} MiB.")
     return filename
 
 # ==========================================
@@ -293,6 +306,23 @@ def summarize_with_llama(transcript: str, model_name: str = "llama3", has_gpu: b
     # REDUCE: Combine partial summaries into unified Executive Summary
     print("- Synthesizing final Executive Summary...")
     combined_text = "\n\n---\n\n".join(partial_summaries)
+    # Bound every reduction input too. Model output may fail to compress;
+    # stop explicitly rather than silently dropping earlier meeting context.
+    for _ in range(8):
+        reduction_words = combined_text.split()
+        if len(reduction_words) <= MAX_WORDS_PER_CHUNK:
+            break
+        reduced = []
+        for start in range(0, len(reduction_words), MAX_WORDS_PER_CHUNK):
+            group = " ".join(reduction_words[start:start + MAX_WORDS_PER_CHUNK])
+            prompt = (f"{system_prompt}\n\nCompress these partial summaries, retaining decisions, "
+                      f"owners, deadlines and disagreements:\n<meeting_transcript>\n{group}\n</meeting_transcript>\n\nSummary:")
+            reduced.append(call_ollama(prompt, model_name=model_name, has_gpu=has_gpu))
+        combined_text = "\n\n---\n\n".join(reduced)
+        if len(combined_text.split()) >= len(reduction_words):
+            raise AIServiceError("The model did not compress the meeting summaries. Retry with a different model.")
+    else:
+        raise AIServiceError("The model could not compress the meeting summaries within the reduction budget.")
 
     final_prompt = (
         f"{system_prompt}\n\n"
@@ -325,6 +355,8 @@ def health_check():
         "gpu": gpu_desc,
         "has_gpu": has_gpu,
         "stt": stt_info,
+        "max_file_size_mb": MAX_UPLOAD_MB,
+        "max_audio_duration_seconds": MAX_AUDIO_DURATION_SECONDS,
         "agents": {
             "agent1_stt": transcribe_audio is not None,
             "agent2_summary": True,
@@ -406,7 +438,8 @@ def get_version():
             "Curated explicit demo Q&A & offline transcript excerpt answers"
         ],
         "supported_formats": list(SUPPORTED_AUDIO_EXTENSIONS),
-        "max_file_size_mb": MAX_FILE_SIZE_BYTES // (1024 * 1024)
+        "max_file_size_mb": MAX_UPLOAD_MB,
+        "max_audio_duration_seconds": MAX_AUDIO_DURATION_SECONDS
     }
 
 
@@ -480,6 +513,8 @@ def transcribe_audio_endpoint(
             }
     except HTTPException:
         raise
+    except MediaLimitError as e:
+        raise HTTPException(status_code=413, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=400, detail="Speech transcription failed. Check the audio file and installed Whisper model.") from e
 
@@ -569,6 +604,8 @@ def process_audio(
                     transcript = detailed_res["diarized_transcript"]
             except HTTPException:
                 raise
+            except MediaLimitError as e:
+                raise HTTPException(status_code=413, detail=str(e)) from e
             except Exception as e:
                 stt_error = str(e)
                 print(f"[Warning] Detailed STT error: {e}")
@@ -584,6 +621,8 @@ def process_audio(
                 )
             except HTTPException:
                 raise
+            except MediaLimitError as e:
+                raise HTTPException(status_code=413, detail=str(e)) from e
             except Exception as e:
                 stt_error = str(e)
                 print(f"[Warning] Agent 1 STT error: {e}")
@@ -729,12 +768,12 @@ def process_audio(
 # ==========================================
 
 class MeetingUpdateRequest(BaseModel):
-    filename: Optional[str] = None
-    raw_transcript: Optional[str] = None
-    executive_summary: Optional[str] = None
-    action_items: Optional[List[Dict[str, Any]]] = None
+    filename: Optional[str] = Field(None, max_length=255, strict=True)
+    raw_transcript: Optional[str] = Field(None, max_length=1_000_000, strict=True)
+    executive_summary: Optional[str] = Field(None, max_length=50_000, strict=True)
+    action_items: Optional[List[EditableTask]] = Field(None, max_length=10_000)
     duration: Optional[float] = Field(None, ge=0, allow_inf_nan=False)
-    language: Optional[str] = None
+    language: Optional[str] = Field(None, max_length=128, strict=True)
 
 class TaskStatusUpdateRequest(BaseModel):
     status: str
@@ -791,7 +830,7 @@ def update_meeting_by_id(meeting_id: int, payload: MeetingUpdateRequest):
         filename=payload.filename,
         raw_transcript=payload.raw_transcript,
         executive_summary=payload.executive_summary,
-        action_items=payload.action_items,
+        action_items=[item.model_dump() for item in payload.action_items] if payload.action_items is not None else None,
         duration=payload.duration,
         language=payload.language
     )

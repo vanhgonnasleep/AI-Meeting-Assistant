@@ -1,5 +1,7 @@
 # Maintenance audit — 2026-10-04
 
+Historical notes for the October 4 pass. The October 5 upload/duration/chunking changes supersede the original 50 MiB limit and duration follow-up below; see [current media configuration](media-limits.md). Current validation is recorded with the latest release, rather than retroactively changing this pass's results.
+
 This maintenance pass prioritizes correctness and predictable resource usage in the existing local application. It does not certify the repository as vulnerability-free or production-ready for public hosting.
 
 ## Repairs and improvements

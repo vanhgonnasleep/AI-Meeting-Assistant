@@ -21,7 +21,10 @@ export function createMeetingDraft(meeting) {
     raw_transcript: text(meeting.raw_transcript),
     executive_summary: text(meeting.executive_summary),
     segments: objects(meeting.segments).map(segment => ({ ...segment, text: text(segment.text) })),
-    action_items: objects(meeting.action_items).map(task => ({ ...task, task: text(task.task), assignee: text(task.assignee), deadline: text(task.deadline), status: task.status || 'pending' })),
+    action_items: (Array.isArray(meeting.action_items) ? meeting.action_items : []).map(item => {
+      const task = item && typeof item === 'object' && !Array.isArray(item) ? item : { task: text(item) };
+      return { ...task, task: text(task.task), assignee: text(task.assignee), deadline: text(task.deadline), status: task.status || 'pending' };
+    }),
     insights: { ...insights, ...Object.fromEntries(['decisions', 'risks', 'open_questions'].map(key => [key,
       objects(insights[key]).map(item => ({ ...item, text: text(item.text), ...(key === 'decisions' ? { status: item.status || 'proposed' } : {}) }))])) },
   });
