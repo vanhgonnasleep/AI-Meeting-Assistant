@@ -66,7 +66,7 @@ test('saved-meeting chat requests do not resend oversized or stale browser conte
     question: 'When is the migration?', meetingId: 17, model: 'llama3.2:1b', isDemo: false,
     result: { transcript: 'x'.repeat(1_000_001), summary: 'Stale summary', segments: [{ text: 'Stale segment' }] },
   });
-  assert.deepEqual(payload, { question: 'When is the migration?', model: 'llama3.2:1b', meeting_id: 17 });
+  assert.deepEqual(payload, { question: 'When is the migration?', model: 'llama3.2:1b', semantic: false, meeting_id: 17 });
 });
 
 test('unsaved-meeting chat requests retain their own context and explicit demo flag', () => {

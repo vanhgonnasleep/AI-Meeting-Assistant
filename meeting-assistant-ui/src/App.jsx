@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { normalizeCitation, createRequestGate, resultFromMeeting, editSpeakerAttribution, getSuggestedPrompts, buildChatPayload } from './session';
+import Workspace from './Workspace.jsx';
+import MeetingEditor from './MeetingEditor.jsx';
+import { createMutationLock } from './workspace';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
@@ -96,6 +99,10 @@ function App() {
   const [result, setResult] = useState(null);
   const suggestedPrompts = useMemo(() => getSuggestedPrompts(result), [result]);
   const [currentMeetingId, setCurrentMeetingId] = useState(null);
+  const [showWorkspace, setShowWorkspace] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [semanticChat, setSemanticChat] = useState(false);
+  const [embeddingModel, setEmbeddingModel] = useState('embeddinggemma');
   const [enableMmr, setEnableMmr] = useState(true);
   const [mmrLambda, setMmrLambda] = useState(0.65);
   const [showAdvancedMmr, setShowAdvancedMmr] = useState(false);
@@ -137,6 +144,7 @@ function App() {
   const detailGate = useRef(createRequestGate());
   const speakerGate = useRef(createRequestGate());
   const speakerBusy = useRef(false);
+  const contentMutations = useRef(createMutationLock());
   const historyQueryRef = useRef('');
   const historyOffsetRef = useRef(0);
   const sessionVersion = useRef(0);
@@ -159,6 +167,7 @@ function App() {
     detailGate.current.cancel();
     speakerGate.current.cancel();
     speakerBusy.current = false;
+    contentMutations.current.reset();
     setIsSpeakerSaving(false);
     setSpeakerRename(null);
     setLoadingMeetingId(null);
@@ -239,8 +248,8 @@ function App() {
       if (!request.isCurrent()) return;
       item = data.meeting;
     } catch (error) {
-      if (request.isCurrent()) setHistoryError(error.message);
-      return;
+      if (request.isCurrent()) { setHistoryError(error.message); setErrorMessage(error.message); }
+      return false;
     } finally {
       if (request.isCurrent()) setLoadingMeetingId(null);
     }
@@ -248,23 +257,17 @@ function App() {
     setAudioUrl(null);
     setWarnings([]);
     setIsDemoResult(false);
-    setResult(resultFromMeeting(item));
-    const loadedChat = (item.chat_history && item.chat_history.length > 0)
-      ? item.chat_history
-      : getDefaultChatGreeting({
-          duration: item.duration,
-          action_items: item.action_items,
-          segments: item.segments,
-          chat_history: []
-        });
+    const loadedResult = resultFromMeeting(item);
+    setResult(loadedResult);
+    const loadedChat = loadedResult.chat_history.length > 0 ? loadedResult.chat_history : getDefaultChatGreeting(loadedResult);
     setChatMessages(loadedChat);
     setCurrentMeetingId(item.id);
     setMmrTelemetry(null);
-    setTranscriptView((item.segments || []).some(segment => segment.speaker) ? 'segments' : 'raw');
+    setTranscriptView(loadedResult.segments.some(segment => segment.speaker) ? 'segments' : 'raw');
 
     // Populate completed tasks from database status
     const completed = {};
-    (item.action_items || []).forEach((act, idx) => {
+    loadedResult.action_items.forEach((act, idx) => {
       if (act.status === 'completed' || act.status === 'done') {
         completed[idx] = true;
       }
@@ -279,6 +282,20 @@ function App() {
     setActiveTab('split');
     setSpeakerFilter('all');
     setShowHistory(false);
+    return true;
+  };
+
+  const handleUpdatedMeeting = (meeting) => {
+    invalidateSession(true);
+    const updated = resultFromMeeting(meeting);
+    setResult(updated);
+    setCurrentMeetingId(meeting.id);
+    setChatMessages(updated.chat_history.length ? updated.chat_history : getDefaultChatGreeting(updated));
+    setCompletedTasks(Object.fromEntries(updated.action_items.map((item, index) => [index, item.status === 'completed' || item.status === 'done'])));
+    setMmrTelemetry(null);
+    setSpeakerFilter('all');
+    setTranscriptView(updated.segments.length ? 'segments' : 'raw');
+    setErrorMessage(null);
   };
 
   const handleDeletePastMeeting = async (id, e) => {
@@ -552,7 +569,8 @@ function App() {
     try {
       let endpoint = `${API_BASE}/api/chat`;
       const payload = buildChatPayload({ question: cleanQ, meetingId: currentMeetingId,
-        isDemo: isDemoResult, result, model: selectedModel === 'instant_demo' ? 'auto' : selectedModel });
+        isDemo: isDemoResult, result, model: selectedModel === 'instant_demo' ? 'auto' : selectedModel,
+        semantic: semanticChat, embeddingModel });
 
       if (currentMeetingId) {
         endpoint = `${API_BASE}/api/meetings/${currentMeetingId}/chat`;
@@ -577,6 +595,7 @@ function App() {
         content: data.answer,
         citations: data.citations || [],
         mode: data.mode,
+        retrieval_warning: data.retrieval_warning,
         created_at: new Date().toISOString()
       };
 
@@ -648,7 +667,9 @@ function App() {
   };
 
   const toggleTask = async (idx) => {
-    if (updatingTasks[idx]) return;
+    if (speakerBusy.current || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
+    const release = contentMutations.current.tryAcquire();
+    if (!release) return;
     const isNowDone = !completedTasks[idx];
     const version = sessionVersion.current;
     setUpdatingTasks(prev => ({ ...prev, [idx]: true }));
@@ -664,6 +685,9 @@ function App() {
           const errData = await response.json().catch(() => ({}));
           throw new Error(errData.detail || `Failed to save task status (HTTP ${response.status})`);
         }
+        const data = await response.json();
+        if (version !== sessionVersion.current) return;
+        if (data.meeting) { handleUpdatedMeeting(data.meeting); return; }
       }
 
       if (version !== sessionVersion.current) return;
@@ -676,6 +700,7 @@ function App() {
       console.error("Failed to sync task status to SQLite:", err);
       setErrorMessage(err.message || "Failed to save task status.");
     } finally {
+      release();
       if (version === sessionVersion.current) setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
     }
   };
@@ -690,10 +715,10 @@ function App() {
 
     let insightsBlock = "";
     if (result.insights) {
-      const decs = (result.insights.decisions || []).map(d => `- **[Decision]** ${d.text}${d.timestamp ? ` (${d.timestamp})` : ''}`).join('\n');
+      const decs = (result.insights.decisions || []).map(d => `- **[Decision: ${d.status || 'proposed'}]** ${d.text}${d.timestamp ? ` (${d.timestamp})` : ''}`).join('\n');
       const risks = (result.insights.risks || []).map(r => `- **[Risk]** ${r.text}${r.timestamp ? ` (${r.timestamp})` : ''}`).join('\n');
       const ques = (result.insights.open_questions || []).map(q => `- **[Open Question]** ${q.text}${q.timestamp ? ` (${q.timestamp})` : ''}`).join('\n');
-      insightsBlock = `\n\n## KEY DECISIONS & GOVERNANCE INSIGHTS\n### Finalized Decisions\n${decs || 'None'}\n\n### Blockers & Delivery Risks\n${risks || 'None'}\n\n### Open Questions\n${ques || 'None'}`;
+      insightsBlock = `\n\n## KEY DECISIONS & GOVERNANCE INSIGHTS\n### Decisions\n${decs || 'None'}\n\n### Blockers & Delivery Risks\n${risks || 'None'}\n\n### Open Questions\n${ques || 'None'}`;
     }
 
     return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION ITEMS\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}${insightsBlock}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
@@ -721,11 +746,13 @@ function App() {
   };
 
   const applySpeakerEdit = async (oldName, newName, segmentIndex = null) => {
-    if (!result || speakerBusy.current) return;
+    if (!result || speakerBusy.current || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
     if (!newName.trim() || newName.length > 128 || [...newName].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
       setErrorMessage('Use a speaker name with 1–128 characters and no line breaks.');
       return;
     }
+    const release = contentMutations.current.tryAcquire();
+    if (!release) return;
     const request = speakerGate.current.begin();
     speakerBusy.current = true;
     setIsSpeakerSaving(true);
@@ -754,18 +781,19 @@ function App() {
     } catch (error) {
       if (request.isCurrent()) setErrorMessage(error.message || 'Speaker edit could not be saved.');
     } finally {
+      release();
       if (request.isCurrent()) { speakerBusy.current = false; setIsSpeakerSaving(false); }
     }
   };
 
   const handleRenameSpeaker = (oldName) => {
-    if (!oldName || !result) return;
+    if (!oldName || !result || contentMutations.current.isLocked() || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
     setErrorMessage(null);
     setSpeakerRename({ oldName, name: oldName });
   };
 
   const handleCycleSpeaker = (segmentIdx) => {
-    if (!result || !result.segments || !result.segments[segmentIdx]) return;
+    if (!result || !result.segments || !result.segments[segmentIdx] || contentMutations.current.isLocked() || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
     const currentSpk = result.segments[segmentIdx].speaker;
     const speakersList = (result.speakers && result.speakers.length > 0)
       ? result.speakers
@@ -868,6 +896,7 @@ ${result.transcript || ""}
   const completionPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
   const filteredMeetings = meetingsHistory;
+  const isContentSaving = isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-hidden font-sans bg-grid-pattern">
@@ -875,15 +904,16 @@ ${result.transcript || ""}
         <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-6">
           <form role="dialog" aria-modal="true" aria-labelledby="speaker-rename-title" className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-6 space-y-4" onSubmit={async event => {
             event.preventDefault();
+            if (contentMutations.current.isLocked() || isContentSaving) return;
             if (await applySpeakerEdit(speakerRename.oldName, speakerRename.name)) setSpeakerRename(null);
           }} onKeyDown={event => { if (event.key === 'Escape' && !isSpeakerSaving) setSpeakerRename(null); }}>
             <h3 id="speaker-rename-title" className="font-semibold text-white">Rename {speakerRename.oldName}</h3>
             <label htmlFor="speaker-rename-input" className="block text-sm text-slate-300">New speaker name</label>
-            <input id="speaker-rename-input" autoFocus maxLength={128} value={speakerRename.name} onChange={event => setSpeakerRename(previous => ({ ...previous, name: event.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-white" disabled={isSpeakerSaving} />
+            <input id="speaker-rename-input" autoFocus maxLength={128} value={speakerRename.name} onChange={event => setSpeakerRename(previous => ({ ...previous, name: event.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-white" disabled={isContentSaving} />
             {errorMessage && <p role="alert" className="text-sm text-rose-300">{errorMessage}</p>}
             <div className="flex justify-end gap-3 text-sm">
               <button type="button" disabled={isSpeakerSaving} onClick={() => setSpeakerRename(null)}>Cancel</button>
-              <button type="submit" disabled={isSpeakerSaving || !speakerRename.name.trim()} className="rounded-lg bg-indigo-600 px-3 py-2 disabled:opacity-40">{isSpeakerSaving ? 'Saving…' : 'Save speaker name'}</button>
+              <button type="submit" disabled={isContentSaving || !speakerRename.name.trim()} className="rounded-lg bg-indigo-600 px-3 py-2 disabled:opacity-40">{isSpeakerSaving ? 'Saving…' : 'Save speaker name'}</button>
             </div>
           </form>
         </div>
@@ -1014,6 +1044,10 @@ ${result.transcript || ""}
             </div>
 
             {/* Database History Button */}
+            <button type="button" onClick={() => setShowWorkspace(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-xs text-slate-300 hover:text-white">
+              <ListTodo className="w-3.5 h-3.5 text-indigo-400" /> Workspace
+            </button>
             <button
               onClick={() => { setShowHistory(true); fetchMeetingHistory(); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-xs text-slate-300 hover:text-white transition-all shadow-sm"
@@ -1303,6 +1337,14 @@ ${result.transcript || ""}
         {/* Results Dashboard */}
         {result && !isProcessing && (
           <div className="space-y-6">
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <button type="button" onClick={() => { if (!contentMutations.current.isLocked()) setShowEditor(true); }} disabled={!currentMeetingId || isDemoResult || isContentSaving}
+                className="rounded-xl border border-indigo-500/40 bg-indigo-600/20 px-3 py-2 text-xs text-indigo-200 disabled:opacity-40">
+                Edit & review
+              </button>
+              {currentMeetingId && !isDemoResult ? <span className="text-xs text-slate-400">{result.review_status === 'reviewed' ? 'Reviewed' : 'Draft'} · Project {result.project_id == null ? 'unassigned' : `#${result.project_id}`} · Assign a project in Edit & review</span>
+                : <span className="text-xs text-slate-400">Editing is available for saved meetings.</span>}
+            </div>
             
             {(isDemoResult || warnings.length > 0) && (
               <div role="status" className="p-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm">
@@ -1624,7 +1666,7 @@ ${result.transcript || ""}
                                   <button
                                     type="button"
                                     onClick={() => handleRenameSpeaker(spk)}
-                                    disabled={isSpeakerSaving}
+                                    disabled={isContentSaving}
                                     className="px-1.5 py-0.5 bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border-l border-slate-700/60"
                                     title={`Rename speaker "${spk}"`}
                                   >
@@ -1648,7 +1690,7 @@ ${result.transcript || ""}
                                     <button
                                       type="button"
                                       onClick={() => handleCycleSpeaker(originalIdx)}
-                                      disabled={isSpeakerSaving}
+                                      disabled={isContentSaving}
                                       title="Click to cycle speaker if misclassified"
                                       className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
                                     >
@@ -1749,12 +1791,14 @@ ${result.transcript || ""}
                         {result.action_items?.map((item, idx) => {
                           const isDone = completedTasks[idx];
                           return (
-                            <li 
-                              key={idx}
+                            <li key={idx}>
+                            <button type="button"
                               onClick={() => toggleTask(idx)}
+                              disabled={isContentSaving}
+                              aria-pressed={Boolean(isDone)}
                               aria-busy={Boolean(updatingTasks[idx])}
-                              className={`group flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
-                                updatingTasks[idx] ? 'opacity-60 cursor-wait' : 'cursor-pointer'
+                              className={`group w-full text-left flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
+                                isContentSaving ? 'opacity-60 cursor-wait' : 'cursor-pointer'
                               } ${
                                 isDone 
                                   ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-400' 
@@ -1785,6 +1829,7 @@ ${result.transcript || ""}
                                   )}
                                 </div>
                               </div>
+                            </button>
                             </li>
                           );
                         })}
@@ -1852,6 +1897,7 @@ ${result.transcript || ""}
                                 {dec.text}
                               </p>
                               <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md border border-slate-700 text-slate-300">{dec.status || 'proposed'}</span>
                                 {dec.speaker && (
                                   <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${getSpeakerBadgeStyle(dec.speaker)}`}>
                                     {dec.speaker}
@@ -2006,6 +2052,14 @@ ${result.transcript || ""}
                   </div>
 
                   {/* Quick Suggestion Prompts */}
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs">
+                    <label className="flex items-center gap-2 text-slate-300">
+                      <input type="checkbox" checked={semanticChat} disabled={isChatLoading} onChange={event => setSemanticChat(event.target.checked)} /> Local semantic retrieval
+                    </label>
+                    {semanticChat && <label className="flex items-center gap-2 text-slate-400">Embedding model
+                      <input type="text" value={embeddingModel} maxLength={128} disabled={isChatLoading} onChange={event => setEmbeddingModel(event.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-200" />
+                    </label>}
+                  </div>
                   {suggestedPrompts.length > 0 && <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none">
                     <span className="text-slate-500 text-[11px] whitespace-nowrap flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Suggested Prompts:
@@ -2075,6 +2129,7 @@ ${result.transcript || ""}
                                 <div className="whitespace-pre-wrap">
                                   {isUser ? msg.content : renderFormattedChatText(msg.content)}
                                 </div>
+                                {!isUser && msg.retrieval_warning && <p role="status" className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-amber-200">{msg.retrieval_warning}</p>}
 
                                 {/* Citations Quick Buttons if present on assistant msg */}
                                 {!isUser && msg.citations && msg.citations.length > 0 && (
@@ -2156,6 +2211,12 @@ ${result.transcript || ""}
         )}
 
         {/* SQLite Meeting History Modal */}
+        {showWorkspace && <Workspace apiBase={API_BASE} onClose={() => { detailGate.current.cancel(); setLoadingMeetingId(null); setShowWorkspace(false); }} onOpenMeeting={async id => {
+          const opened = await handleLoadPastMeeting({ id });
+          if (opened) setShowWorkspace(false);
+          return opened;
+        }} />}
+        {showEditor && currentMeetingId && !isDemoResult && <MeetingEditor key={currentMeetingId} apiBase={API_BASE} meetingId={currentMeetingId} model={selectedModel} onClose={() => setShowEditor(false)} onUpdated={handleUpdatedMeeting} />}
         {showHistory && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
             <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]">

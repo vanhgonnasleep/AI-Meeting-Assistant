@@ -14,6 +14,9 @@ MIGRATION_COLUMNS = {
     "insights": "TEXT",       # JSON object: decisions / risks / open_questions
     "chat_history": "TEXT",   # JSON array of persisted Q&A messages
     "chat_generation": "INTEGER NOT NULL DEFAULT 0",
+    "revision": "INTEGER NOT NULL DEFAULT 0",
+    "review_status": "TEXT NOT NULL DEFAULT 'draft'",
+    "project_id": "INTEGER",
 }
 
 
@@ -52,10 +55,13 @@ def init_db():
             if column not in existing_columns:
                 try:
                     connection.execute(f"ALTER TABLE meetings ADD COLUMN {column} {column_type};")
-                except Exception:
-                    pass  # Column may already exist (concurrent startup race)
+                except sqlite3.OperationalError as exc:
+                    if "duplicate column name" not in str(exc).lower():
+                        raise
 
         connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_recent ON meetings(created_at DESC, id DESC)")
+        connection.execute("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_project ON meetings(project_id, created_at DESC, id DESC)")
         connection.commit()
     finally:
         connection.close()

@@ -30,6 +30,10 @@
 3. **Executive Summarization (Agent 2):** Produces summaries with local Ollama models and overlapping Map-Reduce chunks for long transcripts. Grounding instructions reduce risk but do not guarantee factual accuracy; review important decisions against the recording.
 4. **Action Item Extraction (Agent 3):** Employs constrained JSON schema parsing to extract deliverables, assignees, deadlines, and execution statuses.
 5. **Persistent History (Agent 4):** Records complete meeting sessions in SQLite via Python standard library dataclasses (`MeetingRecord`, `ActionItem`) with WAL concurrency mode for historical review.
+6. **Review & Workspace:** Edit saved minutes, task details and decision statuses; explicitly mark reviewed records. A global task view supports filters and source links. Projects connect meetings through a decision timeline. Revision checks protect against stale editor writes.
+7. **Optional Hybrid Chat:** Combine keyword retrieval with local Ollama embeddings while retaining source citations. Missing or invalid embeddings produce a visible keyword fallback; semantic similarity is not answer confidence.
+
+See the [workspace usage guide](docs/workspace-guide.md) for editing/review rules, project assignment and optional embedding model setup. No embedding model is downloaded automatically.
 
 ---
 

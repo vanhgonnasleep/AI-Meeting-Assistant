@@ -41,7 +41,7 @@ class RequestLimitsMiddleware:
         path = scope.get("path", "")
         needs_compute = scope.get("method") == "POST" and (
             path in {"/api/chat", "/api/process-audio", "/api/transcribe"}
-            or (path.startswith("/api/meetings/") and path.endswith("/chat"))
+            or (path.startswith("/api/meetings/") and path.endswith(("/chat", "/regenerate-summary")))
         )
         if needs_compute and not self.compute_slots.acquire(blocking=False):
             return await JSONResponse(

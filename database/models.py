@@ -57,6 +57,9 @@ class MeetingRecord:
     # Persisted Q&A: [{role, content, citations, mode, created_at}]
     chat_history: List[Dict[str, Any]] = field(default_factory=list)
     chat_generation: int = 0
+    revision: int = 0
+    review_status: str = "draft"
+    project_id: Optional[int] = None
 
     def __post_init__(self):
         # Guarantee backward and forward compatibility between created_at and processed_at

@@ -76,19 +76,24 @@ export function getSuggestedPrompts(result) {
   });
 }
 
-export function buildChatPayload({ question, meetingId, model, isDemo, result }) {
-  if (meetingId) return { question, model, meeting_id: meetingId };
-  return { question, model, demo_mode: Boolean(isDemo), transcript: result?.transcript || '',
+export function buildChatPayload({ question, meetingId, model, isDemo, result, semantic = false, embeddingModel = 'embeddinggemma' }) {
+  const retrieval = { semantic: Boolean(semantic), ...(semantic ? { embedding_model: embeddingModel.trim() || 'embeddinggemma' } : {}) };
+  if (meetingId) return { question, model, meeting_id: meetingId, ...retrieval };
+  return { question, model, ...retrieval, demo_mode: Boolean(isDemo), transcript: result?.transcript || '',
     summary: result?.summary || '', segments: result?.segments || null, language: result?.language || 'en' };
 }
 
 export function resultFromMeeting(meeting) {
+  const objects = value => Array.isArray(value) ? value.filter(item => item && typeof item === 'object' && !Array.isArray(item)) : [];
+  const insights = meeting.insights && typeof meeting.insights === 'object' && !Array.isArray(meeting.insights) ? meeting.insights : {};
   const segments = (Array.isArray(meeting.segments) ? meeting.segments : [])
     .filter(segment => segment && typeof segment === 'object').map(segment => ({ ...segment, text: String(segment.text ?? '') }));
   return {
+    revision: meeting.revision || 0, review_status: meeting.review_status || 'draft', project_id: meeting.project_id ?? null,
     transcript: meeting.raw_transcript || '', summary: meeting.executive_summary || '',
-    action_items: meeting.action_items || [], insights: meeting.insights || { decisions: [], risks: [], open_questions: [] },
-    chat_history: meeting.chat_history || [], duration: meeting.duration, language: meeting.language,
+    action_items: Array.isArray(meeting.action_items) ? meeting.action_items.map(item => item && typeof item === 'object' && !Array.isArray(item) ? item : { task: String(item ?? ''), status: 'pending' }) : [],
+    insights: { ...insights, ...Object.fromEntries(['decisions', 'risks', 'open_questions'].map(key => [key, objects(insights[key])])) },
+    chat_history: objects(meeting.chat_history), duration: meeting.duration, language: meeting.language,
     segments,
     speakers: [...new Set(segments.map(segment => segment.speaker).filter(Boolean))],
   };

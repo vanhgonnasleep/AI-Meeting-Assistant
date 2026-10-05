@@ -811,7 +811,8 @@ def update_meeting_task_status(meeting_id: int, task_idx: int, payload: TaskStat
     success = crud.update_action_item_status(meeting_id, task_idx, payload.status.lower())
     if not success:
         raise HTTPException(status_code=404, detail="Meeting or task index not found.")
-    return {"meeting_id": meeting_id, "task_idx": task_idx, "status": payload.status.lower()}
+    return {"meeting_id": meeting_id, "task_idx": task_idx, "status": payload.status.lower(),
+            "meeting": jsonable_encoder(crud.get_meeting(meeting_id))}
 
 @app.get("/api/analytics")
 def get_analytics():
@@ -844,6 +845,8 @@ class ChatMessageRequest(BaseModel):
     model: Optional[str] = Field("auto", max_length=128)
     language: Optional[str] = None
     demo_mode: Optional[bool] = False
+    semantic: bool = False
+    embedding_model: str = Field('embeddinggemma', min_length=1, max_length=128)
 
     @field_validator("question")
     @classmethod
@@ -907,7 +910,7 @@ def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageRequest):
         model_name=selected_model,
         has_gpu=has_gpu,
         language=lang,
-        is_demo=bool(is_demo)
+        is_demo=bool(is_demo), semantic=payload.semantic, embedding_model=payload.embedding_model
     )
 
     user_msg = {"role": "user", "content": payload.question.strip()}
@@ -915,7 +918,8 @@ def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageRequest):
         "role": "assistant",
         "content": result["answer"],
         "citations": result.get("citations", []),
-        "mode": result.get("mode", "rag_llm")
+        "mode": result.get("mode", "rag_llm"),
+        "retrieval_warning": result.get("retrieval_warning"),
     }
 
     updated_history = []
@@ -932,6 +936,7 @@ def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageRequest):
         "answer": result["answer"],
         "citations": result.get("citations", []),
         "mode": result.get("mode", "rag_llm"),
+        "retrieval_warning": result.get("retrieval_warning"),
         "chat_history": updated_history
     }
 
@@ -987,7 +992,7 @@ def standalone_chat_endpoint(payload: ChatMessageRequest):
         model_name=selected_model,
         has_gpu=has_gpu,
         language=lang,
-        is_demo=bool(payload.demo_mode)
+        is_demo=bool(payload.demo_mode), semantic=payload.semantic, embedding_model=payload.embedding_model
     )
 
     return {
@@ -996,8 +1001,13 @@ def standalone_chat_endpoint(payload: ChatMessageRequest):
         "question": payload.question,
         "answer": result["answer"],
         "citations": result.get("citations", []),
-        "mode": result.get("mode", "rag_llm")
+        "mode": result.get("mode", "rag_llm"),
+        "retrieval_warning": result.get("retrieval_warning"),
     }
+
+from workspace_api import create_workspace_router
+app.include_router(create_workspace_router(summarize_with_llama, model_resolver=resolve_model,
+                                           hardware_detector=get_gpu_info))
 
 if __name__ == "__main__":
     import uvicorn

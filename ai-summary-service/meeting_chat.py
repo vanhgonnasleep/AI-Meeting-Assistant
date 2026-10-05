@@ -20,6 +20,7 @@ import requests
 
 from mmr_extractor import MMRExtractor
 from demo_data import demo_answer
+from semantic_retrieval import hybrid_retrieve
 
 
 def _extract_query_tokens(text: str) -> List[str]:
@@ -54,16 +55,11 @@ def _is_meeting_overview(query: str) -> bool:
     return any(re.fullmatch(pattern, query.strip(), re.IGNORECASE) for pattern in patterns)
 
 
-def retrieve_relevant_segments(
-    query: str,
+def _source_chunks(
     segments: Optional[List[Dict[str, Any]]] = None,
     transcript: Optional[str] = None,
-    top_k: int = 4
 ) -> List[Dict[str, Any]]:
-    """
-    Ranks transcript segments or sentences using BM25-style term frequency & inverse document frequency.
-    Returns the top-K most relevant chunks with timestamp, speaker, and relevance score.
-    """
+    """Build exact source excerpts shared by lexical and semantic retrieval."""
     chunks: List[Dict[str, Any]] = []
 
     # 1. Use timestamped segments if available
@@ -108,6 +104,12 @@ def retrieve_relevant_segments(
                 "text": clean_text
             })
 
+    return chunks
+
+
+def retrieve_relevant_segments(query: str, segments=None, transcript=None, top_k: int = 4):
+    """Rank exact source chunks with BM25-style keyword weights."""
+    chunks = _source_chunks(segments, transcript)
     if not chunks:
         return []
 
@@ -179,7 +181,9 @@ def answer_meeting_question(
     has_gpu: bool = False,
     language: str = "en",
     is_demo: bool = False,
-    timeout_sec: int = 25
+    timeout_sec: int = 25,
+    semantic: bool = False,
+    embedding_model: str = 'embeddinggemma',
 ) -> Dict[str, Any]:
     """
     Processes a user query about a meeting using Lite-RAG with citations and audio timestamp sync.
@@ -206,6 +210,10 @@ def answer_meeting_question(
 
     # 2. Retrieve top-K relevant excerpts with timestamps
     citations = retrieve_relevant_segments(clean_q, segments=segments, transcript=transcript, top_k=4)
+    retrieval_warning = None
+    if semantic and not _is_meeting_overview(clean_q):
+        citations, retrieval_warning = hybrid_retrieve(clean_q, _source_chunks(segments, transcript), citations,
+                                                       model=embedding_model, top_k=4)
 
     is_vietnamese = language == "vi" or bool(re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', clean_q.lower()))
     if not citations:
@@ -213,7 +221,7 @@ def answer_meeting_question(
             "answer": ("Không tìm thấy trích đoạn phù hợp với câu hỏi trong cuộc họp này. Hãy thử dùng từ khóa xuất hiện trong transcript."
                        if is_vietnamese else
                        "I couldn't find a matching excerpt in this meeting. Try using words from the transcript."),
-            "citations": [], "mode": "no_matching_context",
+            "citations": [], "mode": "no_matching_context", "retrieval_warning": retrieval_warning,
         }
 
     # 3. Format excerpts for LLM prompt
@@ -272,7 +280,8 @@ Answer:"""
             return {
                 "answer": answer,
                 "citations": citations,
-                "mode": "rag_llm"
+                "mode": "rag_llm",
+                "retrieval_warning": retrieval_warning,
             }
     except Exception as e:
         print(f"[MeetingChat] LLM query error ({e}). Returning source excerpts.")
@@ -297,5 +306,6 @@ Answer:"""
     return {
         "answer": fallback,
         "citations": citations,
-        "mode": "rag_fallback"
+        "mode": "rag_fallback",
+        "retrieval_warning": retrieval_warning,
     }

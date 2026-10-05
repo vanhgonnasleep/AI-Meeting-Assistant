@@ -103,6 +103,9 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
         insights=_load_json_column(row, "insights", {}),
         chat_history=_load_json_column(row, "chat_history", []),
         chat_generation=row["chat_generation"] if "chat_generation" in row.keys() else 0,
+        revision=row["revision"] if "revision" in row.keys() else 0,
+        review_status=row["review_status"] if "review_status" in row.keys() else "draft",
+        project_id=row["project_id"] if "project_id" in row.keys() else None,
     )
 
 
@@ -360,7 +363,7 @@ def edit_meeting_speaker(meeting_id, old_name, new_name, segment_index=None):
             return (match.group(1) or "") + new_name + ":"
         transcript = pattern.sub(replace_header, record.raw_transcript)
         connection.execute(
-            "UPDATE meetings SET segments=?, raw_transcript=?, insights=?, chat_history=?, chat_generation=chat_generation+1, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            "UPDATE meetings SET segments=?, raw_transcript=?, insights=?, chat_history=?, chat_generation=chat_generation+1, revision=revision+1, review_status='draft', updated_at=CURRENT_TIMESTAMP WHERE id=?",
             (segments_to_json(record.segments), transcript, insights_to_json(record.insights), json.dumps(record.chat_history, ensure_ascii=False), meeting_id),
         )
         connection.commit()
@@ -403,6 +406,14 @@ def update_meeting(
             if action_items is not None
             else action_items_to_json(existing.action_items)
         )
+        source_changed = raw_transcript is not None and raw_transcript != existing.raw_transcript
+        # Appending manual annotations leaves the timed speech valid. Replacing
+        # speech, attribution or turn order removes segments so retrieval uses
+        # the edited text rather than stale timed source evidence.
+        preserved_segments = existing.segments
+        original_source_preserved = bool(existing.raw_transcript.strip() and existing.raw_transcript.strip() in (raw_transcript or ""))
+        if source_changed and not original_source_preserved:
+            preserved_segments = []
         cursor = connection.execute(
             """
             UPDATE meetings
@@ -413,6 +424,12 @@ def update_meeting(
                 action_items = ?,
                 duration = ?,
                 language = ?,
+                segments = ?,
+                insights = ?,
+                chat_history = ?,
+                chat_generation = chat_generation + ?,
+                revision = revision + 1,
+                review_status = 'draft',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -423,6 +440,10 @@ def update_meeting(
                 new_action_items,
                 duration if duration is not None else existing.duration,
                 language if language is not None else existing.language,
+                segments_to_json(preserved_segments),
+                insights_to_json(empty_insights() if source_changed else existing.insights),
+                json.dumps([] if source_changed else existing.chat_history, ensure_ascii=False),
+                int(source_changed),
                 meeting_id,
             ),
         )
@@ -456,7 +477,7 @@ def update_action_item_status(meeting_id: int, item_idx: int, status: str) -> bo
         cursor = connection.execute(
             """
             UPDATE meetings
-            SET action_items = ?, updated_at = CURRENT_TIMESTAMP
+            SET action_items = ?, revision = revision + 1, review_status = 'draft', updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
             (action_items_to_json(meeting.action_items), meeting_id),
