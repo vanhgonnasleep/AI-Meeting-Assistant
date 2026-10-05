@@ -8,8 +8,7 @@ import {
   editSpeakerAttribution, 
   getSuggestedPrompts, 
   buildChatPayload, 
-  getExportTasks, 
-  shouldSubmitChat 
+  getExportTasks
 } from './session.js';
 import Workspace, { WorkspaceDialog } from './Workspace.jsx';
 import MeetingEditor from './MeetingEditor.jsx';
@@ -18,7 +17,6 @@ import {
   DEFAULT_UPLOAD_LIMITS, 
   getUploadLimits, 
   getUploadError, 
-  formatUploadLimits, 
   startHealthPolling, 
   buildProcessingQuery 
 } from './upload.js';
@@ -29,8 +27,7 @@ import {
   formatMeetingDuration, 
   getNavigationPage, 
   navigateTo, 
-  subscribeToNavigation, 
-  appPageHref 
+  subscribeToNavigation
 } from './navigation.js';
 import { buildMeetingSavePayload } from './storage.js';
 import Sidebar from './Sidebar.jsx';
@@ -44,9 +41,6 @@ import {
   PanelLeftOpen, 
   PanelLeftClose, 
   Zap, 
-  Loader2, 
-  Sparkles, 
-  FileAudio,
   Play
 } from 'lucide-react';
 
@@ -104,7 +98,7 @@ function App() {
   
   // Pipeline Settings
   const [semanticChat, setSemanticChat] = useState(false);
-  const [embeddingModel, setEmbeddingModel] = useState('embeddinggemma');
+  const [embeddingModel] = useState('embeddinggemma');
   const [enableMmr, setEnableMmr] = useState(true);
   const [mmrLambda, setMmrLambda] = useState(0.65);
   const [showAdvancedMmr, setShowAdvancedMmr] = useState(false);
@@ -154,6 +148,7 @@ function App() {
   const speakerGate = useRef(createRequestGate());
   const speakerBusy = useRef(false);
   const contentMutations = useRef(createMutationLock());
+  const detailRelease = useRef(null);
   const historyQueryRef = useRef('');
   const historyOffsetRef = useRef(0);
   const sessionVersion = useRef(0);
@@ -173,6 +168,8 @@ function App() {
 
   useEffect(() => subscribeToNavigation(() => {
     detailGate.current.cancel();
+    detailRelease.current?.();
+    detailRelease.current = null;
     setLoadingMeetingId(null);
   }), []);
 
@@ -191,6 +188,8 @@ function App() {
     processGate.current.cancel();
     chatGate.current.cancel();
     detailGate.current.cancel();
+    detailRelease.current?.();
+    detailRelease.current = null;
     speakerGate.current.cancel();
     saveGate.current.cancel();
     setIsSavingMeeting(false);
@@ -205,18 +204,17 @@ function App() {
     if (!preserveResultMetadata) { setWarnings([]); setIsDemoResult(false); }
   };
 
-  // Synchronize audio preview URL when file changes
+  // Revoke previews when their session ends, including component unmount.
   useEffect(() => {
-    if (file && (file instanceof Blob || file instanceof File)) {
-      const url = URL.createObjectURL(file);
-      setAudioUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else {
-      setAudioUrl(null);
-    }
-  }, [file]);
+    return () => { if (audioUrl?.startsWith('blob:')) URL.revokeObjectURL(audioUrl); };
+  }, [audioUrl]);
 
-  const fetchMeetingHistory = useCallback(async (query = historyQueryRef.current, offset = historyOffsetRef.current) => {
+  const selectRecording = recording => {
+    setFile(recording);
+    setAudioUrl(URL.createObjectURL(recording));
+  };
+
+  const fetchMeetingHistory = useCallback(async function loadHistory(query = historyQueryRef.current, offset = historyOffsetRef.current) {
     const request = historyGate.current.begin();
     historyOffsetRef.current = offset;
     setHistoryOffset(offset);
@@ -228,7 +226,7 @@ function App() {
       if (!resMeetings.ok) throw new Error('Unable to load meeting history.');
       const data = await resMeetings.json();
       if (!request.isCurrent()) return;
-      if (offset > 0 && offset >= data.total) return fetchMeetingHistory(query, Math.max(0, offset - 20));
+      if (offset > 0 && offset >= data.total) return loadHistory(query, Math.max(0, offset - 20));
       setMeetingsHistory(data.meetings || []);
       setHistoryTotal(data.total || 0);
     } catch (e) {
@@ -239,8 +237,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchMeetingHistory();
-  }, [fetchMeetingHistory]);
+    const timer = setTimeout(() => fetchMeetingHistory(historySearchQuery, historyOffsetRef.current), 250);
+    return () => clearTimeout(timer);
+  }, [historySearchQuery, fetchMeetingHistory]);
 
   useEffect(() => {
     if (!notice) return;
@@ -261,6 +260,9 @@ function App() {
   const handleLoadPastMeeting = async (entry) => {
     if (!canOpenAnotherMeeting({ processing: isProcessing, saving: contentMutations.current.isLocked(), editing: showEditor || Boolean(speakerRename) })) return false;
     invalidateSession(true);
+    const release = contentMutations.current.tryAcquire();
+    if (!release) return false;
+    detailRelease.current = release;
     const request = detailGate.current.begin();
     setLoadingMeetingId(entry.id);
     let item;
@@ -274,6 +276,8 @@ function App() {
       if (request.isCurrent()) { setHistoryError(error.message); setErrorMessage(error.message); notify(error.message, 'error'); }
       return false;
     } finally {
+      release();
+      if (detailRelease.current === release) detailRelease.current = null;
       if (request.isCurrent()) setLoadingMeetingId(null);
     }
     setFile(null);
@@ -323,6 +327,7 @@ function App() {
 
   const handleDeletePastMeeting = async (id, e) => {
     e.stopPropagation();
+    if (isProcessing || contentMutations.current.isLocked() || showEditor || speakerRename) return;
     if (!confirm("Are you sure you want to delete this meeting record?")) return;
     const version = sessionVersion.current;
     if (loadingMeetingId === id) { detailGate.current.cancel(); setLoadingMeetingId(null); }
@@ -356,7 +361,6 @@ function App() {
   useEffect(() => {
     let timer;
     if (isProcessing) {
-      setElapsedTime(0);
       timer = setInterval(() => {
         setElapsedTime((prev) => prev + 1);
       }, 1000);
@@ -368,7 +372,7 @@ function App() {
 
   const onDrop = (acceptedFiles) => {
     if (contentMutations.current.isLocked()) return;
-    if (acceptedFiles?.length > 0) { handleReset(); setFile(acceptedFiles[0]); }
+    if (acceptedFiles?.length > 0) { handleReset(); selectRecording(acceptedFiles[0]); }
   };
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -396,6 +400,7 @@ function App() {
     saveKey.current = null;
     const request = processGate.current.begin();
     setIsProcessing(true);
+    setElapsedTime(0);
     setResult(null);
     setCurrentMeetingId(null);
     setMmrTelemetry(null);
@@ -462,6 +467,7 @@ function App() {
     invalidateSession();
     const request = processGate.current.begin();
     setIsProcessing(true);
+    setElapsedTime(0);
     setResult(null);
     setCurrentMeetingId(null);
     setMeetingTitle('');
@@ -532,7 +538,7 @@ function App() {
           type: "audio/mp3",
         });
         if (version !== sessionVersion.current) return;
-        setFile(sampleFile);
+        selectRecording(sampleFile);
         notify('Sample audio loaded');
         return;
       }
@@ -547,7 +553,7 @@ function App() {
           type: "audio/wav",
         });
         if (version !== sessionVersion.current) return;
-        setFile(sampleFile);
+        selectRecording(sampleFile);
         notify('Sample audio loaded');
         return;
       }
@@ -558,7 +564,7 @@ function App() {
       type: "audio/mp3",
     });
     if (version !== sessionVersion.current) return;
-    setFile(mockFile);
+    selectRecording(mockFile);
     notify('Sample audio loaded');
   };
 
@@ -703,7 +709,7 @@ function App() {
   };
 
   const handleClearChat = async () => {
-    if (isChatLoading || !result) return;
+    if (isChatLoading || !result || contentMutations.current.isLocked() || isSavingMeeting) return;
     const version = sessionVersion.current;
     const request = chatGate.current.begin();
     setIsChatLoading(true);
@@ -964,7 +970,7 @@ ${result.transcript || ""}
     URL.revokeObjectURL(url);
   };
 
-  const isContentSaving = isSavingMeeting || isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
+  const isContentSaving = loadingMeetingId !== null || isSavingMeeting || isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
   const canOpenMeeting = canOpenAnotherMeeting({ processing: isProcessing, saving: isContentSaving, editing: showEditor || Boolean(speakerRename) });
 
   const handleNewMeeting = () => {
@@ -1041,6 +1047,7 @@ ${result.transcript || ""}
               <button
                 type="button"
                 onClick={handleNewMeeting}
+                disabled={!canOpenMeeting}
                 className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-slate-200 hover:text-white text-xs font-medium transition-all active:scale-95 cursor-pointer"
               >
                 New Meeting
@@ -1132,6 +1139,8 @@ ${result.transcript || ""}
               onDownloadTxt={handleDownloadTxt}
               onSaveMeeting={handleSaveMeeting}
               isSavingMeeting={isSavingMeeting}
+              isContentSaving={isContentSaving}
+              canSaveMeeting={!isChatLoading && !showEditor && !speakerRename}
               onShowEditor={() => { if (!contentMutations.current.isLocked()) setShowEditor(true); }}
               onRenameSpeaker={handleRenameSpeaker}
               onCycleSpeaker={handleCycleSpeaker}
@@ -1164,9 +1173,7 @@ ${result.transcript || ""}
               uploadLimits={uploadLimits}
               handleReset={handleReset}
               handleDemoSample={handleDemoSample}
-              handleInstantDemo={handleInstantDemo}
               onStopWaiting={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }}
-              healthStatus={healthStatus}
             />
           )}
         </main>
@@ -1176,10 +1183,12 @@ ${result.transcript || ""}
           onSendChatMessage={handleSendChatMessage}
           chatMessages={chatMessages}
           isChatLoading={isChatLoading}
+          isBusy={isProcessing || isContentSaving || showEditor || Boolean(speakerRename)}
           onClearChat={handleClearChat}
           onRecordedAudio={(recordedFile) => {
+            if (!canOpenMeeting || contentMutations.current.isLocked()) return;
             handleReset();
-            setFile(recordedFile);
+            selectRecording(recordedFile);
             setSelectedModel('auto');
             navigateTo('studio');
             notify('Audio recorded successfully. Click Start Processing to analyze!');

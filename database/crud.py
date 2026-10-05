@@ -208,7 +208,12 @@ def create_meeting(
         values = (filename, raw_transcript, executive_summary, action_items_to_json(action_items),
                   duration, language, segments_to_json(segments), insights_to_json(insights),
                   json.dumps((chat_history or [])[-MAX_CHAT_MESSAGES:], ensure_ascii=False, allow_nan=False))
-        digest = hashlib.sha256(json.dumps(values, ensure_ascii=False, allow_nan=False).encode('utf-8')).hexdigest() if save_key else None
+        digest = None
+        if save_key:
+            # Hash content, not the client's ordering of JSON object keys.
+            canonical = [json.loads(value) if index in {3, 6, 7, 8} and value is not None else value
+                         for index, value in enumerate(values)]
+            digest = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False, allow_nan=False).encode('utf-8')).hexdigest()
         if save_key:
             connection.execute("BEGIN IMMEDIATE")
             existing = connection.execute("SELECT id, save_digest FROM meetings WHERE save_key=?", (save_key,)).fetchone()

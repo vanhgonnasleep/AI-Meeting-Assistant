@@ -4,7 +4,6 @@ import {
   Square, 
   Send, 
   Sparkles, 
-  MessageSquare, 
   X, 
   Loader2, 
   Play, 
@@ -38,6 +37,7 @@ export default function CommandCenter({
   onSendChatMessage,
   chatMessages = [],
   isChatLoading = false,
+  isBusy = false,
   onClearChat,
   onRecordedAudio,
   suggestedPrompts = [],
@@ -129,7 +129,7 @@ export default function CommandCenter({
 
   const handleSend = (text) => {
     const query = typeof text === 'string' ? text : chatInput;
-    if (!query || !query.trim() || isChatLoading) return;
+    if (!query || !query.trim() || isChatLoading || isBusy || !isMeetingLoaded) return;
     setChatInput('');
     setIsDrawerOpen(true);
     if (onSendChatMessage) {
@@ -141,7 +141,7 @@ export default function CommandCenter({
     <div 
       role="region" 
       aria-label="Floating AI command center dock" 
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl select-none"
+      className="no-print fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl select-none"
     >
       {/* Sliding AI Chat Drawer (Slides Up Above Dock) */}
       {isDrawerOpen && (
@@ -165,6 +165,7 @@ export default function CommandCenter({
                 <button
                   type="button"
                   onClick={onClearChat}
+                  disabled={isChatLoading || isBusy}
                   aria-label="Clear chat messages"
                   className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                   title="Clear conversation"
@@ -274,7 +275,7 @@ export default function CommandCenter({
               key={pIdx}
               type="button"
               onClick={() => handleSend(prompt)}
-              disabled={isChatLoading}
+              disabled={isChatLoading || isBusy}
               className="px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-indigo-600/25 border border-slate-700/60 hover:border-indigo-500/50 text-slate-300 hover:text-white text-xs whitespace-nowrap transition-all active:scale-95 cursor-pointer shadow-sm shrink-0"
               title={prompt}
             >
@@ -285,6 +286,11 @@ export default function CommandCenter({
       )}
 
       {/* Floating Frosted Dock Container */}
+      {isMeetingLoaded && <label className="flex items-center gap-2 px-2 pb-1 text-xs text-slate-400">
+        <input type="checkbox" checked={semanticChat} onChange={onToggleSemantic}
+          disabled={isChatLoading || isBusy} className="accent-indigo-500" />
+        Hybrid retrieval (requires a local embedding model)
+      </label>}
       <div className="relative flex items-center gap-2 p-2 rounded-2xl bg-slate-900/85 backdrop-blur-2xl border border-slate-700/60 shadow-2xl shadow-slate-950/80">
         
         {/* Multimodal Recording Button with Fluid Motion States */}
@@ -292,6 +298,7 @@ export default function CommandCenter({
           <button
             type="button"
             onClick={startRecording}
+            disabled={isBusy || isChatLoading}
             aria-label="Start recording live audio"
             className="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-all active:scale-95 shrink-0 cursor-pointer shadow-sm group"
             title="Record live audio from microphone"
@@ -350,7 +357,7 @@ export default function CommandCenter({
             maxLength={4000}
             aria-label="Ask AI a question about this meeting"
             className="w-full bg-transparent px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none"
-            disabled={isRecording || isChatLoading}
+            disabled={isRecording || isChatLoading || isBusy || !isMeetingLoaded}
           />
         </div>
 
@@ -371,7 +378,7 @@ export default function CommandCenter({
         <button
           type="button"
           onClick={() => handleSend()}
-          disabled={!chatInput.trim() || isChatLoading || isRecording}
+          disabled={!chatInput.trim() || isChatLoading || isRecording || isBusy || !isMeetingLoaded}
           aria-label="Send question to AI"
           className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all shrink-0 cursor-pointer shadow-sm shadow-indigo-600/30"
           title="Send query"

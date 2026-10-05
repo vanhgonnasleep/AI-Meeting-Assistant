@@ -35,7 +35,7 @@
 
 See the [workspace usage guide](docs/workspace-guide.md) for editing/review rules, project assignment and optional embedding model setup. No embedding model is downloaded automatically.
 
-See the [interface guide](docs/interface-guide.md) for page navigation, processing feedback, keyboard controls, and what is preserved when switching pages.
+See the [interface guide](docs/interface-guide.md) for page navigation, processing feedback, keyboard controls, and choosing saved or session-only results. **Save results to library** defaults to on; uncheck it before processing for a temporary session, then use **Save this meeting** if you later want to keep its notes and chat. Original recordings are not stored.
 
 ---
 

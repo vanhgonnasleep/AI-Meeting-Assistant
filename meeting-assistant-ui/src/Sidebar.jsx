@@ -15,6 +15,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { groupMeetingsByDate } from './history.js';
+import { formatMeetingDuration } from './navigation.js';
 
 /**
  * Staff-level Collapsible Sidebar Component
@@ -41,17 +42,8 @@ export default function Sidebar({
   activePage = 'studio',
   onNavigate,
 }) {
-  // Filter meetings by user search query
-  const filteredMeetings = useMemo(() => {
-    if (!searchQuery.trim()) return meetings;
-    const q = searchQuery.toLowerCase();
-    return meetings.filter((m) => 
-      (m.filename || '').toLowerCase().includes(q) ||
-      (m.summary || '').toLowerCase().includes(q)
-    );
-  }, [meetings, searchQuery]);
-
-  const grouped = useMemo(() => groupMeetingsByDate(filteredMeetings), [filteredMeetings]);
+  // The server searches transcript, summary and tasks as well as filenames.
+  const grouped = useMemo(() => groupMeetingsByDate(meetings), [meetings]);
 
   const renderGroup = (label, items) => {
     if (!items || items.length === 0) return null;
@@ -79,7 +71,7 @@ export default function Sidebar({
                 <button
                   type="button"
                   onClick={() => onSelectMeeting(meeting)}
-                  disabled={isLoading}
+                  disabled={isLoading || !canStartNew}
                   aria-current={isActive ? 'true' : undefined}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2.5 transition-all duration-150 border ${
                     isActive
@@ -116,6 +108,7 @@ export default function Sidebar({
                   type="button"
                   onClick={(e) => onDeleteMeeting(meeting.id, e)}
                   aria-label={`Delete meeting ${meeting.filename || meeting.id}`}
+                  disabled={!canStartNew}
                   className="absolute right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
                   title="Delete record"
                 >
@@ -255,7 +248,7 @@ export default function Sidebar({
               <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
               <span>Loading history...</span>
             </div>
-          ) : filteredMeetings.length === 0 ? (
+          ) : meetings.length === 0 ? (
             <div className="py-8 px-4 text-center text-slate-500 text-xs">
               {searchQuery ? 'No meetings match your search.' : 'No recorded meetings yet. Start one above!'}
             </div>

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { 
   FileText, 
   Sparkles, 
@@ -19,9 +19,7 @@ import {
   UploadCloud, 
   FileAudio, 
   X, 
-  Layers, 
   Zap, 
-  ShieldCheck, 
   Sliders, 
   Loader2, 
   Target 
@@ -86,6 +84,8 @@ export default function DocumentWorkspace({
   onDownloadTxt,
   onSaveMeeting,
   isSavingMeeting,
+  isContentSaving = false,
+  canSaveMeeting = true,
   onShowEditor,
   onRenameSpeaker,
   onCycleSpeaker,
@@ -118,9 +118,7 @@ export default function DocumentWorkspace({
   uploadLimits,
   handleReset,
   handleDemoSample,
-  handleInstantDemo,
   onStopWaiting,
-  healthStatus,
 }) {
   const [activeDocTab, setActiveDocTab] = useState('doc'); // 'doc' | 'summary' | 'tasks' | 'insights' | 'transcript'
 
@@ -172,15 +170,6 @@ export default function DocumentWorkspace({
               className="text-xs text-slate-400 hover:text-slate-200 underline transition-colors"
             >
               Stop waiting
-            </button>
-            <span className="text-slate-600">•</span>
-            <button
-              type="button"
-              onClick={handleInstantDemo}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold shadow-sm transition-all active:scale-95"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              Show labeled demo instead ⏩
             </button>
           </div>
         </div>
@@ -320,6 +309,21 @@ export default function DocumentWorkspace({
         </div>
 
         {/* Advanced MMR Slider */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-2">
+          <label className="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+            <input type="checkbox" checked={saveToLibrary ?? true}
+              disabled={selectedModel === 'instant_demo' || isContentSaving}
+              onChange={event => setSaveToLibrary(event.target.checked)} className="accent-indigo-500" />
+            Save results to library
+          </label>
+          <p className="text-xs text-slate-400">
+            {selectedModel === 'instant_demo' ? 'Demo results are not added to the meeting library.'
+              : saveToLibrary ? 'Keep the transcript, notes and action items for later. The original recording is not stored.'
+                : 'Session only. Save or export the results before reloading or starting another meeting.'}
+          </p>
+        </div>
+        {uploadError && <p role="alert" className="text-sm text-rose-300">{uploadError}</p>}
+
         {showAdvancedMmr && (
           <div className="bg-slate-900/90 border border-indigo-500/40 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-2 text-xs">
             <div className="flex items-center justify-between">
@@ -460,7 +464,7 @@ export default function DocumentWorkspace({
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono">
               <span className="flex items-center gap-1 text-slate-300">
                 <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                {result?.duration ? formatDuration(result.duration) : '--:--'}
+                {formatMeetingDuration(result?.duration)}
               </span>
               <span>•</span>
               <span>~{wordCount} words</span>
@@ -485,10 +489,10 @@ export default function DocumentWorkspace({
               <button
                 type="button"
                 onClick={onSaveMeeting}
-                disabled={isSavingMeeting}
+                disabled={isContentSaving || !canSaveMeeting}
                 className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
               >
-                {isSavingMeeting ? 'Saving…' : 'Save Meeting'}
+                {isSavingMeeting ? 'Saving…' : 'Save this meeting'}
               </button>
             )}
 
@@ -496,6 +500,7 @@ export default function DocumentWorkspace({
               <button
                 type="button"
                 onClick={onShowEditor}
+                disabled={isContentSaving}
                 className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-200 text-xs font-medium transition-all active:scale-95 cursor-pointer"
               >
                 Edit & Review
@@ -525,6 +530,14 @@ export default function DocumentWorkspace({
             </button>
 
             {/* Print / PDF */}
+            <button type="button" onClick={onDownloadJson} aria-label="Export JSON file"
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300" title="Export JSON file">
+              <FileCode className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={onDownloadTxt} aria-label="Export text file"
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300" title="Export text file">
+              <FileText className="w-3.5 h-3.5" />
+            </button>
             <button
               type="button"
               onClick={() => window.print()}
@@ -563,6 +576,9 @@ export default function DocumentWorkspace({
           </div>
         )}
       </header>
+      {!isDemoResult && <p className="text-xs text-slate-400">
+        {currentMeetingId ? 'Saved to library' : 'Session only — save or export before reloading or starting another meeting.'}
+      </p>}
 
       {/* Document View Switcher Tabs */}
       <nav aria-label="Document sections" className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs overflow-x-auto scrollbar-none">
@@ -695,7 +711,7 @@ export default function DocumentWorkspace({
                   <button
                     type="button"
                     onClick={() => onToggleTask(idx)}
-                    disabled={isUpdating}
+                    disabled={isUpdating || isContentSaving}
                     aria-pressed={Boolean(isDone)}
                     className={`w-full text-left p-3 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer group ${
                       isDone 
@@ -966,6 +982,7 @@ export default function DocumentWorkspace({
                     <button
                       type="button"
                       onClick={() => onRenameSpeaker(spk)}
+                      disabled={isContentSaving}
                       className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border-l border-slate-700 transition-colors"
                       title={`Rename speaker "${spk}"`}
                     >
@@ -996,6 +1013,7 @@ export default function DocumentWorkspace({
                         <button
                           type="button"
                           onClick={() => onCycleSpeaker(originalIdx)}
+                          disabled={isContentSaving}
                           title="Click to cycle speaker if misclassified"
                           className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
                         >
@@ -1009,6 +1027,7 @@ export default function DocumentWorkspace({
                 ))
             ) : transcriptView === 'mmr' && result.condensed_transcript ? (
               <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+                {mmrTelemetry?.applied && <p className="mb-3 text-amber-300">Selected {mmrTelemetry.selected_sentences} of {mmrTelemetry.original_sentences} sentences; original transcript remains available.</p>}
                 {result.condensed_transcript}
               </div>
             ) : (
