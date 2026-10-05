@@ -5,9 +5,7 @@ import {
   FolderOpen, 
   ListTodo, 
   Plus, 
-  CheckCircle2, 
-  Clock, 
-  Sparkles 
+  CheckCircle2
 } from 'lucide-react';
 import { appPageHref } from './navigation.js';
 import { MeetingRow } from './MeetingLibrary.jsx';
