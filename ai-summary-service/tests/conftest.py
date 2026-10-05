@@ -30,6 +30,8 @@ def pytest_collection_modifyitems(config, items):
         "test_transcribe_audio_detailed_from_temp_file",
         "test_transcribe_endpoint_success",
         "test_transcribe_endpoint_with_diarization",
+        "test_non_speech_does_not_become_a_long_repetition_loop",
+        "test_fallback_keeps_clear_spoken_meeting_content",
     }
     for item in items:
         if item.name in model_tests:

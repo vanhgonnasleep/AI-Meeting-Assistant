@@ -4,7 +4,7 @@ import { normalizeCitation, normalizeChatMessages, createRequestGate, resultFrom
 import Workspace, { WorkspaceDialog } from './Workspace.jsx';
 import MeetingEditor from './MeetingEditor.jsx';
 import { createMutationLock } from './workspace';
-import { DEFAULT_UPLOAD_LIMITS, getUploadLimits, getUploadError, formatUploadLimits, startHealthPolling } from './upload';
+import { DEFAULT_UPLOAD_LIMITS, getUploadLimits, getUploadError, formatUploadLimits, startHealthPolling, buildProcessingQuery } from './upload';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
@@ -121,6 +121,7 @@ function App() {
   const [uploadLimits, setUploadLimits] = useState(DEFAULT_UPLOAD_LIMITS);
   const uploadError = getUploadError(file, uploadLimits);
   const [selectedModel, setSelectedModel] = useState('auto');
+  const [spokenLanguage, setSpokenLanguage] = useState('');
   const [metaInfo, setMetaInfo] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [meetingsHistory, setMeetingsHistory] = useState([]);
@@ -383,8 +384,9 @@ function App() {
     formData.append("file", file);
 
     try {
-      const diarizeParam = `&diarize=${enableDiarization}${numSpeakers ? `&num_speakers=${numSpeakers}` : ''}`;
-      const url = `${API_BASE}/api/process-audio?model=${encodeURIComponent(selectedModel)}&enable_mmr=${enableMmr}&mmr_lambda=${mmrLambda}${diarizeParam}`;
+      const query = buildProcessingQuery({ model: selectedModel, language: spokenLanguage,
+        enableMmr, mmrLambda, diarize: enableDiarization, numSpeakers });
+      const url = `${API_BASE}/api/process-audio?${query}`;
       const response = await fetch(url, {
         method: "POST",
         body: formData,
@@ -524,6 +526,7 @@ function App() {
   const handleReset = () => {
     invalidateSession();
     setFile(null);
+    setSpokenLanguage('');
     setAudioUrl(null);
     setResult(null);
     setCurrentMeetingId(null);
@@ -953,6 +956,17 @@ ${result.transcript || ""}
                 <option value="instant_demo" className="bg-slate-900 text-slate-200">🎯 Instant Demo (No Model Inference)</option>
               </select>
             </div>
+
+            <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
+              Spoken language
+              <select value={spokenLanguage} onChange={event => setSpokenLanguage(event.target.value)}
+                disabled={isProcessing || selectedModel === 'instant_demo'}
+                className="bg-slate-900 text-slate-200 rounded px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50">
+                <option value="">Auto</option>
+                <option value="en">English</option>
+                <option value="vi">Tiếng Việt</option>
+              </select>
+            </label>
 
             {/* MMR Redundancy Filter Toggle & Tuning Trigger */}
             <div className="flex items-center">

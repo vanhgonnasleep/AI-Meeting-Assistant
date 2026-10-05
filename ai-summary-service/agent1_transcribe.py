@@ -646,7 +646,7 @@ def transcribe_audio_detailed(
     file_input: Union[UploadFile, str, Path, bytes, BinaryIO],
     model_name: Optional[str] = None,
     language: Optional[str] = None,
-    temperature: float = 0.0,
+    temperature: Union[float, Tuple[float, ...]] = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
     diarize: bool = False,
     num_speakers: Optional[int] = None,
     distance_threshold: float = 0.12,
@@ -660,7 +660,8 @@ def transcribe_audio_detailed(
         file_input: FastAPI UploadFile, filepath string, Path, bytes, or file-like stream.
         model_name: Whisper model ('tiny', 'base', 'small', 'medium', 'large').
         language: Language code (e.g. 'vi', 'en') or None for auto-detection.
-        temperature: Sampling temperature (0.0 for deterministic output).
+        temperature: Whisper's fallback schedule by default. An explicit scalar
+            (e.g. 0.0) opts out of retries with other temperatures.
         diarize: If True, identifies distinct speakers ('Speaker 1', 'Speaker 2', etc.).
         num_speakers: Optional expected number of speakers for diarization.
         distance_threshold: Clustering distance threshold when num_speakers is None.
@@ -684,6 +685,8 @@ def transcribe_audio_detailed(
             model = get_whisper_model(model_name=model_name)
             transcribe_options: Dict[str, Any] = {
                 "fp16": get_whisper_device() == "cuda",
+                # Preserve Whisper's compression/log-probability fallback;
+                # scalar zero can accept repetitive decoding as the final result.
                 "temperature": temperature,
                 **whisper_kwargs,
             }

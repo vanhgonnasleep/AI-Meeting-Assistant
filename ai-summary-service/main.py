@@ -527,6 +527,7 @@ def process_audio(
     file: UploadFile = File(...),
     model: str = Query("auto", description="Requested AI model or 'auto'"),
     whisper_model: Optional[WhisperModel] = Query(None, description="Whisper model: tiny, base, small, medium"),
+    language: Optional[Literal["en", "vi"]] = Query(None, description="Spoken language: English or Vietnamese; omit for auto-detection"),
     enable_mmr: bool = Query(True, description="Enable MMR redundancy reduction filter"),
     mmr_lambda: float = Query(0.65, ge=0.0, le=1.0, description="MMR relevance vs diversity hyperparameter"),
     mmr_ratio: float = Query(0.60, ge=0.1, le=1.0, description="MMR target compression ratio"),
@@ -578,7 +579,7 @@ def process_audio(
         # 1. AGENT 1: Speech-to-Text & Diarization (Triệu Quang Thiện)
         transcript = None
         duration = None
-        detected_language = None
+        detected_language = language
         segments = []
         speakers = []
         stt_error = None
@@ -591,6 +592,7 @@ def process_audio(
                 detailed_res = transcribe_safely(transcribe_audio_detailed,
                     file,
                     model_name=stt_model_name,
+                    language=language,
                     diarize=diarize,
                     num_speakers=num_speakers,
                     llm_model=selected_model
@@ -616,6 +618,7 @@ def process_audio(
                 transcript = transcribe_safely(transcribe_audio,
                     file,
                     model_name=stt_model_name,
+                    language=language,
                     diarize=diarize,
                     num_speakers=num_speakers
                 )

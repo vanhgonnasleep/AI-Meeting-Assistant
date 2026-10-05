@@ -2,6 +2,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as upload from './upload.js';
 
+test('processing query carries spoken language without changing other options or enabling demo', () => {
+  assert.equal(typeof upload.buildProcessingQuery, 'function');
+  for (const language of ['', 'en', 'vi']) {
+    const query = new URLSearchParams(upload.buildProcessingQuery({
+      model: 'model&demo_mode=true', language, enableMmr: false, mmrLambda: 0.5,
+      diarize: true, numSpeakers: '2',
+    }));
+    assert.equal(query.get('language'), language || null);
+    assert.equal(query.get('model'), 'model&demo_mode=true');
+    assert.equal(query.has('demo_mode'), false);
+    assert.equal(query.get('enable_mmr'), 'false');
+    assert.equal(query.get('mmr_lambda'), '0.5');
+    assert.equal(query.get('diarize'), 'true');
+    assert.equal(query.get('num_speakers'), '2');
+  }
+  const query = new URLSearchParams(upload.buildProcessingQuery({ model: 'auto', numSpeakers: '' }));
+  assert.equal(query.has('num_speakers'), false);
+});
+
 test('upload defaults accept 256 MiB inclusively and reject the next byte', () => {
   assert.equal(typeof upload.getUploadLimits, 'function');
   const limits = upload.getUploadLimits();

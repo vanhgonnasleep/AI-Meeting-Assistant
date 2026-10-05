@@ -4,6 +4,15 @@ export const DEFAULT_UPLOAD_LIMITS = Object.freeze({
   maxFileSizeMb: 256, maxFileSizeBytes: 256 * 1024 * 1024, maxAudioDurationSeconds: 10800,
 });
 
+export function buildProcessingQuery({ model = 'auto', language = '', enableMmr = true,
+  mmrLambda = 0.65, diarize = false, numSpeakers = '' }) {
+  const query = new URLSearchParams({ model, enable_mmr: String(enableMmr),
+    mmr_lambda: String(mmrLambda), diarize: String(diarize) });
+  if (language) query.set('language', language);
+  if (numSpeakers) query.set('num_speakers', numSpeakers);
+  return query.toString();
+}
+
 export function getUploadLimits(health, previous = DEFAULT_UPLOAD_LIMITS) {
   const mb = health?.max_file_size_mb;
   const duration = health?.max_audio_duration_seconds;
