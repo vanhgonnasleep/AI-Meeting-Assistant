@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createRequestGate } from './session';
 import { buildTaskQuery, workspaceRequest } from './workspace';
+import { appPageHref } from './navigation';
 
 const inputStyle = 'w-full rounded-xl bg-slate-950 border border-slate-700 p-2 text-sm text-white focus:outline-none focus:border-indigo-400';
 const buttonStyle = 'rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-40';
@@ -24,8 +25,8 @@ export function WorkspaceDialog({ title, onClose, children, maxWidth = 'max-w-4x
   </dialog>;
 }
 
-export default function Workspace({ apiBase, onClose, onOpenMeeting }) {
-  const [tab, setTab] = useState('tasks');
+export default function Workspace({ apiBase, onClose, onOpenMeeting, presentation = 'dialog', initialSection = 'tasks', onSectionChange, canOpenMeeting = true }) {
+  const [tab, setTab] = useState(initialSection);
   const [filters, setFilters] = useState({ q: '', status: '', assignee: '', project_id: '' });
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState({ tasks: [], entries: [], total: 0, has_more: false });
@@ -75,7 +76,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting }) {
 
   const resetPage = () => { pageGate.current.cancel(); setPage({ tasks: [], entries: [], total: 0, has_more: false }); setBusy(true); setError(null); };
   const changeFilter = (key, value) => { resetPage(); setOffset(0); setFilters(previous => ({ ...previous, [key]: value })); };
-  const changeTab = value => { if (value === tab) return; resetPage(); setOffset(0); setTab(value); };
+  const changeTab = value => { if (value === tab) return; resetPage(); setOffset(0); setTab(value); onSectionChange?.(value); };
   const changePage = value => { resetPage(); setOffset(value); };
   const createProject = async event => {
     event.preventDefault();
@@ -89,6 +90,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting }) {
     finally { if (request.isCurrent()) setCreating(false); }
   };
   const openMeeting = async meetingId => {
+    if (!canOpenMeeting) return;
     const request = openGate.current.begin();
     setOpening(true); setError(null);
     try {
@@ -98,16 +100,21 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting }) {
     finally { if (request.isCurrent()) setOpening(false); }
   };
   const rows = tab === 'tasks' ? (page.tasks || []) : (page.entries || []);
-  return <WorkspaceDialog title="Meeting workspace" onClose={onClose}>
+  const contents = <>
+    {presentation === 'page' && <div className="shell-page-heading"><div><h1>{tab === 'tasks' ? 'Action items' : 'Projects & decisions'}</h1>
+      <p>{tab === 'tasks' ? 'Find what needs doing, who owns it, and the meeting it came from.' : 'Connect related meetings and revisit the decisions behind your work.'}</p></div></div>}
     <div className="space-y-4 pt-4">
-      <div className="flex gap-2" role="tablist" aria-label="Workspace sections">
+      {presentation === 'page' ? <nav className="flex gap-2" aria-label="Workspace sections">
+        {['tasks', 'projects'].map(value => <a key={value} href={appPageHref(value)} aria-current={tab === value ? 'page' : undefined}
+          className={`${buttonStyle} ${tab === value ? 'border-indigo-400 text-indigo-200' : ''}`}>{value === 'tasks' ? 'All tasks' : 'Projects & decisions'}</a>)}
+      </nav> : <div className="flex gap-2" role="tablist" aria-label="Workspace sections">
         {['tasks', 'projects'].map(value => <button key={value} id={`workspace-tab-${value}`} type="button" role="tab" aria-controls="workspace-panel" tabIndex={tab === value ? 0 : -1} aria-selected={tab === value}
           onKeyDown={event => {
             const next = event.key === 'Home' ? 'tasks' : event.key === 'End' ? 'projects' : ['ArrowLeft', 'ArrowRight'].includes(event.key) ? (tab === 'tasks' ? 'projects' : 'tasks') : null;
             if (next) { event.preventDefault(); changeTab(next); document.getElementById(`workspace-tab-${next}`)?.focus(); }
           }}
           className={`${buttonStyle} ${tab === value ? 'border-indigo-400 text-indigo-200' : ''}`} onClick={() => changeTab(value)}>{value === 'tasks' ? 'All tasks' : 'Projects & decisions'}</button>)}
-      </div>
+      </div>}
       {projectError && <p role="alert" className="text-rose-300">{projectError} <button type="button" className="underline" onClick={loadProjects}>Retry projects</button></p>}
       {tab === 'tasks' ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="text-xs text-slate-400">Search tasks<input className={inputStyle} value={filters.q} maxLength={4000} onChange={event => changeFilter('q', event.target.value)} /></label>
@@ -130,9 +137,10 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting }) {
       </div>}
       {error && <p role="alert" className="text-rose-300">{error} <button type="button" className="underline" onClick={() => { resetPage(); setReload(value => value + 1); }}>Retry</button></p>}
       {opening && <p role="status" className="text-indigo-300">Opening source meeting…</p>}
-      <div id="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${tab}`} className="max-h-[40vh] overflow-y-auto space-y-2" aria-busy={busy}>
+      {!canOpenMeeting && <p className="shell-hint">Open a source meeting after the current processing or save finishes.</p>}
+      <div id="workspace-panel" role={presentation === 'page' ? 'region' : 'tabpanel'} aria-label={presentation === 'page' ? 'Workspace records' : undefined} aria-labelledby={presentation === 'page' ? undefined : `workspace-tab-${tab}`} className="workspace-data-panel max-h-[40vh] overflow-y-auto space-y-2" aria-busy={busy}>
         {busy ? <p role="status" className="p-4 text-slate-400">Loading…</p> : rows.length === 0 ? <p className="p-4 text-slate-400">{tab === 'projects' && !projectId ? 'Choose or create a project to see its decisions.' : 'No matching records.'}</p>
-          : rows.map(row => <button type="button" key={`${row.meeting_id}-${tab === 'tasks' ? row.task_idx : row.decision_idx}`} disabled={opening}
+          : rows.map(row => <button type="button" key={`${row.meeting_id}-${tab === 'tasks' ? row.task_idx : row.decision_idx}`} disabled={opening || !canOpenMeeting}
             onClick={() => openMeeting(row.meeting_id)} className="block w-full text-left p-4 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-400 disabled:opacity-40">
             <p className="text-sm text-white">{tab === 'tasks' ? row.task : row.text}</p>
             <p className="text-xs text-indigo-300 mt-1">{row.filename} · {row.status || 'proposed'}{row.timestamp ? ` · ${row.timestamp}` : ''}</p>
@@ -146,5 +154,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting }) {
         <button type="button" className={buttonStyle} disabled={busy || !page.has_more} onClick={() => changePage(offset + 50)}>Next page</button>
       </div>
     </div>
-  </WorkspaceDialog>;
+  </>;
+  return presentation === 'page' ? <div className="workspace-page">{contents}</div>
+    : <WorkspaceDialog title="Meeting workspace" onClose={onClose}>{contents}</WorkspaceDialog>;
 }

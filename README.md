@@ -35,6 +35,8 @@
 
 See the [workspace usage guide](docs/workspace-guide.md) for editing/review rules, project assignment and optional embedding model setup. No embedding model is downloaded automatically.
 
+See the [interface guide](docs/interface-guide.md) for page navigation, processing feedback, keyboard controls, and what is preserved when switching pages.
+
 ---
 
 ## 🏗️ System Architecture & Workflow

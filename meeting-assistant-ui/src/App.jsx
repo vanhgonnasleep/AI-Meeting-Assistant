@@ -1,10 +1,16 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { normalizeCitation, normalizeChatMessages, createRequestGate, resultFromMeeting, editSpeakerAttribution, getSuggestedPrompts, buildChatPayload, getExportTasks, shouldSubmitChat } from './session';
 import Workspace, { WorkspaceDialog } from './Workspace.jsx';
 import MeetingEditor from './MeetingEditor.jsx';
 import { createMutationLock } from './workspace';
 import { DEFAULT_UPLOAD_LIMITS, getUploadLimits, getUploadError, formatUploadLimits, startHealthPolling, buildProcessingQuery } from './upload';
+import AppShell from './AppShell.jsx';
+import Overview from './Overview.jsx';
+import MeetingLibrary from './MeetingLibrary.jsx';
+import MeetingTabs from './MeetingTabs.jsx';
+import { canOpenAnotherMeeting, formatMeetingDuration, getNavigationPage, navigateTo, subscribeToNavigation } from './navigation.js';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 import { 
@@ -19,16 +25,13 @@ import {
   Cpu, 
   ListTodo, 
   FileText, 
-  SplitSquareVertical, 
   ShieldCheck, 
   Check, 
   X,
   Clock,
   Layers,
   Zap,
-  Database,
   Trash2,
-  Search,
   Sliders,
   Volume2,
   FileCode,
@@ -66,12 +69,7 @@ const getSpeakerBadgeStyle = (speaker) => {
   return SPEAKER_BADGE_STYLES[hash % SPEAKER_BADGE_STYLES.length];
 };
 
-const formatDuration = (secs) => {
-  if (!secs || secs <= 0) return null;
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-};
+const formatDuration = formatMeetingDuration;
 
 const getDefaultChatGreeting = (currResult) => {
   if (!currResult) return [];
@@ -93,6 +91,11 @@ const getDefaultChatGreeting = (currResult) => {
 };
 
 function App() {
+  const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'overview');
+  const reduceMotion = useReducedMotion();
+  const [notice, setNotice] = useState(null);
+  const noticeId = useRef(0);
+  const notify = (message, kind = 'success') => setNotice({ id: ++noticeId.current, message, kind });
   const [file, setFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -100,7 +103,7 @@ function App() {
   const [result, setResult] = useState(null);
   const suggestedPrompts = useMemo(() => getSuggestedPrompts(result), [result]);
   const [currentMeetingId, setCurrentMeetingId] = useState(null);
-  const [showWorkspace, setShowWorkspace] = useState(false);
+  const [meetingTitle, setMeetingTitle] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [semanticChat, setSemanticChat] = useState(false);
   const [embeddingModel, setEmbeddingModel] = useState('embeddinggemma');
@@ -123,11 +126,9 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('auto');
   const [spokenLanguage, setSpokenLanguage] = useState('');
   const [metaInfo, setMetaInfo] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
   const [meetingsHistory, setMeetingsHistory] = useState([]);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
-  const [systemAnalytics, setSystemAnalytics] = useState(null);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyTotal, setHistoryTotal] = useState(0);
   const [historyOffset, setHistoryOffset] = useState(0);
   const [historyError, setHistoryError] = useState(null);
@@ -154,6 +155,12 @@ function App() {
   const sessionVersion = useRef(0);
   const audioRef = useRef(null);
   const chatBottomRef = useRef(null);
+
+  useEffect(() => subscribeToNavigation(() => {
+    // Abandon saved-record requests when navigation changes; processing continues.
+    detailGate.current.cancel();
+    setLoadingMeetingId(null);
+  }), []);
 
   useEffect(() => {
     const process = processGate.current;
@@ -201,20 +208,13 @@ function App() {
     setHistoryError(null);
     try {
       const params = new URLSearchParams({ q: query, limit: '20', offset: String(offset), compact: 'true' });
-      const [resMeetings, resAnalytics] = await Promise.all([
-        fetch(`${API_BASE}/api/meetings?${params}`, { signal: request.signal }),
-        fetch(`${API_BASE}/api/analytics`, { signal: request.signal }).catch(() => null)
-      ]);
+      const resMeetings = await fetch(`${API_BASE}/api/meetings?${params}`, { signal: request.signal });
       if (!resMeetings.ok) throw new Error('Unable to load meeting history. Please retry.');
       const data = await resMeetings.json();
       if (!request.isCurrent()) return;
       if (offset > 0 && offset >= data.total) return fetchMeetingHistory(query, Math.max(0, offset - 20));
       setMeetingsHistory(data.meetings || []);
       setHistoryTotal(data.total || 0);
-      if (resAnalytics && resAnalytics.ok) {
-        const dataAnalytics = await resAnalytics.json();
-        if (request.isCurrent()) setSystemAnalytics(dataAnalytics.analytics || null);
-      }
     } catch (e) {
       if (request.isCurrent()) setHistoryError(e.message || 'Unable to load history.');
     } finally {
@@ -223,24 +223,33 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchMeetingHistory(historySearchQuery, 0), 250);
+    if (page !== 'meetings') return;
+    const timer = setTimeout(() => fetchMeetingHistory(historySearchQuery, historyOffsetRef.current), 250);
     return () => clearTimeout(timer);
-  }, [historySearchQuery, fetchMeetingHistory]);
+  }, [page, historySearchQuery, fetchMeetingHistory]);
+
+  useEffect(() => {
+    if (page !== 'studio') audioRef.current?.pause();
+  }, [page]);
+
+  useEffect(() => {
+    if (!notice) return;
+    if (notice?.kind === 'error') return;
+    const timer = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const handleHistorySearch = (query) => {
     historyQueryRef.current = query;
     historyGate.current.cancel();
     setLoadingHistory(true);
     setHistorySearchQuery(query);
-  };
-
-  const handleCloseHistory = () => {
-    detailGate.current.cancel();
-    setLoadingMeetingId(null);
-    setShowHistory(false);
+    historyOffsetRef.current = 0;
+    setHistoryOffset(0);
   };
 
   const handleLoadPastMeeting = async (entry) => {
+    if (!canOpenAnotherMeeting({ processing: isProcessing, saving: contentMutations.current.isLocked(), editing: showEditor || Boolean(speakerRename) })) return false;
     invalidateSession(true);
     const request = detailGate.current.begin();
     setLoadingMeetingId(entry.id);
@@ -252,7 +261,7 @@ function App() {
       if (!request.isCurrent()) return;
       item = data.meeting;
     } catch (error) {
-      if (request.isCurrent()) { setHistoryError(error.message); setErrorMessage(error.message); }
+      if (request.isCurrent()) { setHistoryError(error.message); setErrorMessage(error.message); notify(error.message, 'error'); }
       return false;
     } finally {
       if (request.isCurrent()) setLoadingMeetingId(null);
@@ -266,6 +275,7 @@ function App() {
     const loadedChat = loadedResult.chat_history.length > 0 ? loadedResult.chat_history : getDefaultChatGreeting(loadedResult);
     setChatMessages(loadedChat);
     setCurrentMeetingId(item.id);
+    setMeetingTitle(String(item.filename || 'Saved meeting'));
     setMmrTelemetry(null);
     setTranscriptView(loadedResult.segments.some(segment => segment.speaker) ? 'segments' : 'raw');
 
@@ -285,7 +295,7 @@ function App() {
     });
     setActiveTab('split');
     setSpeakerFilter('all');
-    setShowHistory(false);
+    navigateTo('studio');
     return true;
   };
 
@@ -294,6 +304,7 @@ function App() {
     const updated = resultFromMeeting(meeting);
     setResult(updated);
     setCurrentMeetingId(meeting.id);
+    setMeetingTitle(String(meeting.filename || meetingTitle));
     setChatMessages(updated.chat_history.length ? updated.chat_history : getDefaultChatGreeting(updated));
     setCompletedTasks(Object.fromEntries(updated.action_items.map((item, index) => [index, item.status === 'completed' || item.status === 'done'])));
     setMmrTelemetry(null);
@@ -319,6 +330,7 @@ function App() {
     } catch (err) {
       console.error("Failed to delete meeting:", err);
       setErrorMessage(err.message || "Failed to delete meeting.");
+      notify(err.message || 'Failed to delete meeting.', 'error');
     }
   };
 
@@ -408,6 +420,7 @@ function App() {
         : getDefaultChatGreeting(data.data);
       setChatMessages(initialChat);
       setCurrentMeetingId(data.meeting_id || null);
+      notify('Meeting processed');
       setMmrTelemetry(data.mmr_telemetry || null);
       setMetaInfo({
         model: data.model_used || selectedModel,
@@ -417,6 +430,7 @@ function App() {
     } catch (error) {
       if (!request.isCurrent()) return;
       setErrorMessage(error.message || "An unexpected error occurred. Please try again.");
+      notify(error.message || 'Processing failed. Return to Meeting studio to retry.', 'error');
     } finally {
       if (request.isCurrent()) setIsProcessing(false);
     }
@@ -431,6 +445,7 @@ function App() {
     setIsProcessing(true);
     setResult(null);
     setCurrentMeetingId(null);
+    setMeetingTitle('');
     setMmrTelemetry(null);
     setTranscriptView('raw');
     setCompletedTasks({});
@@ -530,6 +545,7 @@ function App() {
     setAudioUrl(null);
     setResult(null);
     setCurrentMeetingId(null);
+    setMeetingTitle('');
     setIsCopied(false);
     setSummaryCopied(false);
     setCompletedTasks({});
@@ -601,6 +617,7 @@ function App() {
     } catch (err) {
       if (!request.isCurrent()) return;
       console.error("Chat error:", err);
+      notify(err.message || 'Unable to connect to the AI service.', 'error');
       setChatMessages(prev => [
         ...prev,
         {
@@ -613,7 +630,7 @@ function App() {
     } finally {
       if (request.isCurrent()) {
         setIsChatLoading(false);
-        chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        chatBottomRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
       }
     }
   };
@@ -632,7 +649,7 @@ function App() {
       setResult(previous => previous ? { ...previous, chat_history: [] } : previous);
       setChatMessages(getDefaultChatGreeting({ ...result, chat_history: [] }));
     } catch (error) {
-      if (version === sessionVersion.current && request.isCurrent()) setErrorMessage(error.message);
+      if (version === sessionVersion.current && request.isCurrent()) { setErrorMessage(error.message); notify(error.message, 'error'); }
     } finally {
       if (request.isCurrent()) setIsChatLoading(false);
     }
@@ -685,7 +702,7 @@ function App() {
         }
         const data = await response.json();
         if (version !== sessionVersion.current) return;
-        if (data.meeting) { handleUpdatedMeeting(data.meeting); return; }
+        if (data.meeting) { handleUpdatedMeeting(data.meeting); notify('Action item updated'); return; }
       }
 
       if (version !== sessionVersion.current) return;
@@ -693,10 +710,12 @@ function App() {
         ...prev,
         [idx]: isNowDone
       }));
+      notify('Action item updated');
     } catch (err) {
       if (version !== sessionVersion.current) return;
       console.error("Failed to sync task status to SQLite:", err);
       setErrorMessage(err.message || "Failed to save task status.");
+      notify(err.message || 'Failed to save task status.', 'error');
     } finally {
       release();
       if (version === sessionVersion.current) setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
@@ -726,6 +745,7 @@ function App() {
     if (!result) return;
     navigator.clipboard.writeText(getFullMarkdown()).then(() => {
       setIsCopied(true);
+      notify('Meeting notes copied');
       setTimeout(() => setIsCopied(false), 2500);
     }).catch((err) => {
       console.error("Clipboard copy failed:", err);
@@ -737,6 +757,7 @@ function App() {
     if (!result?.summary) return;
     navigator.clipboard.writeText(result.summary).then(() => {
       setSummaryCopied(true);
+      notify('Summary copied');
       setTimeout(() => setSummaryCopied(false), 2000);
     }).catch((err) => {
       console.error("Clipboard copy summary failed:", err);
@@ -775,9 +796,10 @@ function App() {
       setTranscriptView('segments');
       setChatMessages(updated.chat_history.length ? updated.chat_history : getDefaultChatGreeting(updated));
       if (speakerFilter === oldName) setSpeakerFilter(newName.trim());
+      notify('Speaker name updated');
       return true;
     } catch (error) {
-      if (request.isCurrent()) setErrorMessage(error.message || 'Speaker edit could not be saved.');
+      if (request.isCurrent()) { setErrorMessage(error.message || 'Speaker edit could not be saved.'); notify(error.message || 'Speaker edit could not be saved.', 'error'); }
     } finally {
       release();
       if (request.isCurrent()) { speakerBusy.current = false; setIsSpeakerSaving(false); }
@@ -890,12 +912,29 @@ ${result.transcript || ""}
   const completedCount = Object.values(completedTasks).filter(Boolean).length;
   const completionPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  const filteredMeetings = meetingsHistory;
   const isContentSaving = isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
+  const canOpenMeeting = canOpenAnotherMeeting({ processing: isProcessing, saving: isContentSaving, editing: showEditor || Boolean(speakerRename) });
+  const handleNewMeeting = () => {
+    if (!canOpenMeeting || contentMutations.current.isLocked()) return;
+    handleReset();
+    navigateTo('studio');
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-hidden font-sans bg-grid-pattern">
-      {speakerRename && (
+    <AppShell page={page} processing={isProcessing} elapsedTime={elapsedTime}
+      meetingName={file?.name || meetingTitle || (isDemoResult ? 'Demo meeting' : result ? 'Saved meeting' : '')}
+      canStartNew={canOpenMeeting} onNewMeeting={handleNewMeeting} health={healthStatus}
+      notice={notice} onDismissNotice={() => setNotice(null)}
+      overview={<Overview apiBase={API_BASE} refreshKey={currentMeetingId} onOpen={handleLoadPastMeeting}
+        canOpen={canOpenMeeting} onNewMeeting={handleNewMeeting} processing={isProcessing} />}
+      library={<MeetingLibrary meetings={meetingsHistory} total={historyTotal} loading={loadingHistory}
+        error={historyError} opening={loadingMeetingId} query={historySearchQuery} offset={historyOffset}
+        onSearch={handleHistorySearch} onPage={offset => fetchMeetingHistory(historyQueryRef.current, offset)}
+        onOpen={handleLoadPastMeeting} onDelete={handleDeletePastMeeting} canOpen={canOpenMeeting} onNewMeeting={handleNewMeeting} />}
+      workspace={<Workspace key={page} presentation="page" initialSection={page === 'projects' ? 'projects' : 'tasks'}
+        apiBase={API_BASE} canOpenMeeting={canOpenMeeting} onSectionChange={navigateTo}
+        onOpenMeeting={id => handleLoadPastMeeting({ id })} />}
+      dialogs={<>{speakerRename && (
         <WorkspaceDialog title={`Rename ${speakerRename.oldName}`} maxWidth="max-w-sm" onClose={() => { if (!isSpeakerSaving) setSpeakerRename(null); }}>
           <form className="space-y-4 pt-4" onSubmit={async event => {
             event.preventDefault();
@@ -912,33 +951,15 @@ ${result.transcript || ""}
           </form>
         </WorkspaceDialog>
       )}
-      
-      {/* Background Ambient Glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[850px] h-[350px] bg-gradient-to-tr from-indigo-600/20 via-purple-600/15 to-blue-600/20 blur-[130px] pointer-events-none -z-10" />
-      <div className="absolute -bottom-40 -right-40 w-[600px] h-[400px] bg-purple-700/10 blur-[150px] pointer-events-none -z-10" />
-
-      <div className="max-w-6xl mx-auto p-6 md:p-8 space-y-8">
+        {showEditor && currentMeetingId && !isDemoResult && <MeetingEditor key={currentMeetingId} apiBase={API_BASE} meetingId={currentMeetingId} model={selectedModel} onClose={() => setShowEditor(false)} onUpdated={handleUpdatedMeeting} />}
+      </>}>
+      <div className="studio-layout">
         
         {/* Navbar / Top Bar */}
-        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-900/60 backdrop-blur-xl p-5 rounded-2xl border border-slate-800/80 shadow-2xl shadow-indigo-950/20">
-          <div className="flex items-center gap-3.5">
-            <div className="p-2.5 bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 text-white flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-white">AI Meeting Assistant</h1>
-                <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  Orchestrator v2.1
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Local multi-agent intelligence powered by Whisper & Llama 3 Map-Reduce
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
+        <header className="studio-heading">
+          <div><h1>{result ? 'Meeting details' : 'Meeting studio'}</h1>
+            <p className="studio-filename" title={file?.name || meetingTitle}>{file?.name || meetingTitle || 'Upload a recording, review the transcript, and work with the results.'}</p></div>
+          <div className="studio-settings flex flex-wrap items-center w-full">
             
             {/* Model Profile Switcher */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs shadow-sm">
@@ -1049,29 +1070,10 @@ ${result.transcript || ""}
               </span>
             </div>
 
-            {/* Database History Button */}
-            <button type="button" onClick={() => setShowWorkspace(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-xs text-slate-300 hover:text-white">
-              <ListTodo className="w-3.5 h-3.5 text-indigo-400" /> Workspace
-            </button>
-            <button
-              onClick={() => { setShowHistory(true); fetchMeetingHistory(); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-xs text-slate-300 hover:text-white transition-all shadow-sm"
-              title="View SQLite saved meetings"
-            >
-              <Database className="w-3.5 h-3.5 text-blue-400" />
-              <span>History</span>
-              {historyTotal > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-semibold">
-                  {historyTotal}
-                </span>
-              )}
-            </button>
-
             {/* Reset / New Meeting */}
             {result && !isProcessing && (
               <button
-                onClick={handleReset}
+                onClick={handleNewMeeting}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all shadow-sm"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -1082,10 +1084,10 @@ ${result.transcript || ""}
             <button 
               onClick={handleProcessAudio}
               disabled={Boolean(uploadError) || (!file && selectedModel !== 'instant_demo') || isProcessing}
-              className={`px-5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all flex items-center gap-2
+              className={`studio-process px-5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all flex items-center gap-2
                 ${uploadError || (!file && selectedModel !== 'instant_demo') || isProcessing
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/40' 
-                  : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 hover:opacity-95 text-white shadow-lg shadow-indigo-500/25 active:scale-[0.98]'}`}
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white active:scale-[0.98]'}`}
             >
               {isProcessing ? (
                 <>
@@ -1210,6 +1212,7 @@ ${result.transcript || ""}
                           <span>Preview Audio File:</span>
                         </div>
                         <audio 
+                          ref={audioRef}
                           controls 
                           src={audioUrl} 
                           className="w-full h-9 rounded-xl bg-slate-950/80 border border-slate-700/60"
@@ -1315,15 +1318,9 @@ ${result.transcript || ""}
               </div>
             </div>
 
-            {/* Multi-step progress pills */}
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-400 pt-1">
-              <span className="flex items-center gap-1 text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" /> Ingested</span>
-              <span className="text-slate-600">→</span>
-              <span className="flex items-center gap-1 text-indigo-300 animate-pulse"><Cpu className="w-3.5 h-3.5" /> STT & MMR</span>
-              <span className="text-slate-600">→</span>
-              <span className="flex items-center gap-1 text-purple-300 animate-pulse"><Layers className="w-3.5 h-3.5" /> Map-Reduce</span>
-              <span className="text-slate-600">→</span>
-              <span className="flex items-center gap-1 text-slate-500"><ListTodo className="w-3.5 h-3.5" /> Action Items</span>
+            <div className="flex items-center gap-3 text-xs text-slate-300" role="status">
+              <span className="processing-cadence" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+              <span>Processing on this computer. You can browse the other pages while you wait.</span>
             </div>
 
             <button type="button" onClick={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }} className="text-sm text-slate-300 underline">
@@ -1482,57 +1479,8 @@ ${result.transcript || ""}
 
             {/* View Switcher & Export Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/40 p-2 rounded-2xl border border-slate-800/80">
-              {/* Tab Navigation */}
-              <div className="flex flex-wrap items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
-                <button
-                  onClick={() => setActiveTab('split')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'split' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <SplitSquareVertical className="w-3.5 h-3.5" /> Split View
-                </button>
-                <button
-                  onClick={() => setActiveTab('summary')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'summary' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" /> Summary
-                </button>
-                <button
-                  onClick={() => setActiveTab('tasks')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'tasks' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <ListTodo className="w-3.5 h-3.5" /> Tasks ({result.action_items?.length || 0})
-                </button>
-                <button
-                  onClick={() => setActiveTab('insights')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'insights' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Target className="w-3.5 h-3.5" /> Insights {result.insights ? `(${((result.insights.decisions?.length || 0) + (result.insights.risks?.length || 0))})` : ''}
-                </button>
-                <button
-                  onClick={() => setActiveTab('chat')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'chat' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" /> AI Chat ({chatMessages.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('transcript')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'transcript' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" /> Transcript
-                </button>
-              </div>
+              <MeetingTabs active={activeTab} onSelect={setActiveTab} counts={{ tasks: totalTasks,
+                insights: (result.insights?.decisions?.length || 0) + (result.insights?.risks?.length || 0), chat: chatMessages.length }} />
 
               {/* Export Toolbar */}
               <div className="flex flex-wrap items-center gap-2 justify-end">
@@ -1587,7 +1535,10 @@ ${result.transcript || ""}
             </div>
 
             {/* Dashboard Content Panels */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <motion.div key={activeTab} id="meeting-results-content" role="tabpanel" tabIndex={0}
+              aria-labelledby={`meeting-tab-${activeTab}`} initial={{ opacity: 0, x: reduceMotion ? 0 : 10 }}
+              animate={{ opacity: 1, x: 0 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               {/* Left Column: Raw/Segmented/MMR Transcript */}
               {(activeTab === 'split' || activeTab === 'transcript') && (
@@ -2218,177 +2169,17 @@ ${result.transcript || ""}
                 </div>
               )}
 
-            </div>
+            </motion.div>
 
           </div>
         )}
 
-        {/* SQLite Meeting History Modal */}
-        {showWorkspace && <Workspace apiBase={API_BASE} onClose={() => { detailGate.current.cancel(); setLoadingMeetingId(null); setShowWorkspace(false); }} onOpenMeeting={async id => {
-          const opened = await handleLoadPastMeeting({ id });
-          if (opened) setShowWorkspace(false);
-          return opened;
-        }} />}
-        {showEditor && currentMeetingId && !isDemoResult && <MeetingEditor key={currentMeetingId} apiBase={API_BASE} meetingId={currentMeetingId} model={selectedModel} onClose={() => setShowEditor(false)} onUpdated={handleUpdatedMeeting} />}
-        {showHistory && (
-          <WorkspaceDialog title="Saved Meeting History & Analytics" maxWidth="max-w-3xl" onClose={handleCloseHistory}>
-            <div className="relative w-full pt-4 overflow-hidden flex flex-col max-h-[75vh]">
-              <p className="text-xs text-slate-400">{historyTotal} matching meeting records stored locally</p>
-
-              {/* Analytics Quick Badges Bar (if available) */}
-              {systemAnalytics && (
-                <div className="grid grid-cols-4 gap-2 pt-3">
-                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-                    <p className="text-[10px] text-slate-400">Total Meetings</p>
-                    <p className="text-sm font-bold text-white">{systemAnalytics.total_meetings}</p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-                    <p className="text-[10px] text-slate-400">Total Action Items</p>
-                    <p className="text-sm font-bold text-indigo-400">{systemAnalytics.total_action_items}</p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-                    <p className="text-[10px] text-slate-400">Completed Rate</p>
-                    <p className="text-sm font-bold text-emerald-400">{systemAnalytics.completion_rate_percent}%</p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
-                    <p className="text-[10px] text-slate-400">Total Audio Time</p>
-                    <p className="text-sm font-bold text-teal-400">{formatDuration(systemAnalytics.total_duration_seconds) || '00:00'}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Search Bar */}
-              <div className="pt-3">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input 
-                    type="text"
-                    aria-label="Search meeting history"
-                    value={historySearchQuery}
-                    onChange={(e) => handleHistorySearch(e.target.value)}
-                    placeholder="Search by filename, summary, transcript, or action items..."
-                    className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  />
-                  {historySearchQuery && (
-                    <button 
-                      aria-label="Clear history search"
-                      onClick={() => handleHistorySearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Meetings List */}
-              {historyError && <p role="alert" className="text-sm text-rose-300">{historyError}</p>}
-              {loadingMeetingId && <p role="status" className="text-sm text-indigo-300">Opening meeting #{loadingMeetingId}…</p>}
-              <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
-                {loadingHistory ? (
-                  <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-                    <p className="text-xs">Loading database records...</p>
-                  </div>
-                ) : filteredMeetings.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400">
-                    <Database className="w-10 h-10 mx-auto text-slate-600 mb-2" />
-                    <p className="text-sm font-medium text-slate-300">No matching meeting records</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {historySearchQuery ? 'Try another search term.' : 'Processed meetings will automatically be saved here.'}
-                    </p>
-                  </div>
-                ) : (
-                  filteredMeetings.map((item) => (
-                    <div
-                      key={item.id}
-                      className="group flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-800/60 border border-slate-800 hover:border-indigo-500/40 cursor-pointer transition-all"
-                    >
-                      <button type="button" onClick={() => handleLoadPastMeeting(item)} className="flex-1 min-w-0 text-left" aria-label={`Open meeting ${item.filename}`}>
-                        <div className="flex items-center gap-2">
-                          <FileAudio className="w-4 h-4 text-indigo-400 shrink-0" />
-                          <h4 className="text-xs font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
-                            {item.filename}
-                          </h4>
-                          <span className="text-[10px] text-slate-500 font-mono">#{item.id}</span>
-                          {item.language && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-teal-300 uppercase">
-                              {item.language}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
-                          {item.executive_summary || "No summary recorded"}
-                        </p>
-                        <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/50">
-                            {item.action_item_count || 0} action items
-                          </span>
-                          {item.duration && (
-                            <span className="text-teal-400">
-                              ⏱ {formatDuration(item.duration)}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-
-                      <div className="flex items-center gap-1 shrink-0 pt-1">
-                        <button
-                          onClick={(e) => handleDeletePastMeeting(item.id, e)}
-                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                          title="Delete from SQLite database"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 text-xs text-slate-300">
-                  <button type="button" disabled={loadingHistory || historyOffset === 0} onClick={() => fetchMeetingHistory(historyQueryRef.current, Math.max(0, historyOffset - 20))} className="disabled:opacity-40">Previous page</button>
-                  <span>{historyTotal ? `${historyOffset + 1}–${Math.min(historyOffset + 20, historyTotal)} / ${historyTotal}` : '0 records'}</span>
-                  <button type="button" disabled={loadingHistory || historyOffset + 20 >= historyTotal} onClick={() => fetchMeetingHistory(historyQueryRef.current, historyOffset + 20)} className="disabled:opacity-40">Next page</button>
-                </div>
-                <button
-                  onClick={handleCloseHistory}
-                  className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </WorkspaceDialog>
-        )}
-
-        {/* Minimalist Dashboard Footer */}
-        <footer className="pt-6 pb-2 border-t border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-            <span className="font-medium text-slate-400">AI Meeting Assistant</span>
-            <span className="text-slate-600">•</span>
-            <span>Local Multi-Agent Orchestration</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-slate-500 font-mono text-[10px]">
-            <span>Whisper STT</span>
-            <span>•</span>
-            <span>MMR Redundancy Filter</span>
-            <span>•</span>
-            <span>Llama 3 Map-Reduce</span>
-            <span>•</span>
-            <span>SQLite WAL</span>
-          </div>
+        <footer className="pt-5 border-t border-slate-800 text-xs text-slate-400">
+          Review generated content against the transcript before using it.
         </footer>
 
       </div>
-    </div>
+    </AppShell>
   );
 }
 
