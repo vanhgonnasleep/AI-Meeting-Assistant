@@ -22,11 +22,15 @@ import {
   Zap, 
   Sliders, 
   Loader2, 
-  Target 
+  Target,
+  Columns,
+  ExternalLink
 } from 'lucide-react';
 import { formatMeetingDuration } from './navigation.js';
 import { normalizeCitation } from './session.js';
 import { formatUploadLimits } from './upload.js';
+import PresentationDeck from './PresentationDeck.jsx';
+import ConnectorsModal from './ConnectorsModal.jsx';
 
 const SPEAKER_BADGE_STYLES = [
   'bg-blue-500/15 text-blue-300 border-blue-500/30',
@@ -121,6 +125,8 @@ export default function DocumentWorkspace({
   onStopWaiting,
 }) {
   const [activeDocTab, setActiveDocTab] = useState('doc'); // 'doc' | 'summary' | 'tasks' | 'insights' | 'transcript'
+  const [viewMode, setViewMode] = useState('studio'); // 'studio' | 'split' | 'zen'
+  const [showConnectorsModal, setShowConnectorsModal] = useState(false);
 
   const wordCount = result?.transcript ? result.transcript.split(/\s+/).filter(Boolean).length : 0;
   const estimatedReadTime = Math.ceil(wordCount / 200);
@@ -437,10 +443,410 @@ export default function DocumentWorkspace({
   }
 
   // -------------------------------------------------------------
+  // SECTION RENDERERS
+  // -------------------------------------------------------------
+  const renderSummarySection = () => (
+    <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <h2 className="text-sm font-bold text-white tracking-tight">Executive Summary</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCopySummary}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 transition-all active:scale-95"
+            title="Copy summary"
+          >
+            {summaryCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+            <span>{summaryCopied ? 'Copied' : 'Copy'}</span>
+          </button>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+            {metaInfo?.model || 'Local Model'}
+          </span>
+        </div>
+      </div>
+
+      <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap font-sans">
+        {result?.summary}
+      </div>
+    </article>
+  );
+
+  const renderTasksSection = () => (
+    <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
+            <ListTodo className="w-4 h-4" />
+          </div>
+          <h2 className="text-sm font-bold text-white tracking-tight">Extracted Action Deliverables</h2>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <span className="text-slate-400">{completedCount} of {totalTasks} completed</span>
+          {currentMeetingId && (
+            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+              SQLite Synced
+            </span>
+          )}
+        </div>
+      </div>
+
+      {totalTasks > 0 && (
+        <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div 
+            className="bg-emerald-500 h-full rounded-full transition-all duration-300 ease-out" 
+            style={{ width: `${completionPercent}%` }} 
+          />
+        </div>
+      )}
+
+      <ul className="space-y-2">
+        {result?.action_items?.map((item, idx) => {
+          const isDone = completedTasks[idx];
+          const isUpdating = updatingTasks[idx];
+
+          return (
+            <li key={idx}>
+              <button
+                type="button"
+                onClick={() => onToggleTask(idx)}
+                disabled={isUpdating || isContentSaving}
+                aria-pressed={Boolean(isDone)}
+                className={`w-full text-left p-3.5 rounded-2xl border transition-all duration-200 flex items-start gap-3 cursor-pointer group hover:translate-x-1 hover:shadow-md ${
+                  isDone 
+                    ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-400' 
+                    : 'bg-slate-950/50 hover:bg-slate-800/60 border-slate-800 text-slate-200'
+                }`}
+              >
+                <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all duration-150 ${
+                  isDone 
+                    ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20' 
+                    : 'border-slate-600 group-hover:border-indigo-400'
+                }`}>
+                  {isDone && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-medium leading-snug ${isDone ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+                    {typeof item === 'object' ? item.task : String(item)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px]">
+                    <span className="flex items-center gap-1 font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                      <Users className="w-2.5 h-2.5 text-indigo-400" />
+                      {(typeof item === 'object' ? item.assignee : null) || 'Unassigned'}
+                    </span>
+                    {typeof item === 'object' && item.deadline && (
+                      <span className="flex items-center gap-1 font-medium px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        <Clock className="w-2.5 h-2.5" /> Due: {item.deadline}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </article>
+  );
+
+  const renderInsightsSection = () => (
+    <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
+            <Target className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white tracking-tight">Key Decisions & Risk Matrix</h2>
+            <p className="text-[10px] text-slate-400">3-pillar governance intelligence with click-to-seek audio evidence</p>
+          </div>
+        </div>
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+          Agent 5 Governance
+        </span>
+      </div>
+
+      <div className={`grid grid-cols-1 ${viewMode === 'split' ? 'grid-cols-1' : 'md:grid-cols-3'} gap-4`}>
+        {/* Pillar 1: Decisions */}
+        <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Decisions</span>
+            </div>
+            <span className="text-[10px] font-mono text-slate-400 font-bold">
+              {(result?.insights?.decisions || []).length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {(!result?.insights?.decisions || result.insights.decisions.length === 0) ? (
+              <p className="text-xs text-slate-500 italic py-2">No key decisions extracted.</p>
+            ) : (
+              result.insights.decisions.map((dec, idx) => (
+                <div key={idx} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-1.5 group">
+                  <p className="text-xs text-slate-200 leading-snug">{dec.text}</p>
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                    {dec.speaker && (
+                      <span className={`px-1.5 py-0.2 rounded border ${getSpeakerBadgeStyle(dec.speaker)}`}>
+                        {dec.speaker}
+                      </span>
+                    )}
+                    {dec.timestamp && (
+                      <button
+                        type="button"
+                        disabled={!audioUrl || normalizeCitation(dec).seconds === null}
+                        onClick={() => onSeekAudio(normalizeCitation(dec).seconds)}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+                        title={`Jump audio to ${dec.timestamp}`}
+                      >
+                        <Play className="w-2 h-2 fill-emerald-300" />
+                        <span>{dec.timestamp}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Pillar 2: Risks & Blockers */}
+        <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>Risks & Blockers</span>
+            </div>
+            <span className="text-[10px] font-mono text-slate-400 font-bold">
+              {(result?.insights?.risks || []).length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {(!result?.insights?.risks || result.insights.risks.length === 0) ? (
+              <p className="text-xs text-slate-500 italic py-2">No critical delivery risks detected.</p>
+            ) : (
+              result.insights.risks.map((risk, idx) => (
+                <div key={idx} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-1.5 group">
+                  <p className="text-xs text-slate-200 leading-snug">{risk.text}</p>
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                    {risk.speaker && (
+                      <span className={`px-1.5 py-0.2 rounded border ${getSpeakerBadgeStyle(risk.speaker)}`}>
+                        {risk.speaker}
+                      </span>
+                    )}
+                    {risk.timestamp && (
+                      <button
+                        type="button"
+                        disabled={!audioUrl || normalizeCitation(risk).seconds === null}
+                        onClick={() => onSeekAudio(normalizeCitation(risk).seconds)}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+                        title={`Jump audio to ${risk.timestamp}`}
+                      >
+                        <Play className="w-2 h-2 fill-amber-300" />
+                        <span>{risk.timestamp}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Pillar 3: Open Questions */}
+        <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-300">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Open Questions</span>
+            </div>
+            <span className="text-[10px] font-mono text-slate-400 font-bold">
+              {(result?.insights?.open_questions || []).length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {(!result?.insights?.open_questions || result.insights.open_questions.length === 0) ? (
+              <p className="text-xs text-slate-500 italic py-2">No open questions recorded.</p>
+            ) : (
+              result.insights.open_questions.map((q, idx) => (
+                <div key={idx} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-1.5 group">
+                  <p className="text-xs text-slate-200 leading-snug">{q.text}</p>
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                    {q.speaker && (
+                      <span className={`px-1.5 py-0.2 rounded border ${getSpeakerBadgeStyle(q.speaker)}`}>
+                        {q.speaker}
+                      </span>
+                    )}
+                    {q.timestamp && (
+                      <button
+                        type="button"
+                        disabled={!audioUrl || normalizeCitation(q).seconds === null}
+                        onClick={() => onSeekAudio(normalizeCitation(q).seconds)}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+                        title={`Jump audio to ${q.timestamp}`}
+                      >
+                        <Play className="w-2 h-2 fill-blue-300" />
+                        <span>{q.timestamp}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+
+  const renderTranscriptSection = () => (
+    <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 gap-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-teal-500/15 text-teal-400">
+            <FileText className="w-4 h-4" />
+          </div>
+          <h2 className="text-sm font-bold text-white tracking-tight">Attributed Dialogue Transcript</h2>
+        </div>
+
+        {/* View Sub-Toggle (Raw / Segments / MMR) */}
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
+          <button
+            type="button"
+            onClick={() => setTranscriptView('raw')}
+            className={`px-2.5 py-0.5 rounded-lg font-medium transition-all ${
+              transcriptView === 'raw' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Text
+          </button>
+          {result?.segments && result.segments.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTranscriptView('segments')}
+              className={`px-2.5 py-0.5 rounded-lg font-medium transition-all ${
+                transcriptView === 'segments' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Segments ({result.segments.length})
+            </button>
+          )}
+          {result?.condensed_transcript && (
+            <button
+              type="button"
+              onClick={() => setTranscriptView('mmr')}
+              className={`px-2.5 py-0.5 rounded-lg font-medium transition-all ${
+                transcriptView === 'mmr' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              MMR Filtered
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Speaker Filter Pills */}
+      {transcriptView === 'segments' && result?.segments && (
+        <div className="flex flex-wrap items-center gap-1.5 pb-2 text-[11px]">
+          <span className="text-slate-500 font-mono text-[10px] mr-1">Filter Speaker:</span>
+          <button
+            type="button"
+            onClick={() => setSpeakerFilter('all')}
+            className={`px-2.5 py-0.5 rounded-lg transition-all ${
+              speakerFilter === 'all'
+                ? 'bg-indigo-600 text-white font-semibold'
+                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+            }`}
+          >
+            All
+          </button>
+          {Array.from(new Set(result.segments.map(s => s.speaker).filter(Boolean))).map((speaker) => {
+            const isSelected = speakerFilter === speaker;
+            return (
+              <div key={speaker} className="inline-flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setSpeakerFilter(speaker)}
+                  className={`px-2.5 py-0.5 rounded-l-lg transition-all border ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white font-semibold border-indigo-500'
+                      : 'bg-slate-900 text-slate-300 hover:text-white border-slate-800'
+                  }`}
+                >
+                  {speaker}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRenameSpeaker(speaker)}
+                  disabled={isContentSaving}
+                  title={`Rename speaker "${speaker}"`}
+                  className={`px-1.5 py-0.5 rounded-r-lg border border-l-0 text-slate-400 hover:text-white transition-all cursor-pointer ${
+                    isSelected ? 'bg-indigo-700 border-indigo-500' : 'bg-slate-900 border-slate-800 hover:bg-slate-800'
+                  }`}
+                >
+                  <Edit2 className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Transcript Dialogue Scroll Container */}
+      <div className={`overflow-y-auto pr-1 space-y-2.5 scrollbar-thin ${viewMode === 'split' ? 'max-h-[700px]' : 'max-h-[500px]'}`}>
+        {transcriptView === 'segments' && result?.segments && result.segments.length > 0 ? (
+          result.segments
+            .map((seg, originalIdx) => ({ seg, originalIdx }))
+            .filter(({ seg }) => speakerFilter === 'all' || !seg.speaker || seg.speaker === speakerFilter)
+            .map(({ seg, originalIdx }, displayIdx) => (
+              <div 
+                key={originalIdx} 
+                className="p-3 rounded-2xl bg-slate-950/50 hover:bg-slate-950/80 border border-slate-800/80 transition-colors space-y-1.5"
+              >
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-teal-400 font-mono font-medium">
+                    {seg.timestamp || `Turn #${displayIdx + 1}`}
+                  </span>
+                  {seg.speaker && (
+                    <button
+                      type="button"
+                      onClick={() => onCycleSpeaker(originalIdx)}
+                      disabled={isContentSaving}
+                      title="Click to cycle speaker if misclassified"
+                      className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
+                    >
+                      <span>{seg.speaker}</span>
+                      <span className="text-[9px] opacity-60">⇄</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-slate-200 leading-relaxed font-sans">{seg.text}</p>
+              </div>
+            ))
+        ) : transcriptView === 'mmr' && result?.condensed_transcript ? (
+          <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+            {mmrTelemetry?.applied && <p className="mb-3 text-amber-300">Selected {mmrTelemetry.selected_sentences} of {mmrTelemetry.original_sentences} sentences; original transcript remains available.</p>}
+            {result.condensed_transcript}
+          </div>
+        ) : (
+          <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+            {result?.transcript}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+
+  // -------------------------------------------------------------
   // STATE 3: DOCUMENT WORKSPACE (RESULTS LOADED)
   // -------------------------------------------------------------
   return (
-    <div className="space-y-6 max-w-4xl mx-auto py-4 select-text">
+    <div className={`space-y-6 ${viewMode === 'split' ? 'max-w-7xl' : 'max-w-4xl'} mx-auto py-4 select-text transition-all duration-300`}>
       
       {/* Document Header & Metadata */}
       <header className="pb-6 border-b border-slate-800/80 space-y-3">
@@ -485,6 +891,62 @@ export default function DocumentWorkspace({
 
           {/* Document Actions Bar */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* View Mode Switcher Pills (Apple Dynamic Glass style) */}
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900/80 border border-slate-700/60 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setViewMode('studio')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-all ${
+                  viewMode === 'studio'
+                    ? 'bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Studio Document Editor"
+              >
+                <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Studio</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('split')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-all ${
+                  viewMode === 'split'
+                    ? 'bg-teal-600/30 text-teal-200 border border-teal-500/40 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="2-Column Split Inspector"
+              >
+                <Columns className="w-3.5 h-3.5 text-teal-400" />
+                <span>Split</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('zen')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-all ${
+                  viewMode === 'zen'
+                    ? 'bg-sky-600/30 text-sky-200 border border-sky-500/40 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Fullscreen Zen Slide Deck Presentation"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                <span>Zen Deck</span>
+              </button>
+            </div>
+
+            {/* Connect Hub Pill Button */}
+            <button
+              type="button"
+              onClick={() => setShowConnectorsModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-500/20 via-indigo-500/20 to-purple-500/20 hover:from-sky-500/30 hover:to-purple-500/30 border border-sky-500/40 text-sky-200 hover:text-white text-xs font-semibold shadow-sm transition-all active:scale-95 cursor-pointer"
+              title="Open Executive Connectors Hub (GitHub Issues & Gmail Dispatch)"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
+              <span>Connect Hub</span>
+            </button>
+
             {!currentMeetingId && !isDemoResult && (
               <button
                 type="button"
@@ -580,464 +1042,120 @@ export default function DocumentWorkspace({
         {currentMeetingId ? 'Saved to library' : 'Session only — save or export before reloading or starting another meeting.'}
       </p>}
 
-      {/* Document View Switcher Tabs */}
-      <nav aria-label="Document sections" className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs overflow-x-auto scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setActiveDocTab('doc')}
-          className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
-            activeDocTab === 'doc' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Executive Document
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveDocTab('summary')}
-          className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
-            activeDocTab === 'summary' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Summary
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveDocTab('tasks')}
-          className={`px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
-            activeDocTab === 'tasks' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <span>Action Items</span>
-          {totalTasks > 0 && (
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">
-              {completedCount}/{totalTasks}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveDocTab('insights')}
-          className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
-            activeDocTab === 'insights' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Decisions & Risks
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveDocTab('transcript')}
-          className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
-            activeDocTab === 'transcript' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Transcript
-        </button>
-      </nav>
-
-      {/* ----------------------------------------------------------- */}
-      {/* SECTION A: EXECUTIVE SUMMARY CARD */}
-      {/* ----------------------------------------------------------- */}
-      {(activeDocTab === 'doc' || activeDocTab === 'summary') && (
-        <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <h2 className="text-sm font-bold text-white tracking-tight">Executive Summary</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onCopySummary}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 transition-all active:scale-95"
-                title="Copy summary"
-              >
-                {summaryCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                <span>{summaryCopied ? 'Copied' : 'Copy'}</span>
-              </button>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                {metaInfo?.model || 'Local Model'}
-              </span>
-            </div>
-          </div>
-
-          <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap font-sans">
-            {result.summary}
-          </div>
-        </article>
-      )}
-
-      {/* ----------------------------------------------------------- */}
-      {/* SECTION B: EXTRACTED ACTION ITEMS CHECKLIST */}
-      {/* ----------------------------------------------------------- */}
-      {(activeDocTab === 'doc' || activeDocTab === 'tasks') && (
-        <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
-                <ListTodo className="w-4 h-4" />
-              </div>
-              <h2 className="text-sm font-bold text-white tracking-tight">Extracted Action Deliverables</h2>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-mono">
-              <span className="text-slate-400">{completedCount} of {totalTasks} completed</span>
-              {currentMeetingId && (
-                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
-                  SQLite Synced
+      {/* VIEW MODE 1: STUDIO (STANDARD EDITOR) */}
+      {viewMode === 'studio' && (
+        <div className="space-y-6">
+          {/* Document View Switcher Tabs */}
+          <nav aria-label="Document sections" className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs overflow-x-auto scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setActiveDocTab('doc')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                activeDocTab === 'doc' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Executive Document
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveDocTab('summary')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                activeDocTab === 'summary' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Summary
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveDocTab('tasks')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
+                activeDocTab === 'tasks' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>Action Items</span>
+              {totalTasks > 0 && (
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">
+                  {completedCount}/{totalTasks}
                 </span>
               )}
-            </div>
-          </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveDocTab('insights')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                activeDocTab === 'insights' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Decisions & Risks
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveDocTab('transcript')}
+              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+                activeDocTab === 'transcript' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Transcript
+            </button>
+          </nav>
 
-          {/* Progress Bar */}
-          {totalTasks > 0 && (
-            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-              <div 
-                className="bg-emerald-500 h-full rounded-full transition-all duration-300 ease-out" 
-                style={{ width: `${completionPercent}%` }} 
-              />
-            </div>
-          )}
-
-          {/* Task Items */}
-          <ul className="space-y-2">
-            {result.action_items?.map((item, idx) => {
-              const isDone = completedTasks[idx];
-              const isUpdating = updatingTasks[idx];
-
-              return (
-                <li key={idx}>
-                  <button
-                    type="button"
-                    onClick={() => onToggleTask(idx)}
-                    disabled={isUpdating || isContentSaving}
-                    aria-pressed={Boolean(isDone)}
-                    className={`w-full text-left p-3 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer group ${
-                      isDone 
-                        ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-400' 
-                        : 'bg-slate-950/50 hover:bg-slate-800/60 border-slate-800 text-slate-200'
-                    }`}
-                  >
-                    <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all duration-150 ${
-                      isDone 
-                        ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20' 
-                        : 'border-slate-600 group-hover:border-indigo-400'
-                    }`}>
-                      {isDone && <Check className="w-3 h-3 stroke-[3]" />}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-medium leading-snug ${isDone ? 'line-through text-slate-500' : 'text-slate-100'}`}>
-                        {item.task}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px]">
-                        <span className="flex items-center gap-1 font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                          <Users className="w-2.5 h-2.5 text-indigo-400" />
-                          {item.assignee || 'Unassigned'}
-                        </span>
-                        {item.deadline && (
-                          <span className="flex items-center gap-1 font-medium px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            <Clock className="w-2.5 h-2.5" /> Due: {item.deadline}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </article>
+          {(activeDocTab === 'doc' || activeDocTab === 'summary') && renderSummarySection()}
+          {(activeDocTab === 'doc' || activeDocTab === 'tasks') && renderTasksSection()}
+          {(activeDocTab === 'doc' || activeDocTab === 'insights') && renderInsightsSection()}
+          {(activeDocTab === 'doc' || activeDocTab === 'transcript') && renderTranscriptSection()}
+        </div>
       )}
 
-      {/* ----------------------------------------------------------- */}
-      {/* SECTION C: KEY DECISIONS & RISK MATRIX (AGENT 5) */}
-      {/* ----------------------------------------------------------- */}
-      {(activeDocTab === 'doc' || activeDocTab === 'insights') && (
-        <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
-                <Target className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-white tracking-tight">Key Decisions & Risk Matrix</h2>
-                <p className="text-[10px] text-slate-400">3-pillar governance intelligence with click-to-seek audio evidence</p>
-              </div>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-              Agent 5 Governance
-            </span>
+      {/* VIEW MODE 2: SPLIT INSPECTOR (2-COLUMN PRODUCTIVITY) */}
+      {viewMode === 'split' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="space-y-6">
+            {renderTranscriptSection()}
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Pillar 1: Decisions */}
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Decisions</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 font-bold">
-                  {(result.insights?.decisions || []).length}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {(!result.insights?.decisions || result.insights.decisions.length === 0) ? (
-                  <p className="text-xs text-slate-500 italic py-2">No key decisions extracted.</p>
-                ) : (
-                  result.insights.decisions.map((dec, idx) => (
-                    <div key={idx} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-1.5 group">
-                      <p className="text-xs text-slate-200 leading-snug">{dec.text}</p>
-                      <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
-                        {dec.speaker && (
-                          <span className={`px-1.5 py-0.2 rounded border ${getSpeakerBadgeStyle(dec.speaker)}`}>
-                            {dec.speaker}
-                          </span>
-                        )}
-                        {dec.timestamp && (
-                          <button
-                            type="button"
-                            disabled={!audioUrl || normalizeCitation(dec).seconds === null}
-                            onClick={() => onSeekAudio(normalizeCitation(dec).seconds)}
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
-                            title={`Jump audio to ${dec.timestamp}`}
-                          >
-                            <Play className="w-2 h-2 fill-emerald-300" />
-                            <span>{dec.timestamp}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Pillar 2: Risks & Blockers */}
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Risks & Blockers</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 font-bold">
-                  {(result.insights?.risks || []).length}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {(!result.insights?.risks || result.insights.risks.length === 0) ? (
-                  <p className="text-xs text-slate-500 italic py-2">No critical delivery risks detected.</p>
-                ) : (
-                  result.insights.risks.map((risk, idx) => (
-                    <div key={idx} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-1.5 group">
-                      <p className="text-xs text-slate-200 leading-snug">{risk.text}</p>
-                      <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
-                        {risk.speaker && (
-                          <span className={`px-1.5 py-0.2 rounded border ${getSpeakerBadgeStyle(risk.speaker)}`}>
-                            {risk.speaker}
-                          </span>
-                        )}
-                        {risk.timestamp && (
-                          <button
-                            type="button"
-                            disabled={!audioUrl || normalizeCitation(risk).seconds === null}
-                            onClick={() => onSeekAudio(normalizeCitation(risk).seconds)}
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
-                            title={`Jump audio to ${risk.timestamp}`}
-                          >
-                            <Play className="w-2 h-2 fill-amber-300" />
-                            <span>{risk.timestamp}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Pillar 3: Open Questions */}
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-300">
-                  <HelpCircle className="w-3.5 h-3.5" />
-                  <span>Open Questions</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 font-bold">
-                  {(result.insights?.open_questions || []).length}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {(!result.insights?.open_questions || result.insights.open_questions.length === 0) ? (
-                  <p className="text-xs text-slate-500 italic py-2">No open questions recorded.</p>
-                ) : (
-                  result.insights.open_questions.map((q, idx) => (
-                    <div key={idx} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-1.5 group">
-                      <p className="text-xs text-slate-200 leading-snug">{q.text}</p>
-                      <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
-                        {q.speaker && (
-                          <span className={`px-1.5 py-0.2 rounded border ${getSpeakerBadgeStyle(q.speaker)}`}>
-                            {q.speaker}
-                          </span>
-                        )}
-                        {q.timestamp && (
-                          <button
-                            type="button"
-                            disabled={!audioUrl || normalizeCitation(q).seconds === null}
-                            onClick={() => onSeekAudio(normalizeCitation(q).seconds)}
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
-                            title={`Jump audio to ${q.timestamp}`}
-                          >
-                            <Play className="w-2 h-2 fill-blue-300" />
-                            <span>{q.timestamp}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+          <div className="space-y-6">
+            {renderSummarySection()}
+            {renderTasksSection()}
+            {renderInsightsSection()}
           </div>
-        </article>
+        </div>
       )}
 
-      {/* ----------------------------------------------------------- */}
-      {/* SECTION D: INTERACTIVE DIARIZED TRANSCRIPT */}
-      {/* ----------------------------------------------------------- */}
-      {(activeDocTab === 'doc' || activeDocTab === 'transcript') && (
-        <article className="p-6 rounded-3xl bg-slate-900/40 backdrop-blur-md border border-slate-800/80 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 gap-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-teal-500/15 text-teal-400">
-                <FileText className="w-4 h-4" />
-              </div>
-              <h2 className="text-sm font-bold text-white tracking-tight">Attributed Dialogue Transcript</h2>
-            </div>
-
-            {/* View Sub-Toggle (Raw / Segments / MMR) */}
-            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setTranscriptView('raw')}
-                className={`px-2.5 py-0.5 rounded-lg font-medium transition-all ${
-                  transcriptView === 'raw' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Text
-              </button>
-              {result.segments && result.segments.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setTranscriptView('segments')}
-                  className={`px-2.5 py-0.5 rounded-lg font-medium transition-all ${
-                    transcriptView === 'segments' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Segments ({result.segments.length})
-                </button>
-              )}
-              {result.condensed_transcript && (
-                <button
-                  type="button"
-                  onClick={() => setTranscriptView('mmr')}
-                  className={`px-2.5 py-0.5 rounded-lg font-medium transition-all ${
-                    transcriptView === 'mmr' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  MMR Filtered
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Speaker Filter Chips (If Segments View) */}
-          {transcriptView === 'segments' && result.speakers && result.speakers.length > 0 && (
-            <div className="flex items-center gap-1.5 pb-2 overflow-x-auto scrollbar-none text-xs">
-              <span className="text-slate-500 font-mono text-[10px] uppercase">Filter:</span>
-              <button
-                type="button"
-                onClick={() => setSpeakerFilter('all')}
-                className={`px-2 py-0.5 rounded-lg font-medium transition-all ${
-                  speakerFilter === 'all' ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                All
-              </button>
-              {result.speakers.map((spk) => {
-                const count = result.segments.filter((s) => s.speaker === spk).length;
-                return (
-                  <div key={spk} className="inline-flex items-center rounded-lg border overflow-hidden shadow-sm">
-                    <button
-                      type="button"
-                      onClick={() => setSpeakerFilter(speakerFilter === spk ? 'all' : spk)}
-                      className={`px-2 py-0.5 font-medium transition-all ${
-                        speakerFilter === spk ? 'bg-purple-600 text-white' : `${getSpeakerBadgeStyle(spk)} hover:opacity-80`
-                      }`}
-                    >
-                      {spk} ({count})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRenameSpeaker(spk)}
-                      disabled={isContentSaving}
-                      className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border-l border-slate-700 transition-colors"
-                      title={`Rename speaker "${spk}"`}
-                    >
-                      <Edit2 className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Transcript Dialogue Scroll Container */}
-          <div className="max-h-[500px] overflow-y-auto pr-1 space-y-2.5 scrollbar-thin">
-            {transcriptView === 'segments' && result.segments && result.segments.length > 0 ? (
-              result.segments
-                .map((seg, originalIdx) => ({ seg, originalIdx }))
-                .filter(({ seg }) => speakerFilter === 'all' || !seg.speaker || seg.speaker === speakerFilter)
-                .map(({ seg, originalIdx }, displayIdx) => (
-                  <div 
-                    key={originalIdx} 
-                    className="p-3 rounded-2xl bg-slate-950/50 hover:bg-slate-950/80 border border-slate-800/80 transition-colors space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-teal-400 font-mono font-medium">
-                        {seg.timestamp || `Turn #${displayIdx + 1}`}
-                      </span>
-                      {seg.speaker && (
-                        <button
-                          type="button"
-                          onClick={() => onCycleSpeaker(originalIdx)}
-                          disabled={isContentSaving}
-                          title="Click to cycle speaker if misclassified"
-                          className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
-                        >
-                          <span>{seg.speaker}</span>
-                          <span className="text-[9px] opacity-60">⇄</span>
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-200 leading-relaxed font-sans">{seg.text}</p>
-                  </div>
-                ))
-            ) : transcriptView === 'mmr' && result.condensed_transcript ? (
-              <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                {mmrTelemetry?.applied && <p className="mb-3 text-amber-300">Selected {mmrTelemetry.selected_sentences} of {mmrTelemetry.original_sentences} sentences; original transcript remains available.</p>}
-                {result.condensed_transcript}
-              </div>
-            ) : (
-              <div className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                {result.transcript}
-              </div>
-            )}
-          </div>
-        </article>
+      {/* VIEW MODE 3: ZEN SLIDE DECK PRESENTATION (FULLSCREEN OVERLAY) */}
+      {viewMode === 'zen' && (
+        <PresentationDeck
+          meetingData={{
+            title: file?.name || meetingTitle || (isDemoResult ? 'Q3 Product & Budget Review' : 'Executive Meeting Document'),
+            date: metaInfo?.hardware ? metaInfo.hardware.split('•')[1]?.trim() : new Date().toISOString().split('T')[0],
+            duration: formatMeetingDuration(result?.duration),
+            summary: result?.summary,
+            keyDecisions: result?.insights?.decisions?.map(d => typeof d === 'object' ? d.text : d) || result?.key_decisions || [],
+            risks: result?.insights?.risks?.map(r => typeof r === 'object' ? r.text : r) || result?.risks || [],
+            attendees: Array.from(new Set((result?.segments || []).map(s => s.speaker).filter(Boolean)))
+          }}
+          actionItems={result?.action_items?.map(item => typeof item === 'object' ? { text: item.task, assignee: item.assignee, due: item.deadline } : item) || []}
+          completedTasks={new Set(Object.entries(completedTasks).filter(([, v]) => Boolean(v)).map(([k]) => Number(k)))}
+          onToggleTask={onToggleTask}
+          onExit={() => setViewMode('studio')}
+        />
       )}
+
+      {/* Connectors Hub Modal Sheet */}
+      <ConnectorsModal
+        isOpen={showConnectorsModal}
+        onClose={() => setShowConnectorsModal(false)}
+        meetingData={{
+          id: currentMeetingId,
+          meetingId: currentMeetingId,
+          title: file?.name || meetingTitle || (isDemoResult ? 'Q3 Product & Budget Review' : 'Executive Meeting Document'),
+          date: new Date().toISOString().split('T')[0],
+          summary: result?.summary,
+          keyDecisions: result?.insights?.decisions?.map(d => typeof d === 'object' ? d.text : d) || result?.key_decisions || [],
+          risks: result?.insights?.risks?.map(r => typeof r === 'object' ? r.text : r) || result?.risks || [],
+          attendees: Array.from(new Set((result?.segments || []).map(s => s.speaker).filter(Boolean)))
+        }}
+        actionItems={result?.action_items?.map(item => typeof item === 'object' ? { text: item.task, assignee: item.assignee, due: item.deadline } : item) || []}
+        completedTasks={new Set(Object.entries(completedTasks).filter(([, v]) => Boolean(v)).map(([k]) => Number(k)))}
+      />
 
       {/* Editorial Footer Note */}
       <footer className="pt-6 border-t border-slate-800/60 text-xs text-slate-500 text-center">
