@@ -4,7 +4,7 @@ export function resolveAppPage(hash = '') {
   const path = String(hash).split('?')[0];
   let page = path.startsWith('#/') ? path.slice(2) : '';
   if (page === 'home') page = 'landing';
-  return APP_PAGES.includes(page) ? page : 'overview';
+  return APP_PAGES.includes(page) ? page : 'landing';
 }
 
 export function appPageHref(page) {

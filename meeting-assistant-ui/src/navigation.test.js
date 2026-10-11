@@ -39,10 +39,10 @@ test('direct links resolve to their page after reload', () => {
   }
 });
 
-test('empty and malformed links fall back to overview rather than an empty screen', () => {
+test('empty and malformed links fall back to landing rather than an empty screen', () => {
   assert.equal(typeof navigation.resolveAppPage, 'function');
   for (const hash of ['', undefined, '#', '#/unknown', '#/tasks/extra', '#/javascript:alert(1)']) {
-    assert.equal(navigation.resolveAppPage(hash), 'overview');
+    assert.equal(navigation.resolveAppPage(hash), 'landing');
   }
   assert.equal(navigation.resolveAppPage('#/meetings?search=budget'), 'meetings');
 });

@@ -81,7 +81,7 @@ const getDefaultChatGreeting = (currResult) => {
  * 4. WCAG AA Accessibility: Explicit focus-visible ring offsets, ARIA roles, and high contrast ratios.
  */
 function App() {
-  const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'studio');
+  const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'landing');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [notice, setNotice] = useState(null);
   const noticeId = useRef(0);
