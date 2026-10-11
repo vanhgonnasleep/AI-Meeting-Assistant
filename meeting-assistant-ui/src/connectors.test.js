@@ -145,3 +145,16 @@ test('extractAssignee parses assignee annotations from task strings', () => {
   assert.equal(extractAssignee('Deploy model [@Minh]'), 'Minh');
   assert.equal(extractAssignee('Check server health'), null);
 });
+
+test('buildGmailDispatchUrl bounds long body to prevent HTTP 414 URL truncation', () => {
+  const hugeBody = 'A'.repeat(5000);
+  const url = buildGmailDispatchUrl({
+    to: 'lead@example.com',
+    subject: 'Minutes',
+    body: hugeBody,
+    format: 'web'
+  });
+
+  assert.ok(url.length <= 2000, `URL length ${url.length} should be <= 2000`);
+  assert.ok(url.includes('Truncated'));
+});

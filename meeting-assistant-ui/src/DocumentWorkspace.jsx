@@ -1133,7 +1133,7 @@ export default function DocumentWorkspace({
             attendees: Array.from(new Set((result?.segments || []).map(s => s.speaker).filter(Boolean)))
           }}
           actionItems={result?.action_items?.map(item => typeof item === 'object' ? { text: item.task, assignee: item.assignee, due: item.deadline } : item) || []}
-          completedTasks={new Set(Object.entries(completedTasks).filter(([, v]) => Boolean(v)).map(([k]) => Number(k)))}
+          completedTasks={new Set(Object.entries(completedTasks).filter(([, v]) => Boolean(v)).map(([k]) => { const n = Number(k); return Number.isFinite(n) ? n : k; }))}
           onToggleTask={onToggleTask}
           onExit={() => setViewMode('studio')}
         />
@@ -1154,7 +1154,7 @@ export default function DocumentWorkspace({
           attendees: Array.from(new Set((result?.segments || []).map(s => s.speaker).filter(Boolean)))
         }}
         actionItems={result?.action_items?.map(item => typeof item === 'object' ? { text: item.task, assignee: item.assignee, due: item.deadline } : item) || []}
-        completedTasks={new Set(Object.entries(completedTasks).filter(([, v]) => Boolean(v)).map(([k]) => Number(k)))}
+        completedTasks={new Set(Object.entries(completedTasks).filter(([, v]) => Boolean(v)).map(([k]) => { const n = Number(k); return Number.isFinite(n) ? n : k; }))}
       />
 
       {/* Editorial Footer Note */}

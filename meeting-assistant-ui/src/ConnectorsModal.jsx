@@ -72,7 +72,10 @@ export default function ConnectorsModal({
   const [emailTemplate, setEmailTemplate] = useState('brief'); // 'brief' | 'comprehensive'
   const [recipients, setRecipients] = useState(() => {
     const attendees = meetingData?.attendees || [];
-    return attendees.map(a => `${a.toLowerCase()}@example.com`).join(', ');
+    return attendees
+      .filter(Boolean)
+      .map(a => `${String(a).trim().replace(/\s+/g, '.').toLowerCase()}@example.com`)
+      .join(', ');
   });
   const [copiedType, setCopiedType] = useState(null); // 'markdown' | 'email' | null
 

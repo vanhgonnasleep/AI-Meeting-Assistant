@@ -119,7 +119,36 @@ export function buildGmailDispatchUrl({ to = '', subject = '', body = '', format
   };
   if (recipients) params.to = recipients;
   if (subject) params.su = subject;
-  if (body) params.body = body;
+
+  let finalBody = body;
+  if (finalBody) {
+    const truncationSuffix = '\n\n[Full minutes copied to clipboard. Truncated for URL length limit]';
+    const initialUrl = `https://mail.google.com/mail/?${toQueryString({ ...params, body: finalBody })}`;
+
+    if (initialUrl.length > 2000) {
+      const emptyBodyUrl = `https://mail.google.com/mail/?${toQueryString({ ...params, body: '' })}`;
+      const maxEncodedBodyLen = Math.max(0, 2000 - emptyBodyUrl.length);
+      const suffixEncoded = encodeURIComponent(truncationSuffix);
+      const availableForPrefix = maxEncodedBodyLen - suffixEncoded.length;
+
+      if (availableForPrefix > 0) {
+        let sliceLen = Math.min(finalBody.length, availableForPrefix);
+        let candidate = finalBody.slice(0, sliceLen);
+        while (encodeURIComponent(candidate).length > availableForPrefix && sliceLen > 0) {
+          sliceLen = Math.max(0, sliceLen - 10);
+          candidate = finalBody.slice(0, sliceLen);
+        }
+        finalBody = candidate + truncationSuffix;
+      } else {
+        finalBody = truncationSuffix;
+      }
+
+      while (`https://mail.google.com/mail/?${toQueryString({ ...params, body: finalBody })}`.length > 2000 && finalBody.length > truncationSuffix.length) {
+        finalBody = finalBody.slice(0, finalBody.length - truncationSuffix.length - 1) + truncationSuffix;
+      }
+    }
+    params.body = finalBody;
+  }
 
   return `https://mail.google.com/mail/?${toQueryString(params)}`;
 }
