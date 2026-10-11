@@ -24,7 +24,9 @@ import {
   Loader2, 
   Target,
   Columns,
-  ExternalLink
+  ExternalLink,
+  RotateCcw,
+  RotateCw
 } from 'lucide-react';
 import { formatMeetingDuration } from './navigation.js';
 import { normalizeCitation } from './session.js';
@@ -43,6 +45,17 @@ const SPEAKER_BADGE_STYLES = [
   'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
 ];
 
+const SPEAKER_AVATAR_STYLES = [
+  'bg-blue-600 text-white shadow-blue-500/25',
+  'bg-purple-600 text-white shadow-purple-500/25',
+  'bg-emerald-600 text-white shadow-emerald-500/25',
+  'bg-amber-600 text-white shadow-amber-500/25',
+  'bg-pink-600 text-white shadow-pink-500/25',
+  'bg-teal-600 text-white shadow-teal-500/25',
+  'bg-orange-600 text-white shadow-orange-500/25',
+  'bg-cyan-600 text-white shadow-cyan-500/25',
+];
+
 const getSpeakerBadgeStyle = (speaker) => {
   if (!speaker) return 'bg-slate-800 text-slate-300 border-slate-700';
   const s = String(speaker);
@@ -51,6 +64,25 @@ const getSpeakerBadgeStyle = (speaker) => {
     hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
   }
   return SPEAKER_BADGE_STYLES[hash % SPEAKER_BADGE_STYLES.length];
+};
+
+const getSpeakerAvatarStyle = (speaker) => {
+  if (!speaker) return 'bg-slate-800 text-slate-300 border border-slate-700';
+  const s = String(speaker);
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return SPEAKER_AVATAR_STYLES[hash % SPEAKER_AVATAR_STYLES.length];
+};
+
+const getSpeakerInitial = (speaker) => {
+  if (!speaker) return '?';
+  const parts = String(speaker).trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return parts[0].slice(0, 2).toUpperCase();
 };
 
 /**
@@ -127,6 +159,22 @@ export default function DocumentWorkspace({
   const [activeDocTab, setActiveDocTab] = useState('doc'); // 'doc' | 'summary' | 'tasks' | 'insights' | 'transcript'
   const [viewMode, setViewMode] = useState('studio'); // 'studio' | 'split' | 'zen'
   const [showConnectorsModal, setShowConnectorsModal] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+
+  const handleSkipAudio = (seconds) => {
+    if (audioRef?.current) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime + seconds);
+    }
+  };
+
+  const handleTogglePlaybackSpeed = () => {
+    if (audioRef?.current) {
+      const speeds = [1.0, 1.25, 1.5, 2.0];
+      const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length] || 1.0;
+      audioRef.current.playbackRate = next;
+      setPlaybackSpeed(next);
+    }
+  };
 
   const wordCount = result?.transcript ? result.transcript.split(/\s+/).filter(Boolean).length : 0;
   const estimatedReadTime = Math.ceil(wordCount / 200);
@@ -806,26 +854,53 @@ export default function DocumentWorkspace({
             .map(({ seg, originalIdx }, displayIdx) => (
               <div 
                 key={originalIdx} 
-                className="p-3 rounded-2xl bg-slate-950/50 hover:bg-slate-950/80 border border-slate-800/80 transition-colors space-y-1.5"
+                className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-950/50 hover:bg-slate-950/80 border border-slate-800/80 hover:border-indigo-500/30 transition-all duration-200 group"
               >
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-teal-400 font-mono font-medium">
-                    {seg.timestamp || `Turn #${displayIdx + 1}`}
-                  </span>
-                  {seg.speaker && (
-                    <button
-                      type="button"
-                      onClick={() => onCycleSpeaker(originalIdx)}
-                      disabled={isContentSaving}
-                      title="Click to cycle speaker if misclassified"
-                      className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
-                    >
-                      <span>{seg.speaker}</span>
-                      <span className="text-[9px] opacity-60">⇄</span>
-                    </button>
-                  )}
+                {/* Notta-style circular speaker avatar */}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-md ${getSpeakerAvatarStyle(seg.speaker)}`}>
+                  {getSpeakerInitial(seg.speaker)}
                 </div>
-                <p className="text-xs text-slate-200 leading-relaxed font-sans">{seg.text}</p>
+
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white tracking-tight">{seg.speaker || 'Speaker'}</span>
+                      <button
+                        type="button"
+                        disabled={!audioUrl || normalizeCitation(seg).seconds === null}
+                        onClick={() => onSeekAudio(normalizeCitation(seg).seconds)}
+                        className="inline-flex items-center gap-1 font-mono text-[10px] text-teal-400 hover:text-teal-300 px-1.5 py-0.5 rounded-md bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 transition-all cursor-pointer disabled:opacity-40"
+                        title={`Seek audio to ${seg.timestamp}`}
+                      >
+                        <Play className="w-2.5 h-2.5 fill-teal-400" />
+                        <span>{seg.timestamp || `Turn #${displayIdx + 1}`}</span>
+                      </button>
+                    </div>
+
+                    {seg.speaker && (
+                      <button
+                        type="button"
+                        onClick={() => onCycleSpeaker(originalIdx)}
+                        disabled={isContentSaving}
+                        title="Click to cycle speaker attribution"
+                        className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
+                      >
+                        <span>{seg.speaker}</span>
+                        <span className="text-[9px] opacity-60">⇄</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <p 
+                    className="text-xs text-slate-200 leading-relaxed font-sans cursor-pointer hover:text-white transition-colors"
+                    onClick={() => {
+                      const secs = normalizeCitation(seg).seconds;
+                      if (audioUrl && secs !== null) onSeekAudio(secs);
+                    }}
+                  >
+                    {seg.text}
+                  </p>
+                </div>
               </div>
             ))
         ) : transcriptView === 'mmr' && result?.condensed_transcript ? (
@@ -1029,9 +1104,41 @@ export default function DocumentWorkspace({
               </div>
               <div>
                 <p className="text-xs font-semibold text-white">Audio Sync Player</p>
-                <p className="text-[10px] text-slate-400">Click any [MM:SS] citation in the document to seek audio</p>
+                <p className="text-[10px] text-slate-400">Click any dialogue or citation to jump audio position</p>
               </div>
             </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSkipAudio(-5)}
+                className="p-1.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-all flex items-center gap-1 text-[10px] font-mono cursor-pointer active:scale-95"
+                title="Rewind 5 seconds"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>-5s</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSkipAudio(5)}
+                className="p-1.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-all flex items-center gap-1 text-[10px] font-mono cursor-pointer active:scale-95"
+                title="Forward 5 seconds"
+              >
+                <RotateCw className="w-3 h-3" />
+                <span>+5s</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTogglePlaybackSpeed}
+                className="px-2.5 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-mono font-semibold transition-all cursor-pointer active:scale-95"
+                title="Cycle playback speed (1.0x, 1.25x, 1.5x, 2.0x)"
+              >
+                {playbackSpeed.toFixed(2).replace(/\.00$/, '.0')}x
+              </button>
+            </div>
+
             <div className="w-full sm:w-auto flex-1 max-w-sm">
               <audio ref={audioRef} src={audioUrl} controls className="w-full h-8 rounded-lg outline-none" />
             </div>
@@ -1106,13 +1213,13 @@ export default function DocumentWorkspace({
         </div>
       )}
 
-      {/* VIEW MODE 2: SPLIT INSPECTOR (2-COLUMN PRODUCTIVITY) */}
+      {/* VIEW MODE 2: SPLIT INSPECTOR (NOTTA-STYLE 2-COLUMN PRODUCTIVITY) */}
       {viewMode === 'split' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-6">
             {renderTranscriptSection()}
           </div>
-          <div className="space-y-6">
+          <div className="lg:col-span-5 space-y-6">
             {renderSummarySection()}
             {renderTasksSection()}
             {renderInsightsSection()}

@@ -23,6 +23,7 @@ import {
   formatMeetingPreview, 
   getCarouselScrollOffset 
 } from './overview-utils.js';
+import NottaBotCard from './NottaBotCard.jsx';
 
 /**
  * Ambient Liquid Aurora Glow Background
@@ -253,6 +254,9 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
           )}
         </div>
       </div>
+
+      {/* Enterprise AI Meeting Bot Joiner (Notta.ai pattern) */}
+      <NottaBotCard disabled={!canOpen} />
 
       {/* Key Metric Highlights with Dynamic Glow & Progress Indicator */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
