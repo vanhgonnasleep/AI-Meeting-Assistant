@@ -26,8 +26,15 @@ test('navigation subscriptions invalidate delayed meeting opens independently of
 
 test('direct links resolve to their page after reload', () => {
   assert.equal(typeof navigation.resolveAppPage, 'function');
-  for (const [hash, page] of [['#/overview', 'overview'], ['#/studio', 'studio'],
-    ['#/meetings', 'meetings'], ['#/tasks', 'tasks'], ['#/projects', 'projects']]) {
+  for (const [hash, page] of [
+    ['#/landing', 'landing'],
+    ['#/home', 'landing'],
+    ['#/overview', 'overview'],
+    ['#/studio', 'studio'],
+    ['#/meetings', 'meetings'],
+    ['#/tasks', 'tasks'],
+    ['#/projects', 'projects']
+  ]) {
     assert.equal(navigation.resolveAppPage(hash), page);
   }
 });
@@ -42,6 +49,7 @@ test('empty and malformed links fall back to overview rather than an empty scree
 
 test('navigation emits local links and rejects an external destination', () => {
   assert.equal(typeof navigation.appPageHref, 'function');
+  assert.equal(navigation.appPageHref('landing'), '#/landing');
   assert.equal(navigation.appPageHref('meetings'), '#/meetings');
   assert.equal(navigation.appPageHref('projects'), '#/projects');
   assert.throws(() => navigation.appPageHref('https://attacker.example'), RangeError);

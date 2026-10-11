@@ -1,8 +1,9 @@
-export const APP_PAGES = ['overview', 'studio', 'meetings', 'tasks', 'projects'];
+export const APP_PAGES = ['landing', 'overview', 'studio', 'meetings', 'tasks', 'projects'];
 
 export function resolveAppPage(hash = '') {
   const path = String(hash).split('?')[0];
-  const page = path.startsWith('#/') ? path.slice(2) : '';
+  let page = path.startsWith('#/') ? path.slice(2) : '';
+  if (page === 'home') page = 'landing';
   return APP_PAGES.includes(page) ? page : 'overview';
 }
 

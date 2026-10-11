@@ -33,6 +33,7 @@ import { buildMeetingSavePayload } from './storage.js';
 import Sidebar from './Sidebar.jsx';
 import CommandCenter from './CommandCenter.jsx';
 import DocumentWorkspace from './DocumentWorkspace.jsx';
+import LandingPage from './LandingPage.jsx';
 
 import { 
   AlertTriangle, 
@@ -41,7 +42,8 @@ import {
   PanelLeftOpen, 
   PanelLeftClose, 
   Zap, 
-  Play
+  Play,
+  Sparkles
 } from 'lucide-react';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
@@ -979,6 +981,15 @@ ${result.transcript || ""}
     navigateTo('studio');
   };
 
+  if (page === 'landing') {
+    return (
+      <LandingPage
+        onLaunchApp={() => navigateTo('studio')}
+        onOpenDashboard={() => navigateTo('overview')}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans antialiased selection:bg-indigo-500/30 selection:text-white">
       
@@ -1041,6 +1052,16 @@ ${result.transcript || ""}
 
           {/* Quick Actions in Navbar */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigateTo('landing')}
+              className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+              title="View Outside Product Tour & Landing Page"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden sm:inline">Product Tour</span>
+            </button>
+
             {file && !result && !isProcessing && (
               <button
                 type="button"

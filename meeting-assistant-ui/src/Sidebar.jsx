@@ -132,19 +132,24 @@ export default function Sidebar({
       {/* Brand & Collapse Header */}
       <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800/80 shrink-0">
         {!isCollapsed && (
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20 shrink-0">
+          <button
+            type="button"
+            onClick={() => onNavigate('landing')}
+            className="flex items-center gap-2.5 overflow-hidden text-left hover:opacity-85 transition-opacity cursor-pointer group"
+            title="Go to Product Tour & Landing Page"
+          >
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <span className="font-semibold text-xs tracking-tight text-white block truncate">
+              <span className="font-semibold text-xs tracking-tight text-white block truncate group-hover:text-indigo-200">
                 AI Meeting Assistant
               </span>
               <span className="text-[10px] text-slate-400 font-mono block">
                 Local Intelligence
               </span>
             </div>
-          </div>
+          </button>
         )}
 
         <button
