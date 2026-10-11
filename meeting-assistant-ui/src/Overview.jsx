@@ -24,6 +24,7 @@ import {
   getCarouselScrollOffset 
 } from './overview-utils.js';
 import NottaBotCard from './NottaBotCard.jsx';
+import FeatureShowcase from './FeatureShowcase.jsx';
 
 /**
  * Ambient Liquid Aurora Glow Background
@@ -254,6 +255,9 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
           )}
         </div>
       </div>
+
+      {/* Interactive Guided Feature Showcase Walkthrough (Notta-style narrative demo deck) */}
+      <FeatureShowcase onExploreDemo={onNewMeeting} />
 
       {/* Enterprise AI Meeting Bot Joiner (Notta.ai pattern) */}
       <NottaBotCard disabled={!canOpen} />
