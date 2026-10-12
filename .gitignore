@@ -30,4 +30,5 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 database/*.db
+database/backups/
 .superpowers/

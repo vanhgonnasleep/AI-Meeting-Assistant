@@ -8,7 +8,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "node --test src/*.test.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:status": "node ../scripts/manage_db.cjs --status",
+    "db:demo": "node ../scripts/manage_db.cjs --reset-demo",
+    "db:clean": "node ../scripts/manage_db.cjs --clean",
+    "db:seed": "node ../scripts/manage_db.cjs --seed",
+    "db:backup": "node ../scripts/manage_db.cjs --backup"
   },
   "dependencies": {
     "framer-motion": "^13.4.0",
