@@ -39,7 +39,10 @@ export function formatMeetingPreview(meeting) {
     : (Array.isArray(meeting.action_items) ? meeting.action_items.length : 0);
   const language = meeting.language ? String(meeting.language).toUpperCase() : null;
   const durationText = formatMeetingDuration(meeting.duration) || 'Duration unavailable';
-  const dateText = meeting.created_at ? new Date(meeting.created_at).toLocaleDateString() : 'Saved meeting';
+  const parsedDate = meeting.created_at ? new Date(meeting.created_at) : null;
+  const dateText = (parsedDate && Number.isFinite(parsedDate.getTime()))
+    ? parsedDate.toLocaleDateString()
+    : 'Saved meeting';
   const summary = meeting.executive_summary || meeting.summary || 'No summary excerpt recorded.';
 
   return {

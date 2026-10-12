@@ -38,6 +38,8 @@ test('validateMeetingUrl checks valid HTTP/HTTPS URLs', () => {
   assert.equal(validateMeetingUrl('http://zoom.us/j/12345'), true);
   assert.equal(validateMeetingUrl('zoom.us/j/12345'), true); // auto-prepends protocol check
   assert.equal(validateMeetingUrl('javascript:alert(1)'), false);
+  assert.equal(validateMeetingUrl('data:text/html,<script>alert(1)</script>'), false);
+  assert.equal(validateMeetingUrl('file:///etc/passwd'), false);
   assert.equal(validateMeetingUrl(''), false);
   assert.equal(validateMeetingUrl(null), false);
 });

@@ -30,7 +30,7 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
           )}
 
           <span className="flex flex-wrap items-center gap-2.5 mt-1.5 text-[10px] text-slate-500 font-mono">
-            <span>{meeting.created_at ? new Date(meeting.created_at).toLocaleDateString() : 'Saved meeting'}</span>
+            <span>{meeting.created_at && Number.isFinite(new Date(meeting.created_at).getTime()) ? new Date(meeting.created_at).toLocaleDateString() : 'Saved meeting'}</span>
             <span>•</span>
             <span className="flex items-center gap-1">
               <Clock size={11} className="text-slate-500" />

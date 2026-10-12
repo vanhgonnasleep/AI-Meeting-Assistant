@@ -37,6 +37,12 @@ test('formatMeetingPreview handles nullish and rich meeting records safely', () 
   assert.equal(rich.language, 'VI');
   assert.equal(rich.summary, 'Reviewed quarterly projections and budget allocations.');
   assert.ok(rich.durationText);
+
+  const invalidDateRecord = formatMeetingPreview({
+    filename: 'Malformed_Date_Meeting.mp3',
+    created_at: 'not-a-valid-date'
+  });
+  assert.equal(invalidDateRecord.dateText, 'Saved meeting');
 });
 
 test('getCarouselScrollOffset calculates correct step for left and right navigation', () => {

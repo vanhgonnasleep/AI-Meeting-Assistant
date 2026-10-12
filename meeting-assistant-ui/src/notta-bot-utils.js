@@ -86,12 +86,13 @@ export function getPlatformDetails(platform) {
 export function validateMeetingUrl(url) {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();
-  if (!trimmed || trimmed.toLowerCase().startsWith('javascript:')) return false;
+  if (!trimmed || trimmed.toLowerCase().startsWith('javascript:') || trimmed.toLowerCase().startsWith('data:')) return false;
 
   const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
     const parsed = new URL(withProtocol);
-    return Boolean(parsed.hostname && parsed.hostname.includes('.'));
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+      Boolean(parsed.hostname && parsed.hostname.includes('.') && !parsed.hostname.startsWith('.'));
   } catch {
     return false;
   }
@@ -106,7 +107,9 @@ export function validateMeetingUrl(url) {
  * @returns {object}
  */
 export function formatBotJoinConfirmation({ url, botName = 'AI Assistant Bot', language = 'auto' }) {
-  const platform = detectMeetingPlatform(url) || 'generic';
+  const trimmed = String(url || '').trim();
+  const safeUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const platform = detectMeetingPlatform(safeUrl) || 'generic';
   const details = getPlatformDetails(platform);
 
   return {
