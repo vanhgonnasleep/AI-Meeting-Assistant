@@ -143,10 +143,10 @@ export default function Sidebar({
             </div>
             <div className="min-w-0">
               <span className="font-semibold text-xs tracking-tight text-white block truncate group-hover:text-indigo-200">
-                AI Meeting Assistant
+                Clarion
               </span>
               <span className="text-[10px] text-slate-400 font-mono block">
-                Local Intelligence
+                Private Intelligence
               </span>
             </div>
           </button>
