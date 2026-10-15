@@ -5,16 +5,13 @@ Author: Clarion Engineering Team (Lead)
 
 Measures quantitative system metrics for defense presentation:
   1. MMR Extractive Redundancy Filter (Compression, Word Reduction, Latency)
-  2. SQLite WAL Concurrency & Throughput (p50, p95, p99 Latency, TPS)
+  2. Sequential SQLite WAL writes and reads (p50, p95, p99 latency)
   3. Whisper STT Inference Speed & Real-Time Factor (RTF)
   4. Generates formatted Markdown report for defense slides
 """
 
-import os
 import sys
 import time
-import math
-import json
 import sqlite3
 import tempfile
 import statistics
@@ -95,7 +92,7 @@ def benchmark_mmr():
 
 
 def benchmark_sqlite_wal():
-    print("\n[2/3] Benchmarking SQLite Write-Ahead Logging (WAL) Concurrency...")
+    print("\n[2/3] Benchmarking sequential SQLite WAL writes and reads...")
     
     # Create isolated temp database
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -148,11 +145,11 @@ def benchmark_sqlite_wal():
         "write_p99_ms": round(p99_write, 2),
         "read_avg_ms": round(avg_read, 2),
         "read_p95_ms": round(p95_read, 2),
-        "write_tps": round(1000.0 / (p50_write or 1.0), 1)
+        "write_tps": round(1000.0 / statistics.mean(write_latencies), 1)
     }
     print(f"  * Write Latency: p50={result['write_p50_ms']} ms | p95={result['write_p95_ms']} ms | p99={result['write_p99_ms']} ms")
     print(f"  * Read Latency: avg={result['read_avg_ms']} ms | p95={result['read_p95_ms']} ms")
-    print(f"  * Est. Concurrency Throughput: {result['write_tps']} tx/sec")
+    print(f"  * Sequential Write Throughput: {result['write_tps']} tx/sec")
     return result
 
 
@@ -160,7 +157,8 @@ def benchmark_whisper_rtf():
     print("\n[3/3] Benchmarking Speech-to-Text Pipeline (Whisper / Audio)...")
     sample_wav = REPO_ROOT / "meeting-assistant-ui" / "public" / "q3_product_budget_review.wav"
     
-    audio_duration = 29.05  # seconds
+    audio_duration = None
+    reason = "Bundled WAV recording is unavailable."
     
     # Check if whisper is loadable
     try:
@@ -168,17 +166,22 @@ def benchmark_whisper_rtf():
         has_whisper = True
     except ImportError:
         has_whisper = False
+        reason = "Whisper is not installed in the selected Python environment."
 
     if has_whisper and sample_wav.exists():
         try:
             print("  * Loading Whisper 'tiny' model...")
             t_load_0 = time.perf_counter()
-            model = whisper.load_model("tiny")
+            model = whisper.load_model("tiny", device="cpu")
             t_load = time.perf_counter() - t_load_0
 
+            from audio_preparation import PreparedAudio
+            with PreparedAudio(sample_wav, max_duration_seconds=120) as prepared:
+                samples = prepared.read_samples(0, prepared.sample_count)
+                audio_duration = prepared.duration
             print(f"  * Running transcription on {sample_wav.name} ({audio_duration}s)...")
             t_inf_0 = time.perf_counter()
-            res = model.transcribe(str(sample_wav), fp16=False)
+            res = model.transcribe(samples, fp16=False)
             t_inf = time.perf_counter() - t_inf_0
             
             rtf = t_inf / audio_duration
@@ -186,6 +189,7 @@ def benchmark_whisper_rtf():
             words = len(res.get("text", "").split())
 
             result = {
+                "status": "measured",
                 "model": "OpenAI Whisper (tiny, fp16=False / CPU)",
                 "audio_duration_s": audio_duration,
                 "inference_time_s": round(t_inf, 2),
@@ -198,80 +202,84 @@ def benchmark_whisper_rtf():
             print(f"  * Real-Time Factor (RTF): {result['rtf']} ({result['processing_speed']})")
             return result
         except Exception as e:
+            reason = f"Whisper inference unavailable: {e}"
             print(f"  [!] Whisper inference skipped: {e}")
 
-    # Fallback to recorded baseline metrics if Whisper is not installed in current Python env
     result = {
-        "model": "OpenAI Whisper (tiny, fp16=False / CPU Baseline)",
+        "status": "skipped",
+        "reason": reason,
+        "model": "OpenAI Whisper (tiny, fp16=False)",
         "audio_duration_s": audio_duration,
-        "inference_time_s": 2.45,
-        "rtf": 0.084,
-        "processing_speed": "11.8x real-time",
-        "words_transcribed": 68,
-        "model_load_time_s": 1.15
+        "inference_time_s": None,
+        "rtf": None,
+        "processing_speed": None,
+        "words_transcribed": None,
+        "model_load_time_s": None,
     }
-    print(f"  * [Baseline Reference] RTF: {result['rtf']} ({result['processing_speed']})")
+    print(f"  * Skipped (not measured): {reason}")
     return result
 
 
 def generate_markdown_report(mmr_res, db_res, stt_res):
     report_path = REPO_ROOT / "docs" / "BENCHMARK_REPORT.md"
-    content = f"""# 📊 Clarion Quantitative Performance & Benchmark Report
+    stt_status = "Measured in this run." if stt_res["status"] == "measured" else f"Skipped; not measured: {stt_res['reason']}"
+    def measured(key):
+        value = stt_res.get(key)
+        return "Not measured" if value is None else str(value)
+    content = f"""# Clarion performance measurements
 
-> **Generated on:** {time.strftime('%Y-%m-%d %H:%M:%S')}  
-> **Evaluation Mode:** Local Consumer Laptop Baseline (Offline-First)  
-> **Purpose:** Quantitative Evidence for Capstone Defense Examination
+Generated: {time.strftime('%Y-%m-%d %H:%M:%S %z')}
+Python: {sys.version.split()[0]}; platform: {sys.platform}; SQLite: {sqlite3.sqlite_version}.
+These measurements describe this machine and these fixtures only.
 
----
+## MMR extraction
 
-## 1. Algorithmic Redundancy Filter: Maximal Marginal Relevance (MMR)
-*Evaluated on conversational meeting transcripts ($\\lambda = 0.65$)*
+One synthetic transcript, {mmr_res['iterations']} timed iterations after warmup,
+lambda 0.65 and target sentence ratio 0.55.
 
-| Metric | Measured Value | Architectural Implication |
-| :--- | :--- | :--- |
-| **Original Word Count** | `{mmr_res['original_words']} words` | Raw speech input with conversational noise |
-| **Condensed Word Count** | `{mmr_res['condensed_words']} words` | Retained high-density decisions & action turns |
-| **Noise Reduction Ratio** | **`{mmr_res['noise_reduction_pct']}%`** | ~40-50% reduction in LLM prompt tokens |
-| **Execution Latency (Mean)** | **`{mmr_res['avg_latency_ms']} ms`** | Near-zero overhead before LLM synthesis |
-| **95th Percentile Latency (p95)**| `{mmr_res['p95_latency_ms']} ms` | Deterministic sparse vector space traversal |
-| **Complexity Bound** | $\\mathcal{{O}}(K \\cdot N)$ | Linear in selected turns, quadratic in sentence count |
+| Metric | Measured value |
+| --- | --- |
+| Original words | {mmr_res['original_words']} |
+| Condensed words | {mmr_res['condensed_words']} |
+| Word-count reduction | {mmr_res['noise_reduction_pct']}% |
+| Mean latency | {mmr_res['avg_latency_ms']} ms |
+| p95 latency | {mmr_res['p95_latency_ms']} ms |
 
----
+Word reduction does not measure token savings, information retention or summary accuracy.
+Selection performs O(K * N) sparse cosine comparisons; K proportional to N is quadratic.
 
-## 2. Persistent Storage Engine: SQLite Concurrency & Latency
-*Evaluated with Write-Ahead Logging (WAL) and 15-second busy timeout handlers*
+## SQLite WAL
 
-| Metric | Measured Value | Target Standard |
-| :--- | :--- | :--- |
-| **Journaling Mode** | `PRAGMA journal_mode=WAL` | Non-blocking concurrent reader-writer model |
-| **Write Latency (p50)** | **`{db_res['write_p50_ms']} ms`** | Sub-5ms instantaneous write acknowledgement |
-| **Write Latency (p95)** | **`{db_res['write_p95_ms']} ms`** | Drop from ~120ms (rollback journal) to < 24ms |
-| **Write Latency (p99)** | `{db_res['write_p99_ms']} ms` | No lock contention under heavy burst |
-| **Read / Search Latency (p95)**| **`{db_res['read_p95_ms']} ms`** | Sub-millisecond indexed query retrieval |
-| **Estimated Throughput** | **`{db_res['write_tps']} tx/sec`** | Exceeds single-user local meeting requirements |
+100 sequential committed inserts, followed by 100 reads, on one connection to an isolated
+temporary database. WAL and a 15-second busy timeout are configured. Concurrent workload,
+lock contention and comparison with rollback journaling were not measured.
 
----
+| Metric | Measured value |
+| --- | --- |
+| Write p50 | {db_res['write_p50_ms']} ms |
+| Write p95 | {db_res['write_p95_ms']} ms |
+| Write p99 | {db_res['write_p99_ms']} ms |
+| Read p95 | {db_res['read_p95_ms']} ms |
+| Sequential writes per second (100 / total write time) | {db_res['write_tps']} |
 
-## 3. Speech-to-Text Pipeline: Whisper Inference & Efficiency
-*Evaluated on bundled test recording (`q3_product_budget_review.wav`, {stt_res['audio_duration_s']}s)*
+## Whisper transcription
 
-| Metric | Measured Value | Analysis |
-| :--- | :--- | :--- |
-| **Model Architecture** | `{stt_res['model']}` | Quantized multi-lingual acoustic model |
-| **Audio Duration** | `{stt_res['audio_duration_s']} seconds` | Bundled conference test sample |
-| **Inference Duration** | `{stt_res['inference_time_s']} seconds` | Fast local on-device transcription |
-| **Real-Time Factor (RTF)** | **`{stt_res['rtf']}`** | $\\text{{RTF}} < 1.0$ indicates faster than real-time |
-| **Processing Speedup** | **`{stt_res['processing_speed']}`** | Audio transcribed ~10x faster than speech duration |
+{stt_status}
 
----
+Recording: q3_product_budget_review.wav. Model: {stt_res['model']}.
+Inference time excludes model loading and audio decoding. The bundled FFmpeg decoder
+prepares mono 16 kHz PCM; Whisper tiny runs on CPU with fp16 disabled.
+A missing measurement has no substituted baseline.
 
-## 🎯 Defense Talking Points (Cheatsheet)
-1. **Token Cost & Context Window Conservation:**  
-   Applying MMR at $\\lambda=0.65$ eliminates **{mmr_res['noise_reduction_pct']}%** of redundant conversational filler in **{mmr_res['avg_latency_ms']} ms**, preventing local LLM context degradation without losing critical action items.
-2. **ACID Storage Concurrency:**  
-   SQLite WAL mode ensures readers never block writers and writers never block readers, sustaining **{db_res['write_p50_ms']} ms** transaction latency.
-3. **Data Sovereignty Guarantee:**  
-   Zero bytes leave the localhost boundary; both Whisper STT and Llama 3 LLM execute 100% on-device.
+| Metric | Value |
+| --- | --- |
+| Audio duration (seconds) | {measured('audio_duration_s')} |
+| Inference duration (seconds) | {measured('inference_time_s')} |
+| Real-time factor (inference / audio duration) | {measured('rtf')} |
+| Processing speed | {measured('processing_speed')} |
+
+This benchmark does not evaluate transcription accuracy, factual grounding, end-to-end
+summary quality, network isolation or privacy compliance.
 """
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(content)

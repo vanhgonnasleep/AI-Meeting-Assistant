@@ -15,16 +15,18 @@ Provides safe, deterministic database hygiene:
 import argparse
 import datetime
 import json
-import os
-import shutil
 import sqlite3
 import sys
+import tempfile
+from contextlib import closing
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DB_DIR = REPO_ROOT / "database"
 DB_FILE = DB_DIR / "meeting.db"
 BACKUP_DIR = DB_DIR / "backups"
+sys.path.insert(0, str(REPO_ROOT))
+from database.db import MIGRATION_COLUMNS
 
 # Ensure database directory exists
 DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -63,6 +65,10 @@ def ensure_schema(conn):
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(meetings)")}
+    for column, definition in MIGRATION_COLUMNS.items():
+        if column not in columns:
+            conn.execute(f"ALTER TABLE meetings ADD COLUMN {column} {definition}")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_recent ON meetings(created_at DESC, id DESC)")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_meetings_save_key ON meetings(save_key) WHERE save_key IS NOT NULL")
     conn.execute("""
@@ -83,14 +89,17 @@ def backup_database():
         return None
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = BACKUP_DIR / f"meeting_backup_{timestamp}.db"
-    
-    # Use SQLite backup API for online safe copy
-    src = sqlite3.connect(DB_FILE)
-    dst = sqlite3.connect(backup_file)
-    src.backup(dst)
-    src.close()
-    dst.close()
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(prefix=f"meeting_backup_{timestamp}_", suffix=".db",
+                                     dir=BACKUP_DIR, delete=False) as reserved:
+        backup_file = Path(reserved.name)
+    try:
+        # The reserved unique file prevents another backup from overwriting this one.
+        with closing(sqlite3.connect(DB_FILE)) as src, closing(sqlite3.connect(backup_file)) as dst:
+            src.backup(dst)
+    except Exception:
+        backup_file.unlink(missing_ok=True)
+        raise
 
     size_kb = backup_file.stat().st_size / 1024
     print(f"[OK] Backup created successfully: {backup_file} ({size_kb:.1f} KB)")
@@ -151,9 +160,10 @@ def seed_database():
     ensure_schema(conn)
 
     # 1. Projects
-    conn.execute("INSERT OR IGNORE INTO projects (id, name, name_key) VALUES (1, 'Clarion Core Platform', 'clarion core platform')")
-    conn.execute("INSERT OR IGNORE INTO projects (id, name, name_key) VALUES (2, 'Enterprise Compliance', 'enterprise compliance')")
-    conn.commit()
+    project_ids = []
+    for name in ("Clarion Core Platform", "Enterprise Compliance"):
+        conn.execute("INSERT OR IGNORE INTO projects (name, name_key) VALUES (?, ?)", (name, name.casefold()))
+        project_ids.append(conn.execute("SELECT id FROM projects WHERE name_key=?", (name.casefold(),)).fetchone()[0])
 
     # 2. Meeting 1: Bundled Audio WAV Meeting (Exact match to public/q3_product_budget_review.wav)
     m1_filename = "q3_product_budget_review.wav"
@@ -319,9 +329,9 @@ def seed_database():
     m3_chat = []
 
     meetings_to_insert = [
-        (m1_filename, m1_raw, m1_summary, json.dumps(m1_action_items), m1_duration, "en", json.dumps(m1_segments), json.dumps(m1_insights), json.dumps(m1_chat), 1, "reviewed"),
-        (m2_filename, m2_raw, m2_summary, json.dumps(m2_action_items), m2_duration, "en", json.dumps(m2_segments), json.dumps(m2_insights), json.dumps(m2_chat), 1, "reviewed"),
-        (m3_filename, m3_raw, m3_summary, json.dumps(m3_action_items), m3_duration, "en", json.dumps(m3_segments), json.dumps(m3_insights), json.dumps(m3_chat), 2, "reviewed"),
+        (m1_filename, m1_raw, m1_summary, json.dumps(m1_action_items), m1_duration, "en", json.dumps(m1_segments), json.dumps(m1_insights), json.dumps(m1_chat), project_ids[0], "reviewed"),
+        (m2_filename, m2_raw, m2_summary, json.dumps(m2_action_items), m2_duration, "en", json.dumps(m2_segments), json.dumps(m2_insights), json.dumps(m2_chat), project_ids[0], "reviewed"),
+        (m3_filename, m3_raw, m3_summary, json.dumps(m3_action_items), m3_duration, "en", json.dumps(m3_segments), json.dumps(m3_insights), json.dumps(m3_chat), project_ids[1], "reviewed"),
     ]
 
     for m in meetings_to_insert:
@@ -353,15 +363,19 @@ def restore_backup(backup_path_str):
     if not backup_file.exists():
         print(f"[ERROR] Backup file not found: {backup_file}")
         sys.exit(1)
-
-    print(f"Restoring database from: {backup_file}")
-    backup_database()  # Backup current state before restoring
-    
-    src = sqlite3.connect(backup_file)
-    dst = sqlite3.connect(DB_FILE)
-    src.backup(dst)
-    src.close()
-    dst.close()
+    if backup_file.resolve() == DB_FILE.resolve() or (DB_FILE.exists() and backup_file.samefile(DB_FILE)):
+        raise ValueError("Restore source must be a backup, not the live database.")
+    with closing(sqlite3.connect(backup_file.resolve().as_uri() + "?mode=ro", uri=True)) as src:
+        if src.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+            raise ValueError("Backup failed SQLite integrity validation.")
+        columns = {row[1] for row in src.execute("PRAGMA table_info(meetings)")}
+        if not {"id", "filename", "raw_transcript", "executive_summary", "action_items",
+                "created_at", "updated_at"}.issubset(columns):
+            raise ValueError("Backup does not contain a meeting database.")
+        print(f"Restoring database from: {backup_file}")
+        backup_database()  # Preserve current state before copying validated input.
+        with closing(sqlite3.connect(DB_FILE)) as dst:
+            src.backup(dst)
     print(f"[OK] Restored successfully from {backup_file}")
     get_status()
 

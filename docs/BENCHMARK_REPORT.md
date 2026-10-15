@@ -1,56 +1,54 @@
-# 📊 Clarion Quantitative Performance & Benchmark Report
+# Clarion performance measurements
 
-> **Generated on:** 2026-10-15 09:02:46  
-> **Evaluation Mode:** Local Consumer Laptop Baseline (Offline-First)  
-> **Purpose:** Quantitative Evidence for Capstone Defense Examination
+Generated: 2026-10-15 09:49:29 +0700
+Python: 3.14.7; platform: win32; SQLite: 3.50.4.
+These measurements describe this machine and these fixtures only.
 
----
+## MMR extraction
 
-## 1. Algorithmic Redundancy Filter: Maximal Marginal Relevance (MMR)
-*Evaluated on conversational meeting transcripts ($\lambda = 0.65$)*
+One synthetic transcript, 50 timed iterations after warmup,
+lambda 0.65 and target sentence ratio 0.55.
 
-| Metric | Measured Value | Architectural Implication |
-| :--- | :--- | :--- |
-| **Original Word Count** | `251 words` | Raw speech input with conversational noise |
-| **Condensed Word Count** | `126 words` | Retained high-density decisions & action turns |
-| **Noise Reduction Ratio** | **`49.8%`** | ~40-50% reduction in LLM prompt tokens |
-| **Execution Latency (Mean)** | **`0.82 ms`** | Near-zero overhead before LLM synthesis |
-| **95th Percentile Latency (p95)**| `0.87 ms` | Deterministic sparse vector space traversal |
-| **Complexity Bound** | $\mathcal{O}(K \cdot N)$ | Linear in selected turns, quadratic in sentence count |
+| Metric | Measured value |
+| --- | --- |
+| Original words | 251 |
+| Condensed words | 126 |
+| Word-count reduction | 49.8% |
+| Mean latency | 0.78 ms |
+| p95 latency | 0.85 ms |
 
----
+Word reduction does not measure token savings, information retention or summary accuracy.
+Selection performs O(K * N) sparse cosine comparisons; K proportional to N is quadratic.
 
-## 2. Persistent Storage Engine: SQLite Concurrency & Latency
-*Evaluated with Write-Ahead Logging (WAL) and 15-second busy timeout handlers*
+## SQLite WAL
 
-| Metric | Measured Value | Target Standard |
-| :--- | :--- | :--- |
-| **Journaling Mode** | `PRAGMA journal_mode=WAL` | Non-blocking concurrent reader-writer model |
-| **Write Latency (p50)** | **`0.88 ms`** | Sub-5ms instantaneous write acknowledgement |
-| **Write Latency (p95)** | **`1.02 ms`** | Drop from ~120ms (rollback journal) to < 24ms |
-| **Write Latency (p99)** | `1.48 ms` | No lock contention under heavy burst |
-| **Read / Search Latency (p95)**| **`0.03 ms`** | Sub-millisecond indexed query retrieval |
-| **Estimated Throughput** | **`1137.1 tx/sec`** | Exceeds single-user local meeting requirements |
+100 sequential committed inserts, followed by 100 reads, on one connection to an isolated
+temporary database. WAL and a 15-second busy timeout are configured. Concurrent workload,
+lock contention and comparison with rollback journaling were not measured.
 
----
+| Metric | Measured value |
+| --- | --- |
+| Write p50 | 1.12 ms |
+| Write p95 | 1.79 ms |
+| Write p99 | 2.27 ms |
+| Read p95 | 0.05 ms |
+| Sequential writes per second (100 / total write time) | 780.6 |
 
-## 3. Speech-to-Text Pipeline: Whisper Inference & Efficiency
-*Evaluated on bundled test recording (`q3_product_budget_review.wav`, 29.05s)*
+## Whisper transcription
 
-| Metric | Measured Value | Analysis |
-| :--- | :--- | :--- |
-| **Model Architecture** | `OpenAI Whisper (tiny, fp16=False / CPU Baseline)` | Quantized multi-lingual acoustic model |
-| **Audio Duration** | `29.05 seconds` | Bundled conference test sample |
-| **Inference Duration** | `2.45 seconds` | Fast local on-device transcription |
-| **Real-Time Factor (RTF)** | **`0.084`** | $\text{RTF} < 1.0$ indicates faster than real-time |
-| **Processing Speedup** | **`11.8x real-time`** | Audio transcribed ~10x faster than speech duration |
+Measured in this run.
 
----
+Recording: q3_product_budget_review.wav. Model: OpenAI Whisper (tiny, fp16=False / CPU).
+Inference time excludes model loading and audio decoding. The bundled FFmpeg decoder
+prepares mono 16 kHz PCM; Whisper tiny runs on CPU with fp16 disabled.
+A missing measurement has no substituted baseline.
 
-## 🎯 Defense Talking Points (Cheatsheet)
-1. **Token Cost & Context Window Conservation:**  
-   Applying MMR at $\lambda=0.65$ eliminates **49.8%** of redundant conversational filler in **0.82 ms**, preventing local LLM context degradation without losing critical action items.
-2. **ACID Storage Concurrency:**  
-   SQLite WAL mode ensures readers never block writers and writers never block readers, sustaining **0.88 ms** transaction latency.
-3. **Data Sovereignty Guarantee:**  
-   Zero bytes leave the localhost boundary; both Whisper STT and Llama 3 LLM execute 100% on-device.
+| Metric | Value |
+| --- | --- |
+| Audio duration (seconds) | 29.05 |
+| Inference duration (seconds) | 2.89 |
+| Real-time factor (inference / audio duration) | 0.1 |
+| Processing speed | 10.0x real-time |
+
+This benchmark does not evaluate transcription accuracy, factual grounding, end-to-end
+summary quality, network isolation or privacy compliance.

@@ -13,7 +13,10 @@ if (scriptArgs.length > 0 && scriptArgs[0].endsWith('.py')) {
 }
 
 // Candidates for python executable
+const venvPython = path.resolve(__dirname, '..', 'ai-summary-service', 'venv',
+  process.platform === 'win32' ? 'Scripts' : 'bin', process.platform === 'win32' ? 'python.exe' : 'python');
 const candidates = [
+  fs.existsSync(venvPython) ? venvPython : null,
   'py',
   'python3',
   'python',
@@ -27,7 +30,7 @@ for (const cmd of candidates) {
     if (check.status === 0) {
       const result = spawnSync(cmd, [pyScript, ...scriptArgs], { stdio: 'inherit' });
       spawned = true;
-      process.exit(result.status || 0);
+      process.exit(result.status ?? 1);
       break;
     }
   } catch (e) {
