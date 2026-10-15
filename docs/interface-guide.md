@@ -10,7 +10,18 @@ The workspace uses cool white surfaces and periwinkle accents across five pages.
 | Action items | Search tasks across meetings and filter by assignee, status, or project. Open a task to review its source meeting. |
 | Projects | Create a project and review decisions from the meetings assigned to it. Assign meetings through **Edit & review**. |
 
-The overview puts the new-meeting action, counts and recent recordings first. Open **Explore your workspace** for the optional walkthrough and meeting link tools.
+The overview puts the new-meeting action, counts and recent recordings first. Open **Try the interactive sample** to explore a 29-second recording, prepared notes and follow-ups. The same sample appears on the landing page. It plays sound only after you press Play; the three workflow tabs also work with arrow keys. Automatic scene changes stop when you interact, focus a control, leave the sample offscreen, or request reduced motion. Audio completion keeps your current scene and keyboard focus.
+
+## Preview a GitHub issue or Gmail draft
+
+Open **GitHub & Gmail** from a meeting's document toolbar. Both destinations show their logo, domain and the content that will open.
+
+- **GitHub issue:** enter `owner/repository`, select tasks and preview one. **Open issue draft** opens that task's title, owner, deadline and source context on GitHub. You submit the issue there. An invalid repository or empty task selection disables the link.
+- **Gmail draft:** add real recipient addresses and choose a short briefing or full minutes. The preview shows the same body carried by the Gmail link. Long minutes are shortened to fit the link, with an explicit notice and **Copy full minutes** alternative. Speaker names never become invented email addresses.
+
+Opening a draft does not publish an issue or send an email. The separate, collapsed **Advanced** section retains direct issue creation with a personal access token and explicitly labels that action as immediate creation. Tokens remain stored in this browser as before.
+
+The landing examples are labeled sample drafts. Their prepared outputs demonstrate the workflow; switching tabs does not run transcription or an AI model.
 
 ## Process and review a recording
 
@@ -37,7 +48,7 @@ The sidebar expands and collapses with a short transition. Buttons respond to ho
 
 The interface honors the operating system/browser's reduced-motion preference. Translucent navigation and panels use a solid fallback where backdrop filtering is unavailable or reduced transparency is requested. Reading surfaces remain stable and text uses dark foregrounds; filled primary actions retain white labels. Use Tab to reach controls and Enter/Space to activate document sections. Escape closes editing dialogs.
 
-The visual treatment draws on the content hierarchy and material guidance in [Apple's materials guidelines](https://developer.apple.com/design/human-interface-guidelines/materials) and [Microsoft Fluent materials](https://fluent2.microsoft.design/material). The shared palette is defined in `tailwind.config.js`; layout and surface refinements live in `src/clarion.css`.
+The visual treatment draws on the content hierarchy and material guidance in [Apple's materials guidelines](https://developer.apple.com/design/human-interface-guidelines/materials) and [Microsoft Fluent materials](https://fluent2.microsoft.design/material). Product demonstrations and destination previews also take cues from [Linear's integration guidance](https://linear.app/docs/integration-directory) and [Stripe Checkout](https://stripe.com/payments/checkout), using Clarion's own layouts and recording sample. The shared palette is defined in `tailwind.config.js`; workspace surfaces live in `src/clarion.css`, with the interactive demonstration and connector previews in `src/visual-story.css` and `src/connector-sheet.css`.
 
 No additional setup or package is required for these interface changes.
 

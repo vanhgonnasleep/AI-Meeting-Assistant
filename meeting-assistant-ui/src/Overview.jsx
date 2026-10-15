@@ -22,7 +22,6 @@ import {
   formatMeetingPreview, 
   getCarouselScrollOffset 
 } from './overview-utils.js';
-import NottaBotCard from './NottaBotCard.jsx';
 import FeatureShowcase from './FeatureShowcase.jsx';
 
 /**
@@ -155,18 +154,17 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
     <div className="clarion-overview relative space-y-7 mx-auto">
       <div className="overview-intro">
         <div>
-          <div className="workspace-eyebrow">A clearer kind of workday</div>
-          <h1>Your meetings, in focus.<br /><span>Space for what comes next.</span></h1>
-          <p className="text-slate-600 mt-3">A calm home for your conversations, notes, and next steps.</p>
+          <div className="workspace-eyebrow">Your workspace</div>
+          <h1>Pick up the thread.</h1>
         </div>
         <span className="workspace-context"><Activity />Your local workspace</span>
       </div>
 
       <section className="overview-hero" aria-label="Start a meeting">
         <div>
-          <div className="workspace-eyebrow">Less note-taking. More being there.</div>
-          <h2>{processing ? 'A little clarity is on its way.' : 'Good conversations deserve a clear next step.'}</h2>
-          <p>{processing ? 'Your recording is processing on this computer. Your library is ready whenever you need it.' : 'Bring a recording. Leave with a transcript, thoughtful notes, and the things to follow up on.'}</p>
+          <div className="workspace-eyebrow">From conversation to action</div>
+          <h2>{processing ? 'Your notes are on their way.' : 'One recording. A clear next step.'}</h2>
+          <p>{processing ? 'Processing locally. Your library is still ready to browse.' : 'Bring the audio. Leave with notes, owners and deadlines.'}</p>
           <div className="overview-hero-action">
             {processing ? <a href={appPageHref('studio')} className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-semibold inline-flex items-center gap-2">View processing<ArrowUpRight size={15} /></a>
               : <motion.button whileHover={{ y: -1 }} whileTap={{ scale: .98 }} type="button" disabled={!canOpen} onClick={onNewMeeting}
@@ -177,7 +175,7 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
         <div className="overview-hero-visual" aria-hidden="true">
           <div className="meeting-miniature">
             <div className="meeting-miniature-header"><AudioLines size={14} />A conversation, made clear<span>00:32</span></div>
-            <div className="meeting-spectrum">{[8,12,18,13,25,34,20,12,29,38,26,17,30,42,33,19,12,26,36,22,14,29,40,31,18,11,24,32,21,13,18,10].map((height, index) => <i key={index} style={{ '--bar-height': `${height}px` }} />)}</div>
+            <div className="meeting-spectrum">{[8,12,18,13,25,34,20,12,29,38,26,17,30,42,33,19,12,26,36,22,14,29,40,31,18,11,24,32,21,13,18,10].map((height, index) => <i key={index} style={{ '--bar-height': `${height}px`, '--bar-delay': `${index * -.07}s` }} />)}</div>
             <div className="meeting-miniature-line" /><div className="meeting-miniature-line" />
           </div>
           <div className="meeting-miniature-note"><CheckCircle2 /><span>One less thing to keep in your head.</span></div>
@@ -410,8 +408,8 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
       </div>
 
       <details className="overview-explore">
-        <summary><span>Explore your workspace<small>A quick walkthrough and meeting link tools</small></span><span aria-hidden="true">+</span></summary>
-        <div className="space-y-5"><FeatureShowcase onExploreDemo={onNewMeeting} /><NottaBotCard disabled={!canOpen} /></div>
+        <summary><span>Try the interactive sample<small>29 seconds, from audio to follow-up</small></span><span aria-hidden="true">+</span></summary>
+        <div><FeatureShowcase onExploreDemo={onNewMeeting} /></div>
       </details>
 
     </div>

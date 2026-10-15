@@ -7,6 +7,39 @@ import {
   formatEmailMinutes,
   extractAssignee
 } from './connectors.js';
+import * as connectorHelpers from './connectors.js';
+
+test('connector drafts retain native meeting task fields and deadlines', () => {
+  const task = { task: 'Prepare the Q3 report', assignee: 'John', deadline: 'Friday afternoon' };
+  const issue = buildGitHubIssuePayload(task, { title: 'Budget review', date: '2026-10-15' });
+  assert.equal(issue.title, '[Action Item] Prepare the Q3 report');
+  assert.ok(issue.body.includes('**Due Date:** Friday afternoon'));
+  const email = formatEmailMinutes({ title: 'Budget review', actionItems: [task] }, { template: 'comprehensive' });
+  assert.ok(email.includes('[ ] Prepare the Q3 report (Assignee: John)'));
+  assert.ok(email.includes('Friday afternoon'));
+});
+
+test('draft destinations accept a repository pair and reject URLs or injected path syntax', () => {
+  assert.equal(connectorHelpers.isValidGitHubRepo('acme/meeting-notes'), true);
+  assert.equal(connectorHelpers.isValidGitHubRepo(' acme/meeting.notes '), true);
+  for (const repo of ['', 'acme', 'https://github.com/acme/repo', 'acme/repo/issues', 'acme/repo?title=other', 'acme/..']) {
+    assert.equal(connectorHelpers.isValidGitHubRepo(repo), false, repo);
+  }
+});
+
+test('email recipients use actual addresses and never invent emails from speaker names', () => {
+  assert.equal(connectorHelpers.getKnownRecipientEmails(['Speaker A', 'John', 'john@example.com', 'john@example.com']), 'john@example.com');
+  assert.equal(connectorHelpers.getKnownRecipientEmails(['Alice Smith', 'Speaker B']), '');
+});
+
+test('long multilingual Gmail drafts do not split emoji or claim the clipboard was updated', () => {
+  const url = buildGmailDispatchUrl({ subject: 'Ghi chú cuộc họp', body: 'Cần hoàn tất báo cáo 📌\n'.repeat(300) });
+  assert.ok(url.length <= 2000);
+  const body = new URL(url).searchParams.get('body');
+  assert.ok(body.toLowerCase().includes('truncated'));
+  assert.ok(!body.includes('copied to clipboard'));
+  assert.ok(!body.includes('\uFFFD'));
+});
 
 test('buildGitHubIssuePayload formats task object and meeting citation properly', () => {
   const task = {

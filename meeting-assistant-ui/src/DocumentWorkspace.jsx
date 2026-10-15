@@ -24,7 +24,6 @@ import {
   Loader2, 
   Target,
   Columns,
-  ExternalLink,
   RotateCcw,
   RotateCw
 } from 'lucide-react';
@@ -33,6 +32,7 @@ import { normalizeCitation } from './session.js';
 import { formatUploadLimits } from './upload.js';
 import PresentationDeck from './PresentationDeck.jsx';
 import ConnectorsModal from './ConnectorsModal.jsx';
+import { GitHubMark, GmailMark } from './BrandMarks.jsx';
 
 const SPEAKER_BADGE_STYLES = [
   'bg-blue-500/15 text-blue-700 border-blue-500/30',
@@ -1016,10 +1016,10 @@ export default function DocumentWorkspace({
               type="button"
               onClick={() => setShowConnectorsModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-500/20 via-indigo-500/20 to-purple-500/20 hover:from-sky-500/30 hover:to-purple-500/30 border border-sky-500/40 text-sky-700 hover:text-slate-900 text-xs font-semibold shadow-sm transition-all active:scale-95 cursor-pointer"
-              title="Open Executive Connectors Hub (GitHub Issues & Gmail Dispatch)"
+              title="Preview a GitHub issue or Gmail draft"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-sky-700" />
-              <span>Connect Hub</span>
+              <GitHubMark size={14} /><GmailMark size={16} />
+              <span>GitHub & Gmail</span>
             </button>
 
             {!currentMeetingId && !isDemoResult && (

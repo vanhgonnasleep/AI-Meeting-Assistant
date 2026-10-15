@@ -15,6 +15,17 @@ export function extractAssignee(text) {
   return match ? match[1].trim() : null;
 }
 
+export function isValidGitHubRepo(repo) {
+  const value = String(repo || '').trim();
+  return /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?\/[a-zA-Z0-9_.-]{1,100}$/.test(value)
+    && !['.', '..'].includes(value.split('/')[1]);
+}
+
+export function getKnownRecipientEmails(attendees = []) {
+  return [...new Set(attendees.filter(value => typeof value === 'string')
+    .map(value => value.trim()).filter(value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)))].join(', ');
+}
+
 /**
  * Encodes query parameters using RFC 3986 encodeURIComponent (%20 for spaces)
  * @param {Record<string, string|number|boolean>} params 
@@ -35,9 +46,9 @@ function toQueryString(params) {
  */
 export function buildGitHubIssuePayload(task, meetingContext = {}) {
   const isObj = task && typeof task === 'object';
-  const rawText = isObj ? (task.text || task.title || '') : String(task || '');
+  const rawText = isObj ? (task.text || task.task || task.title || '') : String(task || '');
   const assignee = isObj ? (task.assignee || extractAssignee(rawText)) : extractAssignee(rawText);
-  const due = isObj ? task.due : null;
+  const due = isObj ? (task.due || task.deadline) : null;
 
   const meetingTitle = meetingContext.title || 'Executive Session';
   const meetingDate = meetingContext.date || new Date().toISOString().split('T')[0];
@@ -122,30 +133,29 @@ export function buildGmailDispatchUrl({ to = '', subject = '', body = '', format
 
   let finalBody = body;
   if (finalBody) {
-    const truncationSuffix = '\n\n[Full minutes copied to clipboard. Truncated for URL length limit]';
+    const truncationSuffix = '\n\n[Truncated preview for URL length. Copy full minutes from Clarion.]';
     const initialUrl = `https://mail.google.com/mail/?${toQueryString({ ...params, body: finalBody })}`;
 
     if (initialUrl.length > 2000) {
-      const emptyBodyUrl = `https://mail.google.com/mail/?${toQueryString({ ...params, body: '' })}`;
+      // Keep the &body= key in the length budget; empty values are otherwise omitted.
+      const emptyBodyUrl = `https://mail.google.com/mail/?${toQueryString({ ...params, body: 'x' })}`.slice(0, -1);
       const maxEncodedBodyLen = Math.max(0, 2000 - emptyBodyUrl.length);
       const suffixEncoded = encodeURIComponent(truncationSuffix);
       const availableForPrefix = maxEncodedBodyLen - suffixEncoded.length;
 
       if (availableForPrefix > 0) {
-        let sliceLen = Math.min(finalBody.length, availableForPrefix);
-        let candidate = finalBody.slice(0, sliceLen);
-        while (encodeURIComponent(candidate).length > availableForPrefix && sliceLen > 0) {
-          sliceLen = Math.max(0, sliceLen - 10);
-          candidate = finalBody.slice(0, sliceLen);
+        const characters = Array.from(finalBody);
+        let low = 0, high = characters.length;
+        while (low < high) {
+          const middle = Math.ceil((low + high) / 2);
+          if (encodeURIComponent(characters.slice(0, middle).join('')).length <= availableForPrefix) low = middle;
+          else high = middle - 1;
         }
-        finalBody = candidate + truncationSuffix;
+        finalBody = characters.slice(0, low).join('') + truncationSuffix;
       } else {
         finalBody = truncationSuffix;
       }
 
-      while (`https://mail.google.com/mail/?${toQueryString({ ...params, body: finalBody })}`.length > 2000 && finalBody.length > truncationSuffix.length) {
-        finalBody = finalBody.slice(0, finalBody.length - truncationSuffix.length - 1) + truncationSuffix;
-      }
     }
     params.body = finalBody;
   }
@@ -217,16 +227,17 @@ export function formatEmailMinutes(meetingData = {}, { template = 'brief' } = {}
     lines.push(`ACTION ITEMS & DELIVERABLES:`);
     actions.forEach(a => {
       const isObj = a && typeof a === 'object';
-      const text = isObj ? (a.text || a.title || '') : String(a);
+      const text = isObj ? (a.text || a.task || a.title || '') : String(a);
       const assignee = isObj ? a.assignee : extractAssignee(text);
       const assigneeStr = assignee ? ` (Assignee: ${assignee})` : '';
-      lines.push(`[ ] ${text}${assigneeStr}`);
+      const due = isObj ? (a.due || a.deadline) : null;
+      lines.push(`[ ] ${text}${assigneeStr}${due ? ` · Due: ${due}` : ''}`);
     });
     lines.push(``);
   }
 
   lines.push(`---`);
-  lines.push(`Dispatched via AI Meeting Assistant Executive Hub.`);
+  lines.push(`Prepared with Clarion · Review before sharing.`);
   return lines.join('\n');
 }
 
