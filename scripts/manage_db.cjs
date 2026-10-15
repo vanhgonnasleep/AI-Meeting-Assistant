@@ -3,8 +3,14 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const pyScript = path.resolve(__dirname, 'manage_db.py');
-const args = process.argv.slice(2);
+let pyScript = path.resolve(__dirname, 'manage_db.py');
+let scriptArgs = process.argv.slice(2);
+
+// If first arg points to a .py script, run that script instead
+if (scriptArgs.length > 0 && scriptArgs[0].endsWith('.py')) {
+  pyScript = path.resolve(__dirname, scriptArgs[0]);
+  scriptArgs = scriptArgs.slice(1);
+}
 
 // Candidates for python executable
 const candidates = [
@@ -19,7 +25,7 @@ for (const cmd of candidates) {
   try {
     const check = spawnSync(cmd, ['--version'], { stdio: 'ignore' });
     if (check.status === 0) {
-      const result = spawnSync(cmd, [pyScript, ...args], { stdio: 'inherit' });
+      const result = spawnSync(cmd, [pyScript, ...scriptArgs], { stdio: 'inherit' });
       spawned = true;
       process.exit(result.status || 0);
       break;

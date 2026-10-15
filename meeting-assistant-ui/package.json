@@ -13,7 +13,8 @@
     "db:demo": "node ../scripts/manage_db.cjs --reset-demo",
     "db:clean": "node ../scripts/manage_db.cjs --clean",
     "db:seed": "node ../scripts/manage_db.cjs --seed",
-    "db:backup": "node ../scripts/manage_db.cjs --backup"
+    "db:backup": "node ../scripts/manage_db.cjs --backup",
+    "benchmark": "node ../scripts/manage_db.cjs benchmark_pipeline.py"
   },
   "dependencies": {
     "framer-motion": "^13.4.0",
