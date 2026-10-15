@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   FolderOpen
 } from 'lucide-react';
+import { appPageHref } from './navigation.js';
 import { groupMeetingsByDate } from './history.js';
 import { formatMeetingDuration } from './navigation.js';
 
@@ -53,7 +54,7 @@ export default function Sidebar({
           <span className="text-[10px] font-semibold tracking-wider uppercase text-slate-500 font-mono">
             {label}
           </span>
-          <span className="text-[10px] text-slate-600 font-mono">
+          <span className="text-[10px] text-slate-500 font-mono">
             {items.length}
           </span>
         </div>
@@ -75,12 +76,12 @@ export default function Sidebar({
                   aria-current={isActive ? 'true' : undefined}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2.5 transition-all duration-150 border ${
                     isActive
-                      ? 'bg-indigo-600/15 border-indigo-500/40 text-indigo-200 font-medium shadow-sm'
-                      : 'border-transparent text-slate-300 hover:text-white hover:bg-slate-800/60'
+                      ? 'bg-indigo-600/15 border-indigo-500/40 text-indigo-700 font-medium shadow-sm'
+                      : 'border-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-100/60'
                   }`}
                   title={meeting.filename}
                 >
-                  <FileAudio className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-400'}`} />
+                  <FileAudio className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-700' : 'text-slate-500 group-hover:text-slate-600'}`} />
                   
                   <div className="flex-1 min-w-0 pr-6">
                     <p className="truncate text-xs leading-snug">
@@ -99,7 +100,7 @@ export default function Sidebar({
                   </div>
 
                   {isLoading && (
-                    <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin shrink-0" />
+                    <Loader2 className="w-3.5 h-3.5 text-indigo-700 animate-spin shrink-0" />
                   )}
                 </button>
 
@@ -109,7 +110,7 @@ export default function Sidebar({
                   onClick={(e) => onDeleteMeeting(meeting.id, e)}
                   aria-label={`Delete meeting ${meeting.filename || meeting.id}`}
                   disabled={!canStartNew}
-                  className="absolute right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
+                  className="absolute right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-500/10 transition-all cursor-pointer"
                   title="Delete record"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -125,12 +126,12 @@ export default function Sidebar({
   return (
     <aside
       aria-label="Meeting history and navigation"
-      className={`fixed top-0 bottom-0 left-0 z-30 flex flex-col bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/80 transition-all duration-250 ease-out select-none ${
+      className={`clarion-sidebar fixed top-0 bottom-0 left-0 z-30 flex flex-col bg-white/80 backdrop-blur-xl border-r border-slate-200/80 transition-all duration-250 ease-out select-none ${
         isCollapsed ? 'w-0 -translate-x-full md:w-16 md:translate-x-0' : 'w-72 translate-x-0'
       }`}
     >
       {/* Brand & Collapse Header */}
-      <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800/80 shrink-0">
+      <div className="h-16 px-4 flex items-center justify-between border-b border-slate-200/80 shrink-0">
         {!isCollapsed && (
           <button
             type="button"
@@ -142,10 +143,10 @@ export default function Sidebar({
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <span className="font-semibold text-xs tracking-tight text-white block truncate group-hover:text-indigo-200">
+              <span className="font-semibold text-xs tracking-tight text-slate-900 block truncate group-hover:text-indigo-700">
                 Clarion
               </span>
-              <span className="text-[10px] text-slate-400 font-mono block">
+              <span className="text-[10px] text-slate-600 font-mono block">
                 Private Intelligence
               </span>
             </div>
@@ -156,7 +157,7 @@ export default function Sidebar({
           type="button"
           onClick={onToggleCollapse}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className={`p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/70 border border-slate-800 transition-all active:scale-95 cursor-pointer ${
+          className={`p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-slate-200 transition-all active:scale-95 cursor-pointer ${
             isCollapsed ? 'mx-auto' : ''
           }`}
           title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
@@ -184,67 +185,42 @@ export default function Sidebar({
 
       {!isCollapsed && (
         <>
-          {/* Quick Page Links */}
-          <div className="px-3 pb-2 grid grid-cols-4 gap-1 text-xs shrink-0">
-            <button
-              type="button"
-              onClick={() => onNavigate('studio')}
-              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
-                activePage === 'studio' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <FileAudio className="w-3.5 h-3.5" />
-              <span className="text-[10px]">Studio</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('overview')}
-              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
-                activePage === 'overview' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span className="text-[10px]">Overview</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('tasks')}
-              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
-                activePage === 'tasks' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span className="text-[10px]">Tasks</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('projects')}
-              className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
-                activePage === 'projects' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              <span className="text-[10px]">Projects</span>
-            </button>
-          </div>
+          <nav className="workspace-nav" aria-label="Workspace navigation">
+            <small>Workspace</small>
+            {[
+              ['overview', 'Overview', LayoutDashboard],
+              ['studio', 'Meeting studio', FileAudio],
+              ['meetings', 'Meeting library', Clock],
+              ['tasks', 'Action items', CheckCircle2],
+              ['projects', 'Projects', FolderOpen],
+            ].map(([id, label, Icon]) => (
+              <a key={id} href={appPageHref(id)} aria-current={activePage === id ? 'page' : undefined}
+                onClick={event => {
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+                  event.preventDefault(); onNavigate(id);
+                }}>
+                <Icon /><span>{label}</span>
+              </a>
+            ))}
+          </nav>
 
           {/* Search Bar */}
           <div className="px-3 pb-3 shrink-0">
-            <div className="relative flex items-center bg-slate-900/80 border border-slate-800 rounded-xl px-2.5 py-1.5 focus-within:border-indigo-500/80 transition-colors">
+            <div className="relative flex items-center bg-white/80 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:border-indigo-500/80 transition-colors">
               <Search className="w-3.5 h-3.5 text-slate-500 mr-2 shrink-0" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search past meetings..."
-                className="w-full bg-transparent text-xs text-white placeholder-slate-500 outline-none"
+                className="w-full bg-transparent text-xs text-slate-900 placeholder-slate-500 outline-none"
                 aria-label="Filter past meetings"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => onSearchChange('')}
-                  className="text-[10px] text-slate-500 hover:text-slate-300 font-mono"
+                  className="text-[10px] text-slate-500 hover:text-slate-700 font-mono"
                   aria-label="Clear search"
                 >
                   ESC
@@ -260,7 +236,7 @@ export default function Sidebar({
         {!isCollapsed ? (
           loadingHistory ? (
             <div className="py-8 flex flex-col items-center justify-center text-slate-500 space-y-2 text-xs">
-              <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+              <Loader2 className="w-4 h-4 animate-spin text-indigo-700" />
               <span>Loading history...</span>
             </div>
           ) : meetings.length === 0 ? (
@@ -288,7 +264,7 @@ export default function Sidebar({
                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                   currentMeetingId === m.id
                     ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 <FileAudio className="w-4 h-4" />
@@ -299,7 +275,7 @@ export default function Sidebar({
       </div>
 
       {/* Footer: Local AI Engine Status */}
-      <div className="p-3 border-t border-slate-800/80 shrink-0 bg-slate-950/80">
+      <div className="p-3 border-t border-slate-200/80 shrink-0 bg-slate-50/80">
         {!isCollapsed ? (
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
@@ -309,7 +285,7 @@ export default function Sidebar({
                 }`}
               />
               <div className="min-w-0">
-                <span className="font-medium text-slate-300 block truncate text-[11px]">
+                <span className="font-medium text-slate-700 block truncate text-[11px]">
                   {healthStatus.checking 
                     ? 'Checking AI Engine...' 
                     : healthStatus.online 
@@ -321,7 +297,7 @@ export default function Sidebar({
                 </span>
               </div>
             </div>
-            <div className="p-1 rounded-md bg-slate-800/60 border border-slate-700/50 text-slate-400">
+            <div className="p-1 rounded-md bg-slate-100/60 border border-slate-300/50 text-slate-600">
               <Cpu className="w-3.5 h-3.5" />
             </div>
           </div>

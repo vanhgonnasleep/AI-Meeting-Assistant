@@ -82,7 +82,7 @@ const getDefaultChatGreeting = (currResult) => {
  */
 function App() {
   const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'landing');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   const [notice, setNotice] = useState(null);
   const noticeId = useRef(0);
   const notify = (message, kind = 'success') => setNotice({ id: ++noticeId.current, message, kind });
@@ -745,10 +745,10 @@ function App() {
             type="button"
             disabled={!audioUrl || sec === null}
             onClick={() => handleSeekAudio(sec)}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded bg-indigo-500/25 hover:bg-indigo-500/40 text-indigo-300 hover:text-white border border-indigo-500/40 text-[11px] font-mono transition-all font-semibold active:scale-95 cursor-pointer disabled:cursor-default disabled:opacity-60"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded bg-indigo-500/25 hover:bg-indigo-500/40 text-indigo-700 hover:text-slate-900 border border-indigo-500/40 text-[11px] font-mono transition-all font-semibold active:scale-95 cursor-pointer disabled:cursor-default disabled:opacity-60"
             title={!audioUrl ? 'Audio not available' : `Jump audio to ${ts}`}
           >
-            <Play className="w-2 h-2 text-indigo-400 fill-indigo-400" />
+            <Play className="w-2 h-2 text-indigo-700 fill-indigo-400" />
             <span>{ts}</span>
           </button>
         );
@@ -991,7 +991,8 @@ ${result.transcript || ""}
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans antialiased selection:bg-indigo-500/30 selection:text-white">
+    <div className="clarion-app min-h-screen bg-canvas text-slate-900 flex font-sans antialiased selection:bg-indigo-500/30 selection:text-white"
+      style={{ '--sidebar-width': isSidebarCollapsed ? '64px' : '288px' }}>
       
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <Sidebar
@@ -999,9 +1000,15 @@ ${result.transcript || ""}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         meetings={meetingsHistory}
         currentMeetingId={currentMeetingId}
-        onSelectMeeting={handleLoadPastMeeting}
+        onSelectMeeting={meeting => {
+          if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarCollapsed(true);
+          handleLoadPastMeeting(meeting);
+        }}
         onDeleteMeeting={handleDeletePastMeeting}
-        onNewMeeting={handleNewMeeting}
+        onNewMeeting={() => {
+          if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarCollapsed(true);
+          handleNewMeeting();
+        }}
         canStartNew={canOpenMeeting}
         searchQuery={historySearchQuery}
         onSearchChange={handleHistorySearch}
@@ -1009,7 +1016,10 @@ ${result.transcript || ""}
         loadingMeetingId={loadingMeetingId}
         healthStatus={healthStatus}
         activePage={page}
-        onNavigate={navigateTo}
+        onNavigate={destination => {
+          if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarCollapsed(true);
+          navigateTo(destination);
+        }}
       />
 
       {/* 2. MAIN APPLICATION CONTENT AREA */}
@@ -1019,24 +1029,24 @@ ${result.transcript || ""}
         }`}
       >
         {/* Top Navbar */}
-        <header className="h-16 px-4 md:px-8 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl sticky top-0 z-20 shrink-0">
+        <header className="workspace-toolbar h-16 px-4 md:px-8 border-b border-slate-200/80 flex items-center justify-between bg-white/80 backdrop-blur-xl sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               aria-label={isSidebarCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 border border-slate-800 transition-all active:scale-95 cursor-pointer"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 border border-slate-200 transition-all active:scale-95 cursor-pointer"
               title="Toggle sidebar (Ctrl+B)"
             >
               {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             </button>
 
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400 capitalize">
+              <span className="text-slate-600 capitalize">
                 {page === 'studio' ? 'Studio' : page === 'overview' ? 'Overview' : page === 'meetings' ? 'Library' : page === 'tasks' ? 'Tasks' : 'Projects'}
               </span>
-              <span className="text-slate-600">/</span>
-              <span className="font-semibold text-slate-200 truncate max-w-xs" title={file?.name || meetingTitle}>
+              <span className="text-slate-500">/</span>
+              <span className="font-semibold text-slate-800 truncate max-w-xs" title={file?.name || meetingTitle}>
                 {page === 'overview'
                   ? 'Dashboard'
                   : page === 'tasks'
@@ -1055,10 +1065,10 @@ ${result.transcript || ""}
             <button
               type="button"
               onClick={() => navigateTo('landing')}
-              className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-medium transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
               title="View Outside Product Tour & Landing Page"
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <Sparkles className="w-3.5 h-3.5 text-indigo-700" />
               <span className="hidden sm:inline">Product Tour</span>
             </button>
 
@@ -1079,7 +1089,7 @@ ${result.transcript || ""}
                 type="button"
                 onClick={handleNewMeeting}
                 disabled={!canOpenMeeting}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-slate-200 hover:text-white text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/60 text-slate-800 hover:text-slate-900 text-xs font-medium transition-all active:scale-95 cursor-pointer"
               >
                 New Meeting
               </button>
@@ -1089,18 +1099,18 @@ ${result.transcript || ""}
 
         {/* Global Error Banner */}
         {(uploadError || errorMessage) && (
-          <div role="alert" className="mx-4 md:mx-8 mt-4 flex items-start justify-between gap-3 px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs">
+          <div role="alert" className="mx-4 md:mx-8 mt-4 flex items-start justify-between gap-3 px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 text-xs">
             <div className="flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-rose-300">Notice</p>
-                <p className="text-rose-400/90 mt-0.5">{uploadError || errorMessage}</p>
+                <p className="font-semibold text-rose-700">Notice</p>
+                <p className="text-rose-700/90 mt-0.5">{uploadError || errorMessage}</p>
               </div>
             </div>
             <button
               aria-label="Dismiss error"
               onClick={() => setErrorMessage(null)}
-              className="text-rose-400 hover:text-rose-200 p-1 rounded-lg"
+              className="text-rose-700 hover:text-rose-700 p-1 rounded-lg"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -1108,7 +1118,7 @@ ${result.transcript || ""}
         )}
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 p-4 md:p-8 pb-32 overflow-y-auto">
+        <main className="workspace-main flex-1 p-4 md:p-8 pb-32 overflow-y-auto">
           {page === 'overview' ? (
             <Overview
               apiBase={API_BASE}
@@ -1237,19 +1247,19 @@ ${result.transcript || ""}
         {notice && (
           <div
             role={notice.kind === 'error' ? 'alert' : 'status'}
-            className={`fixed bottom-24 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-xl text-xs font-medium animate-in fade-in slide-in-from-bottom-2 ${
+            className={`fixed bottom-24 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-panel text-xs font-medium animate-in fade-in slide-in-from-bottom-2 ${
               notice.kind === 'error'
-                ? 'bg-rose-950/90 border-rose-500/40 text-rose-200'
-                : 'bg-slate-900/90 border-emerald-500/40 text-emerald-300'
+                ? 'bg-rose-50/90 border-rose-500/40 text-rose-700'
+                : 'bg-white/90 border-emerald-500/40 text-emerald-700'
             }`}
           >
-            {notice.kind === 'error' ? <AlertTriangle className="w-4 h-4 text-rose-400" /> : <Check className="w-4 h-4 text-emerald-400" />}
+            {notice.kind === 'error' ? <AlertTriangle className="w-4 h-4 text-rose-700" /> : <Check className="w-4 h-4 text-emerald-700" />}
             <span>{notice.message}</span>
             <button
               type="button"
               onClick={() => setNotice(null)}
               aria-label="Dismiss notification"
-              className="ml-2 text-slate-400 hover:text-white p-0.5 rounded"
+              className="ml-2 text-slate-600 hover:text-slate-900 p-0.5 rounded"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -1273,7 +1283,7 @@ ${result.transcript || ""}
                 }
               }}
             >
-              <label htmlFor="speaker-rename-input" className="block text-xs font-semibold text-slate-300">
+              <label htmlFor="speaker-rename-input" className="block text-xs font-semibold text-slate-700">
                 New speaker name
               </label>
               <input 
@@ -1282,16 +1292,16 @@ ${result.transcript || ""}
                 maxLength={128} 
                 value={speakerRename.name} 
                 onChange={(e) => setSpeakerRename(prev => ({ ...prev, name: e.target.value }))} 
-                className="w-full rounded-xl bg-slate-950 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-indigo-500" 
+                className="w-full rounded-xl bg-slate-50 border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
                 disabled={isContentSaving} 
               />
-              {errorMessage && <p role="alert" className="text-xs text-rose-300">{errorMessage}</p>}
+              {errorMessage && <p role="alert" className="text-xs text-rose-700">{errorMessage}</p>}
               <div className="flex justify-end gap-2 text-xs">
                 <button 
                   type="button" 
                   disabled={isSpeakerSaving} 
                   onClick={() => setSpeakerRename(null)}
-                  className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white"
+                  className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900"
                 >
                   Cancel
                 </button>

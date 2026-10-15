@@ -293,7 +293,7 @@ export default function ConnectorsModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-md"
+          className="fixed inset-0 bg-slate-900/25 backdrop-blur-md"
           aria-hidden="true"
         />
 
@@ -303,22 +303,22 @@ export default function ConnectorsModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
           transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-          className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-slate-900/90 p-6 sm:p-8 text-slate-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl z-10"
+          className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-6 sm:p-8 text-slate-900 shadow-glass backdrop-blur-xl z-10"
           role="dialog"
           aria-modal="true"
           aria-labelledby="connectors-modal-title"
         >
           {/* Header & Tabs */}
-          <div className="flex items-center justify-between pb-6 border-b border-white/10">
+          <div className="flex items-center justify-between pb-6 border-b border-slate-200/80">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-white/15 shadow-inner">
-                <Sparkles className="h-5 w-5 text-sky-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-slate-200/80 shadow-inner">
+                <Sparkles className="h-5 w-5 text-sky-700" />
               </div>
               <div>
-                <h2 id="connectors-modal-title" className="text-xl font-semibold tracking-tight text-white flex items-center gap-2">
+                <h2 id="connectors-modal-title" className="text-xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
                   Executive Connectors Hub
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-600">
                   Export tasks and dispatch executive summaries without context switching.
                 </p>
               </div>
@@ -326,7 +326,7 @@ export default function ConnectorsModal({
 
             <button
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.05] text-slate-400 hover:bg-white/10 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 text-slate-600 hover:bg-white/95 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/50"
               aria-label="Close modal"
             >
               <X className="h-4 w-4" />
@@ -334,16 +334,16 @@ export default function ConnectorsModal({
           </div>
 
           {/* Dynamic Switcher Pill */}
-          <div className="mt-6 flex rounded-2xl bg-black/40 p-1 border border-white/[0.08]">
+          <div className="mt-6 flex rounded-2xl bg-slate-50/90 p-1 border border-slate-200/80">
             <button
               onClick={() => setActiveTab('github')}
               className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                 activeTab === 'github'
-                  ? 'bg-white/10 text-white shadow-sm border border-white/10 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white/80 text-slate-900 shadow-sm border border-slate-200/80 font-semibold'
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
             >
-              <GithubIcon className="h-4 w-4 text-purple-400" />
+              <GithubIcon className="h-4 w-4 text-purple-700" />
               <span>GitHub Issues Sync</span>
             </button>
 
@@ -351,11 +351,11 @@ export default function ConnectorsModal({
               onClick={() => setActiveTab('gmail')}
               className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                 activeTab === 'gmail'
-                  ? 'bg-white/10 text-white shadow-sm border border-white/10 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white/80 text-slate-900 shadow-sm border border-slate-200/80 font-semibold'
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
             >
-              <Mail className="h-4 w-4 text-red-400" />
+              <Mail className="h-4 w-4 text-red-700" />
               <span>Gmail Executive Dispatch</span>
             </button>
           </div>
@@ -366,7 +366,7 @@ export default function ConnectorsModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Repository Input */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
                     Target GitHub Repository
                   </label>
                   <input
@@ -374,15 +374,15 @@ export default function ConnectorsModal({
                     value={repo}
                     onChange={(e) => setRepo(e.target.value)}
                     placeholder="e.g. facebook/react"
-                    className="w-full rounded-xl bg-black/40 border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
+                    className="w-full rounded-xl bg-slate-50/90 border border-slate-200/80 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
                   />
                 </div>
 
                 {/* Optional PAT Input */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5 flex items-center justify-between">
                     <span>Personal Access Token (Optional)</span>
-                    <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                    <span className="text-[11px] text-emerald-700 flex items-center gap-1">
                       <Lock className="h-3 w-3" /> Stored locally in browser
                     </span>
                   </label>
@@ -392,12 +392,12 @@ export default function ConnectorsModal({
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
                       placeholder="ghp_xxxxxxxxxxxx"
-                      className="w-full rounded-xl bg-black/40 border border-white/10 pl-3.5 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
+                      className="w-full rounded-xl bg-slate-50/90 border border-slate-200/80 pl-3.5 pr-10 py-2.5 text-sm text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowToken(!showToken)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800"
                       aria-label={showToken ? 'Hide token' : 'Show token'}
                     >
                       {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -409,12 +409,12 @@ export default function ConnectorsModal({
               {/* Action Items List */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-slate-300">
+                  <span className="text-xs font-medium text-slate-700">
                     Select Action Items to Export ({selectedTaskIndices.size} of {actionItems.length})
                   </span>
                   <button
                     onClick={toggleSelectAll}
-                    className="text-xs text-sky-400 hover:text-sky-300 transition-colors flex items-center gap-1.5"
+                    className="text-xs text-sky-700 hover:text-sky-700 transition-colors flex items-center gap-1.5"
                   >
                     {selectedTaskIndices.size === actionItems.length ? (
                       <>
@@ -428,9 +428,9 @@ export default function ConnectorsModal({
                   </button>
                 </div>
 
-                <div className="max-h-48 overflow-y-auto rounded-2xl border border-white/10 bg-black/30 p-2 space-y-1.5 divide-y divide-white/[0.04]">
+                <div className="max-h-48 overflow-y-auto rounded-2xl border border-slate-200/80 bg-slate-50/90 p-2 space-y-1.5 divide-y divide-slate-200/80">
                   {actionItems.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400">
+                    <div className="p-4 text-center text-xs text-slate-600">
                       No action items detected in this meeting yet.
                     </div>
                   ) : (
@@ -445,22 +445,22 @@ export default function ConnectorsModal({
                           key={idx}
                           onClick={() => toggleTask(idx)}
                           className={`flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${
-                            isSelected ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
+                            isSelected ? 'bg-white/80' : 'hover:bg-white/95'
                           }`}
                         >
-                          <div className="mt-0.5 text-sky-400">
+                          <div className="mt-0.5 text-sky-700">
                             {isSelected ? (
-                              <CheckSquare className="h-4 w-4 text-sky-400" />
+                              <CheckSquare className="h-4 w-4 text-sky-700" />
                             ) : (
                               <Square className="h-4 w-4 text-slate-500" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs ${isCompleted ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                            <p className={`text-xs ${isCompleted ? 'line-through text-slate-500' : 'text-slate-800'}`}>
                               {taskText}
                             </p>
                             {assignee && (
-                              <span className="inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              <span className="inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-700 border border-purple-500/30">
                                 @{assignee}
                               </span>
                             )}
@@ -477,14 +477,14 @@ export default function ConnectorsModal({
                 <div
                   className={`flex items-center gap-2.5 p-3 rounded-xl text-xs border ${
                     githubStatus.type === 'error'
-                      ? 'bg-red-500/10 border-red-500/30 text-red-200'
+                      ? 'bg-red-500/10 border-red-500/30 text-red-700'
                       : githubStatus.type === 'success'
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
-                      : 'bg-sky-500/10 border-sky-500/30 text-sky-200'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700'
+                      : 'bg-sky-500/10 border-sky-500/30 text-sky-700'
                   }`}
                 >
-                  {githubStatus.type === 'error' && <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-400" />}
-                  {githubStatus.type === 'success' && <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-400" />}
+                  {githubStatus.type === 'error' && <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-700" />}
+                  {githubStatus.type === 'success' && <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-700" />}
                   {githubStatus.type === 'loading' && (
                     <div className="h-3.5 w-3.5 flex-shrink-0 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
                   )}
@@ -497,15 +497,15 @@ export default function ConnectorsModal({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopyMarkdown}
-                    className="flex items-center gap-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98]"
+                    className="flex items-center gap-1.5 rounded-xl bg-white/80 hover:bg-white/95 border border-slate-200/80 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98]"
                   >
-                    {copiedType === 'markdown' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copiedType === 'markdown' ? <Check className="h-3.5 w-3.5 text-emerald-700" /> : <Copy className="h-3.5 w-3.5" />}
                     <span>{copiedType === 'markdown' ? 'Copied!' : 'Copy Markdown'}</span>
                   </button>
 
                   <button
                     onClick={handleOpenFallbackGitHub}
-                    className="flex items-center gap-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98]"
+                    className="flex items-center gap-1.5 rounded-xl bg-white/80 hover:bg-white/95 border border-slate-200/80 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98]"
                     title="Open instant issue creator in browser without a token"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
@@ -516,7 +516,7 @@ export default function ConnectorsModal({
                 <button
                   onClick={handleBatchCreateGitHubIssues}
                   disabled={githubStatus?.type === 'loading'}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-sky-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-700 to-indigo-600 hover:from-sky-800 hover:to-indigo-700 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-sky-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   <GithubIcon className="h-4 w-4" />
                   <span>Create GitHub Issues</span>
@@ -531,7 +531,7 @@ export default function ConnectorsModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Template Selector */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
                     Minutes Template Style
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -540,8 +540,8 @@ export default function ConnectorsModal({
                       onClick={() => setEmailTemplate('brief')}
                       className={`flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-medium border transition-all ${
                         emailTemplate === 'brief'
-                          ? 'bg-sky-500/20 border-sky-500/50 text-sky-200'
-                          : 'bg-black/30 border-white/10 text-slate-400 hover:text-slate-200'
+                          ? 'bg-sky-500/20 border-sky-500/50 text-sky-700'
+                          : 'bg-slate-50/90 border-slate-200/80 text-slate-600 hover:text-slate-800'
                       }`}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
@@ -552,8 +552,8 @@ export default function ConnectorsModal({
                       onClick={() => setEmailTemplate('comprehensive')}
                       className={`flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-medium border transition-all ${
                         emailTemplate === 'comprehensive'
-                          ? 'bg-sky-500/20 border-sky-500/50 text-sky-200'
-                          : 'bg-black/30 border-white/10 text-slate-400 hover:text-slate-200'
+                          ? 'bg-sky-500/20 border-sky-500/50 text-sky-700'
+                          : 'bg-slate-50/90 border-slate-200/80 text-slate-600 hover:text-slate-800'
                       }`}
                     >
                       <FileText className="h-3.5 w-3.5" />
@@ -564,7 +564,7 @@ export default function ConnectorsModal({
 
                 {/* Attendees / Recipients */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
                     Recipients (comma-separated emails)
                   </label>
                   <input
@@ -572,7 +572,7 @@ export default function ConnectorsModal({
                     value={recipients}
                     onChange={(e) => setRecipients(e.target.value)}
                     placeholder="alice@corp.com, bob@corp.com"
-                    className="w-full rounded-xl bg-black/40 border border-white/10 px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
+                    className="w-full rounded-xl bg-slate-50/90 border border-slate-200/80 px-3.5 py-2 text-sm text-slate-900 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
                   />
                 </div>
               </div>
@@ -580,14 +580,14 @@ export default function ConnectorsModal({
               {/* Pre-formatted Email Preview */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-medium text-slate-300">
+                  <span className="text-xs font-medium text-slate-700">
                     Pre-rendered Email Preview
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-slate-600">
                     Subject: {emailSubject}
                   </span>
                 </div>
-                <div className="max-h-52 overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap selection:bg-sky-500/30">
+                <div className="max-h-52 overflow-y-auto rounded-2xl border border-slate-200/80 bg-slate-50/90 p-4 font-mono text-xs text-slate-700 whitespace-pre-wrap selection:bg-sky-500/30">
                   {emailBody}
                 </div>
               </div>
@@ -596,16 +596,16 @@ export default function ConnectorsModal({
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <button
                   onClick={handleCopyEmail}
-                  className="flex items-center gap-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98]"
+                  className="flex items-center gap-1.5 rounded-xl bg-white/80 hover:bg-white/95 border border-slate-200/80 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98]"
                 >
-                  {copiedType === 'email' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedType === 'email' ? <Check className="h-3.5 w-3.5 text-emerald-700" /> : <Copy className="h-3.5 w-3.5" />}
                   <span>{copiedType === 'email' ? 'Copied!' : 'Copy Email Body'}</span>
                 </button>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleOpenMailto}
-                    className="flex items-center gap-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white transition-all active:scale-[0.98]"
+                    className="flex items-center gap-1.5 rounded-xl bg-white/80 hover:bg-white/95 border border-slate-200/80 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98]"
                   >
                     <Send className="h-3.5 w-3.5" />
                     <span>Open in Mail App</span>
@@ -613,7 +613,7 @@ export default function ConnectorsModal({
 
                   <button
                     onClick={handleOpenGmailWeb}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-red-500/20 transition-all active:scale-[0.98]"
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-red-500/20 transition-all active:scale-[0.98]"
                   >
                     <ExternalLink className="h-4 w-4" />
                     <span>Open in Gmail Web</span>

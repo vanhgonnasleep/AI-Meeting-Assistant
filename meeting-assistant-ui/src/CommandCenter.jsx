@@ -146,22 +146,22 @@ export default function CommandCenter({
     <div 
       role="region" 
       aria-label="Floating AI command center dock" 
-      className="no-print fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl select-none"
+      className="clarion-dock no-print fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl select-none"
     >
       {/* Sliding AI Chat Drawer (Slides Up Above Dock) */}
       {isDrawerOpen && (
         <div 
-          className="mb-3 w-full bg-slate-900/95 backdrop-blur-2xl border border-slate-700/80 rounded-3xl shadow-2xl shadow-slate-950/80 p-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 flex flex-col max-h-[460px]"
+          className="mb-3 w-full bg-white/95 backdrop-blur-xl border border-slate-300/80 rounded-3xl shadow-glass shadow-slate-950/80 p-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 flex flex-col max-h-[460px]"
         >
           {/* Drawer Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
+              <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-700">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-semibold text-white">AI Meeting Intelligence (Agent 6)</h3>
-                <p className="text-[10px] text-slate-400">Context-grounded RAG with source turn citations</p>
+                <h3 className="text-xs font-semibold text-slate-900">AI Meeting Intelligence (Agent 6)</h3>
+                <p className="text-[10px] text-slate-600">Context-grounded RAG with source turn citations</p>
               </div>
             </div>
 
@@ -172,7 +172,7 @@ export default function CommandCenter({
                   onClick={onClearChat}
                   disabled={isChatLoading || isBusy}
                   aria-label="Clear chat messages"
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-600 hover:text-rose-700 hover:bg-rose-500/10 transition-colors"
                   title="Clear conversation"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -182,7 +182,7 @@ export default function CommandCenter({
                 type="button"
                 onClick={() => setIsDrawerOpen(false)}
                 aria-label="Close conversation drawer"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                 title="Close drawer (Esc)"
               >
                 <X className="w-4 h-4" />
@@ -196,8 +196,8 @@ export default function CommandCenter({
             className="flex-1 overflow-y-auto py-3 space-y-3 scrollbar-thin max-h-[320px] pr-1"
           >
             {chatMessages.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs space-y-2">
-                <p className="font-medium text-slate-300">Ready to answer questions about this meeting.</p>
+              <div className="py-8 text-center text-slate-600 text-xs space-y-2">
+                <p className="font-medium text-slate-700">Ready to answer questions about this meeting.</p>
                 <p className="text-[11px] text-slate-500">
                   Ask about deliverables, budget allocations, blockers, or timeline commitments.
                 </p>
@@ -213,7 +213,7 @@ export default function CommandCenter({
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500 px-1 font-mono">
                       <span>{isUser ? 'You' : 'Meeting Assistant AI'}</span>
                       {msg.mode && (
-                        <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                        <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-300">
                           {msg.mode}
                         </span>
                       )}
@@ -222,7 +222,7 @@ export default function CommandCenter({
                       className={`p-3.5 rounded-2xl max-w-[88%] text-xs leading-relaxed shadow-sm ${
                         isUser
                           ? 'bg-indigo-600 text-white rounded-tr-none'
-                          : 'bg-slate-950/90 text-slate-200 border border-slate-800/80 rounded-tl-none'
+                          : 'bg-slate-50/90 text-slate-800 border border-slate-200/80 rounded-tl-none'
                       }`}
                     >
                       <div className="whitespace-pre-wrap">
@@ -231,9 +231,9 @@ export default function CommandCenter({
 
                       {/* Source Citations with Click-to-Seek */}
                       {!isUser && msg.citations && msg.citations.length > 0 && (
-                        <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
-                          <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                            <Play className="w-2.5 h-2.5 text-indigo-400" /> Sources:
+                        <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] text-slate-600 font-mono flex items-center gap-1">
+                            <Play className="w-2.5 h-2.5 text-indigo-700" /> Sources:
                           </span>
                           {msg.citations.map((cit, cIdx) => {
                             const citation = normalizeCitation(cit);
@@ -243,7 +243,7 @@ export default function CommandCenter({
                                 type="button"
                                 disabled={!audioUrl || citation.seconds === null}
                                 onClick={() => onSeekAudio && onSeekAudio(citation.seconds)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-mono transition-all active:scale-95 cursor-pointer disabled:opacity-40"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-700 border border-indigo-500/40 text-[10px] font-mono transition-all active:scale-95 cursor-pointer disabled:opacity-40"
                                 title={citation.seconds === null ? 'No audio timestamp' : `Jump audio to ${citation.label}`}
                               >
                                 <Play className="w-2 h-2 fill-indigo-300" />
@@ -260,8 +260,8 @@ export default function CommandCenter({
             )}
 
             {isChatLoading && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-slate-400 text-xs w-fit">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50/60 border border-slate-200 text-slate-600 text-xs w-fit">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-700" />
                 <span>AI is analyzing transcript context and citations...</span>
               </div>
             )}
@@ -272,8 +272,8 @@ export default function CommandCenter({
       {/* Suggested Prompts Pills Carousel (Above Dock) */}
       {isMeetingLoaded && suggestedPrompts.length > 0 && (
         <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider shrink-0 flex items-center gap-1 px-1">
-            <Sparkles className="w-3 h-3 text-indigo-400" /> Suggestions:
+          <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider shrink-0 flex items-center gap-1 px-1">
+            <Sparkles className="w-3 h-3 text-indigo-700" /> Suggestions:
           </span>
           {suggestedPrompts.slice(0, 3).map((prompt, pIdx) => (
             <button
@@ -281,7 +281,7 @@ export default function CommandCenter({
               type="button"
               onClick={() => handleSend(prompt)}
               disabled={isChatLoading || isBusy}
-              className="px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-indigo-600/25 border border-slate-700/60 hover:border-indigo-500/50 text-slate-300 hover:text-white text-xs whitespace-nowrap transition-all active:scale-95 cursor-pointer shadow-sm shrink-0"
+              className="px-2.5 py-1 rounded-xl bg-white/90 hover:bg-indigo-600/25 border border-slate-300/60 hover:border-indigo-500/50 text-slate-700 hover:text-slate-900 text-xs whitespace-nowrap transition-all active:scale-95 cursor-pointer shadow-sm shrink-0"
               title={prompt}
             >
               {prompt}
@@ -291,12 +291,12 @@ export default function CommandCenter({
       )}
 
       {/* Floating Frosted Dock Container */}
-      {isMeetingLoaded && <label className="flex items-center gap-2 px-2 pb-1 text-xs text-slate-400">
+      {isMeetingLoaded && <label className="flex items-center gap-2 px-2 pb-1 text-xs text-slate-600">
         <input type="checkbox" checked={semanticChat} onChange={onToggleSemantic}
           disabled={isChatLoading || isBusy} className="accent-indigo-500" />
         Hybrid retrieval (requires a local embedding model)
       </label>}
-      <div className="relative flex items-center gap-2 p-2 rounded-2xl bg-slate-900/85 backdrop-blur-2xl border border-slate-700/60 shadow-2xl shadow-slate-950/80">
+      <div className="relative flex items-center gap-2 p-2 rounded-2xl bg-white/85 backdrop-blur-xl border border-slate-300/60 shadow-glass shadow-slate-950/80">
         
         {/* Multimodal Recording Button with Fluid Motion States */}
         {!isRecording ? (
@@ -305,10 +305,10 @@ export default function CommandCenter({
             onClick={startRecording}
             disabled={isBusy || isChatLoading}
             aria-label="Start recording live audio"
-            className="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-all active:scale-95 shrink-0 cursor-pointer shadow-sm group"
+            className="p-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all active:scale-95 shrink-0 cursor-pointer shadow-sm group"
             title="Record live audio from microphone"
           >
-            <Mic className="w-4 h-4 group-hover:text-indigo-400 transition-colors" />
+            <Mic className="w-4 h-4 group-hover:text-indigo-700 transition-colors" />
           </button>
         ) : (
           /* Fluid Pulse / Wave Animation for "AI is Listening/Recording" state */
@@ -361,7 +361,7 @@ export default function CommandCenter({
             }
             maxLength={4000}
             aria-label="Ask AI a question about this meeting"
-            className="w-full bg-transparent px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none"
+            className="w-full bg-transparent px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-500 outline-none"
             disabled={isRecording || isChatLoading || isBusy || !isMeetingLoaded}
           />
         </div>
@@ -372,7 +372,7 @@ export default function CommandCenter({
             type="button"
             onClick={() => setIsDrawerOpen(!isDrawerOpen)}
             aria-label={isDrawerOpen ? 'Collapse chat drawer' : 'Expand chat drawer'}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+            className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
             title={isDrawerOpen ? 'Collapse drawer' : 'Expand conversation'}
           >
             {isDrawerOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}

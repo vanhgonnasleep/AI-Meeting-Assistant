@@ -1,6 +1,6 @@
 # Navigating the meeting workspace
 
-The dark workspace has five pages. The sidebar lists saved meetings and links to Overview, Tasks and Projects. Collapse or expand it with its button or Ctrl+B (Cmd+B on macOS). On a small screen, collapse it to reach the document underneath.
+The workspace uses cool white surfaces and periwinkle accents across five pages. The sidebar lists saved meetings and links to every page. Collapse or expand it with its button or Ctrl+B (Cmd+B on macOS). On a small screen, it starts collapsed and closes after selecting a page or meeting.
 
 | Page | What to do here |
 | --- | --- |
@@ -9,6 +9,8 @@ The dark workspace has five pages. The sidebar lists saved meetings and links to
 | Meeting library | Search saved recordings, browse pages, and reopen a transcript. |
 | Action items | Search tasks across meetings and filter by assignee, status, or project. Open a task to review its source meeting. |
 | Projects | Create a project and review decisions from the meetings assigned to it. Assign meetings through **Edit & review**. |
+
+The overview puts the new-meeting action, counts and recent recordings first. Open **Explore your workspace** for the optional walkthrough and meeting link tools.
 
 ## Process and review a recording
 
@@ -33,7 +35,9 @@ If you request a saved meeting and navigate elsewhere before it loads, the pendi
 
 The sidebar expands and collapses with a short transition. Buttons respond to hover and press; the processing screen and recording controls animate while active. Success notifications disappear automatically, while operation errors remain visible until dismissed.
 
-The interface honors the operating system/browser's reduced-motion preference. Use Tab to reach controls and Enter/Space to activate document sections. Escape closes editing dialogs.
+The interface honors the operating system/browser's reduced-motion preference. Translucent navigation and panels use a solid fallback where backdrop filtering is unavailable or reduced transparency is requested. Reading surfaces remain stable and text uses dark foregrounds; filled primary actions retain white labels. Use Tab to reach controls and Enter/Space to activate document sections. Escape closes editing dialogs.
+
+The visual treatment draws on the content hierarchy and material guidance in [Apple's materials guidelines](https://developer.apple.com/design/human-interface-guidelines/materials) and [Microsoft Fluent materials](https://fluent2.microsoft.design/material). The shared palette is defined in `tailwind.config.js`; layout and surface refinements live in `src/clarion.css`.
 
 No additional setup or package is required for these interface changes.
 

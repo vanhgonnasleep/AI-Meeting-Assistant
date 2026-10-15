@@ -8,9 +8,23 @@ html, body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #090d12;
-  color: #f1f5f9;
+  background-color: #f4f6fc;
+  color: #24314c;
 }
+
+:root {
+  color-scheme: light;
+  --canvas-rgb: 244 246 252;
+  --ink: #24314c;
+  --muted: #596780;
+  --accent: #535fce;
+  --accent-soft: #e9edfd;
+  --line: #e1e6f2;
+  --glass: rgb(255 255 255 / .78);
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+}
+
+::selection { background: #dce2ff; color: #303c81; }
 
 /* WCAG AA Keyboard Accessibility Focus Ring */
 button:focus-visible,
@@ -20,7 +34,7 @@ select:focus-visible,
 textarea:focus-visible,
 [role="button"]:focus-visible,
 [tabindex="0"]:focus-visible {
-  outline: 2px solid #6366f1 !important;
+  outline: 2px solid var(--accent) !important;
   outline-offset: 2px !important;
 }
 
@@ -35,7 +49,7 @@ textarea:focus-visible,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
+  background: rgba(110, 124, 161, 0.28);
   border-radius: 9999px;
 }
 
@@ -43,15 +57,15 @@ textarea:focus-visible,
   background: rgba(148, 163, 184, 0.4);
 }
 
-/* Audio Player Dark Theme */
+/* Native controls follow the same light surface as the document. */
 audio::-webkit-media-controls-panel {
-  background-color: #101722;
-  color: #f1f5f9;
+  background-color: #eef1fb;
+  color: #24314c;
 }
 
 audio::-webkit-media-controls-current-time-display,
 audio::-webkit-media-controls-time-remaining-display {
-  color: #94a5bb;
+  color: #596780;
   font-family: monospace;
   font-size: 11px;
 }

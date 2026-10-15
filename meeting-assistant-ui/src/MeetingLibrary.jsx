@@ -6,7 +6,7 @@ import { formatMeetingDuration } from './navigation.js';
  */
 export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = false }) {
   return (
-    <div className={`group relative flex items-center rounded-2xl bg-slate-900/40 hover:bg-slate-900/75 border border-slate-800/80 hover:border-slate-700/80 transition-all ${compact ? 'p-3' : 'p-4'}`}>
+    <div className={`group relative flex items-center rounded-2xl bg-white/40 hover:bg-white/75 border border-slate-200/80 hover:border-slate-300/80 transition-all ${compact ? 'p-3' : 'p-4'}`}>
       <button
         type="button"
         onClick={() => onOpen(meeting)}
@@ -14,17 +14,17 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
         aria-label={`Open meeting ${meeting.filename}`}
         className="flex items-center gap-3.5 flex-1 min-w-0 text-left cursor-pointer"
       >
-        <span className={`rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shrink-0 ${compact ? 'w-8 h-8' : 'w-10 h-10'}`}>
+        <span className={`rounded-xl bg-slate-100/80 border border-slate-300/60 flex items-center justify-center text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-all shrink-0 ${compact ? 'w-8 h-8' : 'w-10 h-10'}`}>
           <AudioLines size={compact ? 16 : 20} strokeWidth={1.7} />
         </span>
 
         <span className="flex-1 min-w-0">
-          <strong className="block text-xs font-semibold text-slate-200 group-hover:text-white truncate">
+          <strong className="block text-xs font-semibold text-slate-800 group-hover:text-slate-900 truncate">
             {meeting.filename || 'Untitled Meeting'}
           </strong>
 
           {!compact && meeting.executive_summary && (
-            <span className="block text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+            <span className="block text-[11px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
               {meeting.executive_summary}
             </span>
           )}
@@ -39,14 +39,14 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
             <span>•</span>
             <span>{meeting.action_item_count || 0} tasks</span>
             {meeting.language && (
-              <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 uppercase font-semibold text-[9px]">
+              <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 uppercase font-semibold text-[9px]">
                 {meeting.language}
               </span>
             )}
           </span>
         </span>
 
-        <ArrowUpRight size={17} className="text-slate-500 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 ml-2" />
+        <ArrowUpRight size={17} className="text-slate-500 group-hover:text-slate-900 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 ml-2" />
       </button>
 
       {onDelete && (
@@ -55,7 +55,7 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
           onClick={(e) => onDelete(meeting.id, e)}
           disabled={disabled}
           aria-label={`Delete meeting ${meeting.filename}`}
-          className="ml-2 p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
+          className="ml-2 p-2 rounded-xl text-slate-500 hover:text-rose-700 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
           title="Delete meeting"
         >
           <Trash2 size={15} />
@@ -83,10 +83,10 @@ export default function MeetingLibrary({
   return (
     <div className="space-y-6 max-w-4xl mx-auto py-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Meeting Library</h1>
-          <p className="text-xs text-slate-400 mt-1">Browse, search, and manage your saved meeting records.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Meeting Library</h1>
+          <p className="text-xs text-slate-600 mt-1">Browse, search, and manage your saved meeting records.</p>
         </div>
         <button
           type="button"
@@ -101,7 +101,7 @@ export default function MeetingLibrary({
 
       {/* Toolbar / Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md flex items-center bg-slate-900/80 border border-slate-800 rounded-2xl px-3 py-2 focus-within:border-indigo-500 transition-colors">
+        <div className="relative flex-1 max-w-md flex items-center bg-white/80 border border-slate-200 rounded-2xl px-3 py-2 focus-within:border-indigo-500 transition-colors">
           <Search size={16} className="text-slate-500 mr-2 shrink-0" />
           <input
             type="search"
@@ -110,45 +110,45 @@ export default function MeetingLibrary({
             maxLength={4000}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search recordings, summaries or action items..."
-            className="w-full bg-transparent text-xs text-white placeholder-slate-500 outline-none"
+            className="w-full bg-transparent text-xs text-slate-900 placeholder-slate-500 outline-none"
           />
           {query && (
             <button
               type="button"
               onClick={() => onSearch('')}
               aria-label="Clear library search"
-              className="text-slate-500 hover:text-slate-300 p-0.5 rounded"
+              className="text-slate-500 hover:text-slate-700 p-0.5 rounded"
             >
               <X size={15} />
             </button>
           )}
         </div>
-        <span className="text-xs text-slate-400 font-mono">
+        <span className="text-xs text-slate-600 font-mono">
           {total} matching {total === 1 ? 'meeting' : 'meetings'}
         </span>
       </div>
 
       {!canOpen && (
-        <p className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+        <p className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700">
           Your current operation continues. Open another meeting after processing or saving finishes.
         </p>
       )}
 
       {error && (
-        <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between gap-2">
+        <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-700 flex items-center justify-between gap-2">
           <span>{error}</span>
-          <button type="button" onClick={() => onPage(offset)} className="underline hover:text-white">
+          <button type="button" onClick={() => onPage(offset)} className="underline hover:text-slate-900">
             Retry
           </button>
         </div>
       )}
 
-      {opening && <p role="status" className="text-xs text-indigo-400 font-medium">Opening meeting…</p>}
+      {opening && <p role="status" className="text-xs text-indigo-700 font-medium">Opening meeting…</p>}
 
       {/* Meeting Cards List */}
       <div className="space-y-2.5" aria-busy={loading}>
         {loading ? (
-          <div className="py-12 flex flex-col items-center justify-center space-y-2 text-slate-400 text-xs">
+          <div className="py-12 flex flex-col items-center justify-center space-y-2 text-slate-600 text-xs">
             <span className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
             <p>Loading your meetings…</p>
           </div>
@@ -163,13 +163,13 @@ export default function MeetingLibrary({
             />
           ))
         ) : (
-          <div className="py-16 text-center space-y-3 bg-slate-900/30 border border-dashed border-slate-800 rounded-3xl p-8">
-            <AudioLines size={36} className="mx-auto text-slate-600" />
+          <div className="py-16 text-center space-y-3 bg-white/30 border border-dashed border-slate-200 rounded-3xl p-8">
+            <AudioLines size={36} className="mx-auto text-slate-500" />
             <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-white">
+              <h2 className="text-sm font-semibold text-slate-900">
                 {query ? 'No matching meetings' : 'Your library starts here'}
               </h2>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <p className="text-xs text-slate-600 max-w-sm mx-auto">
                 {query ? 'Try a different keyword or clear the search.' : 'Upload or record a meeting to create your first transcript and notes.'}
               </p>
             </div>
@@ -177,7 +177,7 @@ export default function MeetingLibrary({
               type="button"
               onClick={query ? () => onSearch('') : onNewMeeting}
               disabled={!canOpen}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition-all"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-medium transition-all"
             >
               {query ? 'Clear search' : 'Start a meeting'}
             </button>
@@ -187,14 +187,14 @@ export default function MeetingLibrary({
 
       {/* Pagination */}
       {total > 0 && (
-        <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400">
+        <div className="flex items-center justify-between pt-4 border-t border-slate-200/80 text-xs text-slate-600">
           <span>{total ? `${offset + 1}–${Math.min(offset + 20, total)} of ${total}` : '0 meetings'}</span>
           <div className="flex gap-2">
             <button
               type="button"
               disabled={loading || offset === 0}
               onClick={() => onPage(Math.max(0, offset - 20))}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 text-xs font-medium transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-medium transition-all cursor-pointer"
             >
               Previous
             </button>
@@ -202,7 +202,7 @@ export default function MeetingLibrary({
               type="button"
               disabled={loading || offset + 20 >= total}
               onClick={() => onPage(offset + 20)}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 text-xs font-medium transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-medium transition-all cursor-pointer"
             >
               Next
             </button>

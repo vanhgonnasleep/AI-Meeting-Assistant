@@ -39,7 +39,7 @@ const WORKFLOW_STEPS = [
     tagline: 'Drag audio or paste a link',
     description: 'Connect directly to live calls on Google Meet, Zoom, Teams, or Webex. Or drop your existing recording files (MP3, WAV, M4A, MP4) straight into the studio.',
     color: 'from-blue-500 to-indigo-600',
-    accentText: 'text-cyan-400',
+    accentText: 'text-cyan-700',
     borderClass: 'border-cyan-500/30',
     points: [
       'Automatic detection for Google Meet, Zoom, Teams, and Webex URLs',
@@ -54,7 +54,7 @@ const WORKFLOW_STEPS = [
     tagline: 'Know who said what',
     description: 'Clarion clusters speaker voiceprints with sub-word precision. Spoken dialogue in Vietnamese and English is transcribed accurately, complete with click-to-verify audio citations.',
     color: 'from-emerald-500 to-teal-600',
-    accentText: 'text-emerald-400',
+    accentText: 'text-emerald-700',
     borderClass: 'border-emerald-500/30',
     points: [
       'Multi-speaker voiceprint attribution with 1-click name re-tagging',
@@ -69,7 +69,7 @@ const WORKFLOW_STEPS = [
     tagline: 'Send notes straight to GitHub & Gmail',
     description: 'Transform spoken agreements into trackable outcomes. Pre-filled GitHub issues and executive email minutes open directly in your browser with zero API tokens stored.',
     color: 'from-violet-500 to-purple-600',
-    accentText: 'text-violet-400',
+    accentText: 'text-violet-700',
     borderClass: 'border-purple-500/30',
     points: [
       'Automated extraction of decisions, blockers, and assigned deliverables',
@@ -112,7 +112,7 @@ export default function LandingPage({
   const activeStep = WORKFLOW_STEPS[activeStepIdx];
 
   return (
-    <div className="min-h-screen bg-[#080c14] text-slate-100 selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
+    <div className="clarion-landing min-h-screen bg-canvas text-slate-900 selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
       
       {/* Subtle Tactile Mesh & Soft Ambient Spotlights */}
       <div 
@@ -129,14 +129,14 @@ export default function LandingPage({
       </div>
 
       {/* 1. TOP NAVBAR */}
-      <header className="sticky top-0 z-40 h-16 px-4 sm:px-8 bg-[#080c14]/85 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between">
+      <header className="landing-nav sticky top-0 z-40 h-16 px-4 sm:px-8 bg-white/75 backdrop-blur-xl border-b border-slate-200/80 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
             <Sparkles className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-white tracking-tight">Clarion</span>
-            <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-300">
+            <span className="font-bold text-sm text-slate-900 tracking-tight">Clarion</span>
+            <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-700">
               On-Device
             </span>
           </div>
@@ -147,9 +147,9 @@ export default function LandingPage({
           <button
             type="button"
             onClick={onOpenDashboard}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white text-xs font-medium transition-all active:scale-95 cursor-pointer"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white/95 border border-slate-200/80 text-slate-700 hover:text-slate-900 text-xs font-medium transition-all active:scale-95 cursor-pointer"
           >
-            <LayoutDashboard className="w-3.5 h-3.5 text-slate-400" />
+            <LayoutDashboard className="w-3.5 h-3.5 text-slate-600" />
             <span>Dashboard</span>
           </button>
 
@@ -167,35 +167,35 @@ export default function LandingPage({
       </header>
 
       {/* 2. HERO: HUMAN COPYWRITING + DIRECT CAPTURE & REALISTIC MOCKUP */}
-      <section className="relative pt-14 pb-16 px-4 sm:px-8 max-w-5xl mx-auto space-y-8">
+      <section className="landing-hero relative pt-14 pb-16 px-4 sm:px-8 max-w-5xl mx-auto space-y-8">
         
         {/* Headline */}
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-slate-300 text-xs font-medium">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-slate-200/80 text-slate-700 text-xs font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span className="font-mono text-[11px]">Private speech engine • No third-party cloud</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
+          <h1 className="landing-title text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.15]">
             Meeting notes that <br />
-            <span className="bg-gradient-to-r from-white via-indigo-200 to-cyan-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-700 via-indigo-500 to-blue-600 bg-clip-text text-transparent">
               actually make sense.
             </span>
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto font-normal leading-relaxed">
-            Clarion records your calls, knows who said what, and turns commitments into clean action items — all executed locally on your machine.
+          <p className="text-xs sm:text-sm text-slate-700 max-w-lg mx-auto font-normal leading-relaxed">
+            Give every conversation a clear next step. Turn recordings into readable notes, speaker-attributed transcripts, and action items — right on your computer.
           </p>
         </div>
 
         {/* Central Card: Quick Link Paste + Realistic Call Simulation */}
-        <div className="rounded-2xl bg-[#0e1422]/90 backdrop-blur-2xl border border-white/[0.1] shadow-2xl p-5 sm:p-7 space-y-5 transition-all relative overflow-hidden">
+        <div className="landing-preview rounded-2xl bg-white/85 backdrop-blur-xl border border-slate-200/80 shadow-glass p-5 sm:p-7 space-y-5 transition-all relative overflow-hidden">
           
           {/* Quick Capture Input */}
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <span className="text-xs font-bold text-slate-200 tracking-tight font-mono flex items-center gap-2">
-                <Video className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="text-xs font-bold text-slate-800 tracking-tight font-mono flex items-center gap-2">
+                <Video className="w-3.5 h-3.5 text-indigo-700" />
                 <span>Paste a meeting link or drop audio</span>
               </span>
 
@@ -213,7 +213,7 @@ export default function LandingPage({
                 value={meetingUrl}
                 onChange={(e) => setMeetingUrl(e.target.value)}
                 placeholder="https://meet.google.com/abc-defg-hij or https://zoom.us/j/..."
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 text-xs text-white placeholder-slate-500 font-mono transition-all"
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50/90 border border-slate-200/80 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 text-xs text-slate-900 placeholder-slate-500 font-mono transition-all"
               />
 
               <div className="flex items-center gap-2">
@@ -229,9 +229,9 @@ export default function LandingPage({
                 <button
                   type="button"
                   onClick={onLaunchApp}
-                  className="px-3.5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-slate-300 hover:text-white text-xs font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                  className="px-3.5 py-2.5 rounded-xl bg-white/80 hover:bg-white/95 border border-slate-200/80 text-slate-700 hover:text-slate-900 text-xs font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
                 >
-                  <FileAudio className="w-3.5 h-3.5 text-slate-400" />
+                  <FileAudio className="w-3.5 h-3.5 text-slate-600" />
                   <span>Choose File</span>
                 </button>
               </div>
@@ -241,14 +241,14 @@ export default function LandingPage({
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300 flex items-center justify-between"
+                className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-700 flex items-center justify-between"
               >
                 <span>{dispatchStatus.readyMessage}</span>
                 <a
                   href={dispatchStatus.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-bold underline hover:text-white"
+                  className="font-bold underline hover:text-slate-900"
                 >
                   Open Call
                 </a>
@@ -257,77 +257,77 @@ export default function LandingPage({
           </div>
 
           {/* Realistic Meeting Preview Stage */}
-          <div className="pt-3 border-t border-white/[0.08] space-y-3.5">
+          <div className="pt-3 border-t border-slate-200/80 space-y-3.5">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-semibold text-slate-200">Staging Latency & Reconnect Bug Sync</span>
+                <span className="font-semibold text-slate-800">Staging Latency & Reconnect Bug Sync</span>
                 <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">(3 attendees)</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <SoundwaveEqualizer active={true} />
-                <span className="text-[10px] text-emerald-400 font-mono font-medium">Recording</span>
+                <span className="text-[10px] text-emerald-700 font-mono font-medium">Recording</span>
               </div>
             </div>
 
             {/* 3 Participant Avatars */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div className="p-3 rounded-xl bg-black/40 border border-indigo-500/30 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-xs text-indigo-300">
+              <div className="p-3 rounded-xl bg-slate-50/90 border border-indigo-500/30 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-xs text-indigo-700">
                   AR
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">Alex Rivera</p>
-                  <p className="text-[10px] text-indigo-300 font-mono">Product</p>
+                  <p className="text-xs font-semibold text-slate-900 truncate">Alex Rivera</p>
+                  <p className="text-[10px] text-indigo-700 font-mono">Product</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-black/40 border border-emerald-500/30 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center font-bold text-xs text-emerald-300">
+              <div className="p-3 rounded-xl bg-slate-50/90 border border-emerald-500/30 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center font-bold text-xs text-emerald-700">
                   SC
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">Sarah Chen</p>
-                  <p className="text-[10px] text-emerald-300 font-mono">Speech AI</p>
+                  <p className="text-xs font-semibold text-slate-900 truncate">Sarah Chen</p>
+                  <p className="text-[10px] text-emerald-700 font-mono">Speech AI</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-black/40 border border-white/10 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-300">
+              <div className="p-3 rounded-xl bg-slate-50/90 border border-slate-200/80 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-300 flex items-center justify-center font-bold text-xs text-slate-700">
                   MV
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">Marcus Vance</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Infrastructure</p>
+                  <p className="text-xs font-semibold text-slate-900 truncate">Marcus Vance</p>
+                  <p className="text-[10px] text-slate-600 font-mono">Infrastructure</p>
                 </div>
               </div>
             </div>
 
             {/* Realistic Grounded Dialogue */}
-            <div className="p-3.5 rounded-xl bg-black/50 border border-white/[0.08] space-y-2 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-50/90 border border-slate-200/80 space-y-2 text-xs">
               <div className="flex items-start gap-2.5">
-                <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 font-mono text-[10px] font-semibold shrink-0">
+                <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-700 font-mono text-[10px] font-semibold shrink-0">
                   Alex [02:15]
                 </span>
-                <p className="text-slate-300 leading-snug">
+                <p className="text-slate-700 leading-snug">
                   "The latency dropped to 180ms on the staging cluster, but Safari still drops the WebSocket on tab backgrounding."
                 </p>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono text-[10px] font-semibold shrink-0">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 font-mono text-[10px] font-semibold shrink-0">
                   Sarah [02:28]
                 </span>
-                <p className="text-slate-300 leading-snug">
+                <p className="text-slate-700 leading-snug">
                   "I saw that. It's the keep-alive ping interval. I'll push a 15-second heartbeat fix this afternoon."
                 </p>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px] font-semibold shrink-0">
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-semibold shrink-0">
                   Marcus [02:41]
                 </span>
-                <p className="text-slate-300 leading-snug">
+                <p className="text-slate-700 leading-snug">
                   "Great. I'll verify the staging deploy once Sarah's PR merges."
                 </p>
               </div>
@@ -337,11 +337,11 @@ export default function LandingPage({
             <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span className="font-semibold text-amber-200">Extracted Action Item:</span>
-                <span className="text-slate-300">Push 15s WebSocket heartbeat fix</span>
+                <span className="font-semibold text-amber-700">Extracted Action Item:</span>
+                <span className="text-slate-700">Push 15s WebSocket heartbeat fix</span>
               </div>
               <div className="flex items-center gap-2 font-mono text-[10px]">
-                <span className="text-amber-300 font-medium">Assignee: Sarah</span>
+                <span className="text-amber-700 font-medium">Assignee: Sarah</span>
                 <span className="text-slate-500">• Due Today</span>
               </div>
             </div>
@@ -354,17 +354,17 @@ export default function LandingPage({
       {/* 3. WORKFLOW: 3 STEPS IN REFINED SEGMENTED CONTROLS */}
       <section className="py-12 px-4 sm:px-8 max-w-5xl mx-auto space-y-6">
         <div className="text-center space-y-1.5">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
             How Clarion Works
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600">
             A cohesive three-part loop from audio to executed tasks.
           </p>
         </div>
 
         {/* Refined Segmented Control Tabs */}
         <div className="flex justify-center">
-          <div className="inline-flex p-1 rounded-xl bg-white/[0.04] border border-white/10 gap-1">
+          <div className="inline-flex p-1 rounded-xl bg-white/80 border border-slate-200/80 gap-1">
             {WORKFLOW_STEPS.map((s, idx) => {
               const isActive = activeStepIdx === idx;
               return (
@@ -375,7 +375,7 @@ export default function LandingPage({
                   className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     isActive 
                       ? 'bg-indigo-600 text-white shadow-sm' 
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-white/95'
                   }`}
                 >
                   <span className="font-mono text-[10px] opacity-75">{s.num}</span>
@@ -387,7 +387,7 @@ export default function LandingPage({
         </div>
 
         {/* Active Step Panel */}
-        <div className="p-6 sm:p-8 rounded-2xl bg-[#0e1422]/70 border border-white/10">
+        <div className="p-6 sm:p-8 rounded-2xl bg-white/75 border border-slate-200/80">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeStep.id}
@@ -401,17 +401,17 @@ export default function LandingPage({
                 <span className={`text-[10px] font-mono uppercase font-bold tracking-wider ${activeStep.accentText}`}>
                   Step {activeStep.num} • {activeStep.tagline}
                 </span>
-                <h3 className="text-xl font-bold text-white">
+                <h3 className="text-xl font-bold text-slate-900">
                   {activeStep.tagline}
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                <p className="text-xs text-slate-700 leading-relaxed font-normal">
                   {activeStep.description}
                 </p>
 
-                <ul className="space-y-2 pt-2 text-xs text-slate-300">
+                <ul className="space-y-2 pt-2 text-xs text-slate-700">
                   {activeStep.points.map((pt, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                       <span>{pt}</span>
                     </li>
                   ))}
@@ -419,18 +419,18 @@ export default function LandingPage({
               </div>
 
               {/* Mock Visual on the Right */}
-              <div className="lg:col-span-6 p-4 rounded-xl bg-black/50 border border-white/[0.08] space-y-3">
+              <div className="lg:col-span-6 p-4 rounded-xl bg-slate-50/90 border border-slate-200/80 space-y-3">
                 {activeStep.id === 'capture' && (
                   <div className="space-y-2 text-xs font-mono">
-                    <div className="flex justify-between text-slate-400">
-                      <span className="text-cyan-300">Audio Track (01:43:58)</span>
+                    <div className="flex justify-between text-slate-600">
+                      <span className="text-cyan-700">Audio Track (01:43:58)</span>
                       <span>FPS: 60 • Lossless</span>
                     </div>
-                    <div className="h-12 rounded-lg bg-slate-900 border border-white/[0.08] flex items-center px-3 gap-1 overflow-hidden">
+                    <div className="h-12 rounded-lg bg-white border border-slate-200/80 flex items-center px-3 gap-1 overflow-hidden">
                       {Array.from({ length: 32 }).map((_, i) => (
                         <span
                           key={i}
-                          className={`w-1 rounded-full ${i < 16 ? 'bg-cyan-400' : 'bg-slate-700'}`}
+                          className={`w-1 rounded-full ${i < 16 ? 'bg-cyan-400' : 'bg-slate-200'}`}
                           style={{ height: `${(i % 5 + 2) * 5}px` }}
                         />
                       ))}
@@ -441,14 +441,14 @@ export default function LandingPage({
 
                 {activeStep.id === 'attribute' && (
                   <div className="space-y-2 text-xs">
-                    <div className="flex justify-between text-slate-400 font-mono text-[10px]">
-                      <span className="text-emerald-300">Grounded Transcript Q&A</span>
+                    <div className="flex justify-between text-slate-600 font-mono text-[10px]">
+                      <span className="text-emerald-700">Grounded Transcript Q&A</span>
                       <span>EmbeddingGemma</span>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900 border border-emerald-500/20 text-xs">
-                      <p className="text-slate-400 text-[11px] font-mono">Q: "When will the heartbeat fix ship?"</p>
-                      <p className="text-slate-100 mt-1">
-                        "Sarah Chen committed to pushing the 15-second heartbeat fix this afternoon (see <span className="text-emerald-400 underline font-mono">[02:28]</span>)."
+                    <div className="p-3 rounded-lg bg-white border border-emerald-500/20 text-xs">
+                      <p className="text-slate-600 text-[11px] font-mono">Q: "When will the heartbeat fix ship?"</p>
+                      <p className="text-slate-900 mt-1">
+                        "Sarah Chen committed to pushing the 15-second heartbeat fix this afternoon (see <span className="text-emerald-700 underline font-mono">[02:28]</span>)."
                       </p>
                     </div>
                   </div>
@@ -456,24 +456,24 @@ export default function LandingPage({
 
                 {activeStep.id === 'dispatch' && (
                   <div className="space-y-2 text-xs">
-                    <div className="flex justify-between text-slate-400 font-mono text-[10px]">
+                    <div className="flex justify-between text-slate-600 font-mono text-[10px]">
                       <span>Ecosystem Connectors</span>
-                      <span className="text-violet-300">Zero-Token RFC 3986</span>
+                      <span className="text-violet-700">Zero-Token RFC 3986</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="p-3 rounded-lg bg-slate-900 border border-white/10 space-y-1">
-                        <span className="font-bold text-white flex items-center gap-1.5">
-                          <ListTodo className="w-3.5 h-3.5 text-violet-400" />
+                      <div className="p-3 rounded-lg bg-white border border-slate-200/80 space-y-1">
+                        <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                          <ListTodo className="w-3.5 h-3.5 text-violet-700" />
                           <span>GitHub Issues</span>
                         </span>
-                        <p className="text-[10px] text-slate-400">Pre-populates title, body & citation.</p>
+                        <p className="text-[10px] text-slate-600">Pre-populates title, body & citation.</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-slate-900 border border-white/10 space-y-1">
-                        <span className="font-bold text-white flex items-center gap-1.5">
-                          <Send className="w-3.5 h-3.5 text-cyan-400" />
+                      <div className="p-3 rounded-lg bg-white border border-slate-200/80 space-y-1">
+                        <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                          <Send className="w-3.5 h-3.5 text-cyan-700" />
                           <span>Gmail Minutes</span>
                         </span>
-                        <p className="text-[10px] text-slate-400">Executive brief ready to email attendees.</p>
+                        <p className="text-[10px] text-slate-600">Executive brief ready to email attendees.</p>
                       </div>
                     </div>
                   </div>
@@ -487,48 +487,48 @@ export default function LandingPage({
       {/* 4. ON-DEVICE VS CLOUD COMPARISON */}
       <section className="py-12 px-4 sm:px-8 max-w-4xl mx-auto space-y-5">
         <div className="text-center space-y-1">
-          <h2 className="text-xl font-bold text-white tracking-tight">
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
             Why On-Device Matters
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600">
             Real privacy is keeping raw audio within your security perimeter.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           {/* Clarion On-Device */}
-          <div className="p-5 rounded-2xl bg-[#0e1422]/90 border border-emerald-500/30 space-y-3">
+          <div className="p-5 rounded-2xl bg-white/85 border border-emerald-500/30 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-white flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span className="font-bold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 <span>Clarion (On-Device)</span>
               </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 font-mono text-[10px]">
+              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 font-mono text-[10px]">
                 Local Hardware
               </span>
             </div>
 
-            <ul className="space-y-2 text-slate-300">
+            <ul className="space-y-2 text-slate-700">
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <span className="text-emerald-700">✓</span>
                 <span>Audio & transcripts never leave your machine</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <span className="text-emerald-700">✓</span>
                 <span>Runs on local GPU / Apple Silicon / CPU</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <span className="text-emerald-700">✓</span>
                 <span>Unlimited recordings, zero monthly subscriptions</span>
               </li>
             </ul>
           </div>
 
           {/* Cloud Recorders */}
-          <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3 text-slate-400">
+          <div className="p-5 rounded-2xl bg-white/80 border border-slate-200/80 space-y-3 text-slate-600">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-300">Cloud Meeting Bots</span>
-              <span className="px-2 py-0.5 rounded bg-white/[0.04] text-slate-400 font-mono text-[10px]">
+              <span className="font-bold text-slate-700">Cloud Meeting Bots</span>
+              <span className="px-2 py-0.5 rounded bg-white/80 text-slate-600 font-mono text-[10px]">
                 External SaaS
               </span>
             </div>
@@ -553,11 +553,11 @@ export default function LandingPage({
 
       {/* 5. CLEAN LAUNCH CTA */}
       <section className="py-16 px-4 sm:px-8 max-w-4xl mx-auto text-center space-y-5">
-        <div className="p-8 rounded-2xl bg-gradient-to-b from-indigo-950/30 to-[#0e1422] border border-white/10 space-y-4">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <div className="p-8 rounded-2xl bg-gradient-to-b from-indigo-50/30 to-white border border-slate-200/80 space-y-4">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Start Your Next Meeting with Clarion.
           </h2>
-          <p className="text-xs text-slate-300 max-w-md mx-auto">
+          <p className="text-xs text-slate-700 max-w-md mx-auto">
             Open the workspace to paste a meeting link or drop a recording file. No account or setup required.
           </p>
 
@@ -576,14 +576,14 @@ export default function LandingPage({
             <button
               type="button"
               onClick={onOpenDashboard}
-              className="px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-white/80 hover:bg-white/95 text-slate-700 hover:text-slate-900 border border-slate-200/80 text-xs font-medium transition-all cursor-pointer"
             >
               <span>View Past Meetings</span>
             </button>
           </div>
         </div>
 
-        <div className="pt-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-white/[0.06]">
+        <div className="pt-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-200/80">
           <span className="font-mono text-[11px]">Clarion • On-Device Meeting Intelligence</span>
           <span>© 2026 Clarion Architecture</span>
         </div>
