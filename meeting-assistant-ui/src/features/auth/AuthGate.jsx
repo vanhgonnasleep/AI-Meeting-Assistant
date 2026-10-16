@@ -1,4 +1,5 @@
-import { networkFailure, responseFailure, userMessage } from '../../shared/lib/user-errors.js';
+import { userMessage } from '../../shared/lib/user-errors.js';
+import { fetchSession } from './session-check.js';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import App from '../../app/App.jsx';
 import SignIn from './SignIn.jsx';
@@ -27,14 +28,8 @@ export default function AuthGate() {
     const controller = new AbortController();
     request.current = controller;
     try {
-      const response = await fetch(`${API_BASE}/api/auth/session`, { credentials: 'include', cache: 'no-store', signal: controller.signal }).catch(error => {
-        if (error.name === 'AbortError') throw error;
-        throw networkFailure({ operation: 'session' });
-      });
-      if (!response.ok) throw responseFailure(response.status, {}, { operation: 'session' });
-      const session = await response.json();
+      const session = await fetchSession(`${API_BASE}/api/auth/session`, { signal: controller.signal });
       if (controller.signal.aborted) return;
-      if (!['private', 'local'].includes(session.mode)) throw new Error('The server returned an invalid session.');
       const nextOwner = session.user?.id || (session.mode === 'local' ? 'local' : null);
       setWorkspaceOwner(previous => previous === nextOwner ? previous : null);
       if (session.user && (!window.location.hash || window.location.hash === '#/signin')) navigateTo('overview');
@@ -43,10 +38,16 @@ export default function AuthGate() {
       setState({ phase: 'ready', session, error: sessionNotice.current });
     } catch (error) {
       if (controller.signal.aborted) return;
-      setState(previous => previous.phase === 'ready' && previous.session?.user ? previous
+      setState(previous => previous.phase === 'ready' && (previous.session?.user || previous.session?.mode === 'local') ? previous
         : { phase: 'error', session: null, error: userMessage(error, 'session') });
     }
   }, []);
+
+  const retrySignIn = () => {
+    sessionNotice.current = '';
+    setState(previous => ({ ...previous, phase: 'checking', error: '' }));
+    void refresh();
+  };
 
   useEffect(() => {
     discardLegacyConnectorSettings();
@@ -110,7 +111,8 @@ export default function AuthGate() {
       onPreview={() => navigateEntry('preview')} />;
   }
   if (!canEnter) {
-    return <SignIn providers={state.session?.providers} error={state.error} checking={state.phase === 'checking'} onRetry={refresh}
+    return <SignIn providers={state.session?.providers} error={state.error} checking={state.phase === 'checking'}
+      canRetry={state.phase === 'error'} onRetry={retrySignIn}
       onHome={() => navigateEntry('landing')} onPreview={() => navigateEntry('preview')} />;
   }
   // A fresh preview never mounts the private App. Once explicitly opened, keep it

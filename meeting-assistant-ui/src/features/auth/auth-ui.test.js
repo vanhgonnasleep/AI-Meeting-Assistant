@@ -15,15 +15,18 @@ test('sign-in shows only configured providers as available', () => {
   assert.doesNotMatch(buttons.find(button => button.includes('Continue with Google')), /\sdisabled(?:=|\s|>)/);
   assert.match(buttons.find(button => button.includes('Continue with GitHub')), /\sdisabled(?:=|\s|>)/);
   assert.match(markup, /Your private meeting workspace/);
+  assert.doesNotMatch(markup, /Check connection|Check sign-in again|Try again/);
 });
 
 test('missing provider configuration and connection errors offer recovery', () => {
   const unavailable = renderToStaticMarkup(createElement(SignIn));
   assert.match(unavailable, /Contact your administrator/);
-  assert.match(unavailable, /Check connection again/);
-  const failed = renderToStaticMarkup(createElement(SignIn, { error: 'Server unavailable' }));
+  assert.doesNotMatch(unavailable, /Check connection again/);
+  const failed = renderToStaticMarkup(createElement(SignIn, { error: 'Sign-in is unavailable', canRetry: true, onRetry() {} }));
   assert.match(failed, /role="alert"/);
-  assert.match(failed, /Server unavailable/);
+  assert.match(failed, /Try again/);
+  const expired = renderToStaticMarkup(createElement(SignIn, { error: 'Your sign-in expired.', providers: { google: true }, onRetry() {} }));
+  assert.doesNotMatch(expired, /Try again|Check connection|Check sign-in again/);
 });
 
 test('the account gate initially mounts no meeting workspace before checking the session', () => {

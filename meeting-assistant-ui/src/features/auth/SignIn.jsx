@@ -21,6 +21,7 @@ export default function SignIn({
   providers = {},
   error,
   onRetry,
+  canRetry = false,
   checking = false,
   onHome = () => navigateEntry('landing'),
   onPreview = () => navigateEntry('preview'),
@@ -100,7 +101,9 @@ export default function SignIn({
               your own library.
             </p>
           </div>
-          {(error || callbackError) && <FeedbackNotice key={error || callbackError} title="Sign-in is unavailable" onRetry={onRetry} retryLabel="Check sign-in again">{error || callbackError}</FeedbackNotice>}
+          {(error || callbackError) && <FeedbackNotice key={error || callbackError}
+            title={canRetry ? 'Sign-in is unavailable' : 'Sign in to continue'}
+            >{error || callbackError}</FeedbackNotice>}
           {checking ? (
             <p role="status" className="text-sm text-slate-600">
               Checking your session…
@@ -114,15 +117,9 @@ export default function SignIn({
                   enable Google or GitHub.
                 </p>
               )}
-              <button
-                type="button"
-                onClick={onRetry}
-                className="text-sm font-medium text-indigo-700 underline underline-offset-4"
-              >
-                Check connection again
-              </button>
             </>
           )}
+          {!checking && canRetry && <button type="button" className="auth-preview-link" onClick={onRetry}>Try again</button>}
           <div className="auth-privacy-note">
             <LockKeyhole size={17} />
             <p>

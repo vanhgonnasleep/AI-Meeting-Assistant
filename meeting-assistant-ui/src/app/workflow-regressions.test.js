@@ -34,7 +34,7 @@ before(async () => {
         const [draft, setDraft] = useState('');
         if (publicPreview) return publicPreview;
         return <><input aria-label="Unsaved fixture draft" value={draft} onInput={event => setDraft(event.target.value)} /><output aria-label="Draft mirror">{draft}</output>
-          <button disabled={signingOut} onClick={onLogout}>Sign out {account.name}</button></>;
+          <button disabled={signingOut} onClick={onLogout}>Sign out {account?.name || 'Local'}</button></>;
       }`);
     },
   }] });
@@ -51,6 +51,48 @@ async function mount(Component, props = {}) {
   await React.act(async () => root.render(React.createElement(Component, props)));
   return { container, async close() { await React.act(async () => root.unmount()); container.remove(); } };
 }
+
+test('sign-in retry has visible progress and disappears when sign-in becomes available', async () => {
+  window.history.replaceState({}, '', '/#/signin');
+  let count = 0;
+  const waiting = deferred();
+  globalThis.fetch = async () => {
+    if (++count === 1) throw new TypeError('Failed to fetch');
+    return waiting.promise;
+  };
+  const view = await mount(AuthGate);
+  try {
+    await click(view.container.querySelector('[aria-label="Dismiss notification"]'));
+    await click([...view.container.querySelectorAll('button')].find(button => button.textContent === 'Try again'));
+    assert.match(view.container.textContent, /Checking your session/);
+    assert.doesNotMatch(view.container.textContent, /Try again|Check connection again/);
+    await React.act(async () => waiting.resolve(json({ ...session, user: null, csrf_token: null })));
+    const google = [...view.container.querySelectorAll('button')].find(button => button.textContent.includes('Continue with Google'));
+    assert.equal(google.disabled, false);
+    assert.doesNotMatch(view.container.textContent, /Checking your session|Try again|Check connection again/);
+  } finally { await view.close(); apiClient.configureSession(null); window.history.replaceState({}, '', '/#/studio'); }
+});
+
+test('a temporary session-check failure preserves the explicit local workspace and unsaved draft', async () => {
+  window.history.replaceState({}, '', '/#/studio');
+  let fail = false;
+  globalThis.fetch = async () => {
+    if (fail) throw new TypeError('Failed to fetch');
+    return json({ mode: 'local', user: null, csrf_token: null, providers: {} });
+  };
+  const view = await mount(AuthGate);
+  try {
+    const field = view.container.querySelector('[aria-label="Unsaved fixture draft"]');
+    await React.act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(field, 'Keep local notes');
+      field.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    fail = true;
+    await React.act(async () => window.dispatchEvent(new window.Event('focus')));
+    assert.equal(view.container.querySelector('[aria-label="Draft mirror"]')?.textContent, 'Keep local notes');
+    assert.doesNotMatch(view.container.textContent, /Your private meeting workspace/);
+  } finally { await view.close(); apiClient.configureSession(null); }
+});
 
 async function openFixtureMeeting(fetchTask) {
   apiClient.configureSession(null);
@@ -329,7 +371,9 @@ test('successful task changes consume the returned meeting and use its new revis
   } finally { await view.close(); }
 });
 
-test('starting a new meeting after the sample demo restores real processing and enables saving', async () => {
+test('starting a new meeting after the sample demo restores real processing and enables saving', async t => {
+  const warnings = [];
+  t.mock.method(console, 'error', (...args) => { warnings.push(args.join(' ')); });
   apiClient.configureSession(null);
   globalThis.fetch = async input => {
     const url = new URL(input, location.origin);
@@ -356,6 +400,7 @@ test('starting a new meeting after the sample demo restores real processing and 
     const save = [...view.container.querySelectorAll('label')].find(label => label.textContent.includes('Save results to library')).querySelector('input');
     assert.equal(save.disabled, false);
     assert.equal(save.checked, true);
+    assert.equal(warnings.some(message => message.includes('same key')), false, 'Recording controls and notification siblings must have distinct keys');
   } finally { await view.close(); }
 });
 

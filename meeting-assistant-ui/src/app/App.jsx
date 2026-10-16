@@ -1221,7 +1221,7 @@ ${result.transcript || ""}
 
         {/* 3. FLOATING FROSTED-GLASS COMMAND CENTER DOCK */}
         <CommandCenter
-          key={recordingSession}
+          key={`recording-${recordingSession}`}
           onSendChatMessage={handleSendChatMessage}
           chatMessages={chatMessages}
           isNavigationOpen={isMobile && !isSidebarCollapsed}
@@ -1247,7 +1247,7 @@ ${result.transcript || ""}
           renderFormattedChatText={renderFormattedChatText}
         />
 
-        {(errorMessage || notice) && !speakerRename && <FeedbackNotice key={errorMessage || notice.id}
+        {(errorMessage || notice) && !speakerRename && <FeedbackNotice key={`notice-${errorMessage || notice.id}`}
           title={errorMessage || notice.kind === 'error' ? 'Action needs attention' : 'Done'}
           tone={errorMessage ? 'error' : notice.kind}
           onDismiss={() => { setErrorMessage(null); setNotice(null); }}>
