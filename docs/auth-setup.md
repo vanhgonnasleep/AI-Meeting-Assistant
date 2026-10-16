@@ -59,6 +59,8 @@ Use separate registered clients when a provider permits only one callback and bo
 
 Actual Google/GitHub consent requires owner-created OAuth clients and a human account. Automated tests substitute the provider HTTP identity step; they do not establish that a particular external OAuth client is configured correctly.
 
+Both actual provider flows were verified locally on 2026-10-16 after the owner configured the clients and completed consent. See [the acceptance report](PRIVATE_AUTH_ACCEPTANCE_2026-10-16.md). Other installations and callback origins still need their own live verification.
+
 ## Reproduce browser account-isolation QA
 
 Run `ai-summary-service/venv/Scripts/python.exe ai-summary-service/tests/fixtures/browser_auth_server.py` from the repository root. In another terminal, run Vite on `localhost:5185` with `VITE_API_BASE_URL=http://localhost:8882`. The fixture substitutes only the external provider steps, creates temporary Alice/Google and Bob/GitHub libraries, and uses the actual callbacks, cookies, session checks and private APIs. Verify Alice's library, sign out, sign in as Bob and verify the absence of Alice's records. Close/reopen a connector dialog to verify its manually entered token and repository are cleared. Do not submit issues or email for this test. Stop the fixture with Ctrl+C; it does not use the working meeting database.
