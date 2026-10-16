@@ -1,3 +1,4 @@
+// ─── 1. Imports & Style Constants ──────────────────────────────────────────
 import { useState } from 'react';
 import LazyPanel from '../../shared/ui/LazyPanel.jsx';
 import { 
@@ -20,7 +21,6 @@ import {
   UploadCloud, 
   FileAudio, 
   X, 
-  Zap, 
   Sliders, 
   Loader2, 
   Target,
@@ -98,6 +98,7 @@ const getSpeakerInitial = (speaker) => {
  * 4. Micro-interactions: Click-to-seek audio on every turn, citation, decision, and risk.
  * 5. Smooth Skeletal Shimmer: AI Processing state renders full document outline shimmer.
  */
+// ─── 2. Component Declaration & Workspace State ─────────────────────────────
 export default function DocumentWorkspace({
   result,
   isProcessing,
@@ -184,9 +185,7 @@ export default function DocumentWorkspace({
   const completedCount = Object.values(completedTasks).filter(Boolean).length;
   const completionPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  // -------------------------------------------------------------
-  // STATE 1: SKELETAL LOADING STATE (AI IS PROCESSING)
-  // -------------------------------------------------------------
+  // ─── 3. State 1: Skeletal Shimmer Loading (AI Processing) ───────────────────
   if (isProcessing) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto py-8">
@@ -254,9 +253,7 @@ export default function DocumentWorkspace({
     );
   }
 
-  // -------------------------------------------------------------
-  // STATE 2: EMPTY STATE / UPLOAD HERO
-  // -------------------------------------------------------------
+  // ─── 4. State 2: Upload Dropzone & AI Configuration Hero ────────────────────
   if (!result) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto py-6">
@@ -492,9 +489,7 @@ export default function DocumentWorkspace({
     );
   }
 
-  // -------------------------------------------------------------
-  // SECTION RENDERERS
-  // -------------------------------------------------------------
+  // ─── 5. Executive Document Sub-Section Renderers ───────────────────────────
   const renderSummarySection = () => (
     <article className="p-6 rounded-3xl bg-white/40 backdrop-blur-md border border-slate-200/80 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-200">
@@ -919,9 +914,7 @@ export default function DocumentWorkspace({
     </article>
   );
 
-  // -------------------------------------------------------------
-  // STATE 3: DOCUMENT WORKSPACE (RESULTS LOADED)
-  // -------------------------------------------------------------
+  // ─── 6. State 3: Main Workspace Composition & Multi-View Studio ────────────
   return (
     <div className={`space-y-6 ${viewMode === 'split' ? 'max-w-7xl' : 'max-w-4xl'} mx-auto py-4 select-text transition-all duration-300`}>
       

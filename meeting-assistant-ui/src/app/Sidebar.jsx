@@ -9,14 +9,12 @@ import {
   PanelLeftOpen,
   Cpu,
   Loader2,
-  Sparkles,
   LayoutDashboard,
   CheckCircle2,
   FolderOpen
 } from 'lucide-react';
-import { appPageHref } from './navigation.js';
+import { appPageHref, formatMeetingDuration } from './navigation.js';
 import { groupMeetingsByDate } from '../features/meetings/history.js';
-import { formatMeetingDuration } from './navigation.js';
 import { useMobileViewport } from '../shared/hooks/mobile-viewport.js';
 import { ClarionMark, ClarionWordmark } from '../shared/ui/BrandMarks.jsx';
 

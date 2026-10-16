@@ -1,52 +1,49 @@
-import FeedbackNotice from '../shared/ui/FeedbackNotice.jsx';
-import { userMessage, warningMessage } from '../shared/lib/user-errors.js';
+// ─── 1. Core React & Libraries ───────────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
-import { API_BASE, apiFetch } from '../features/auth/api-client.js';
-import LazyPanel from '../shared/ui/LazyPanel.jsx';
 import { useDropzone } from 'react-dropzone';
-import { 
-  normalizeCitation, 
-  normalizeChatMessages, 
-  createRequestGate, 
-  resultFromMeeting, 
-  editSpeakerAttribution, 
-  getSuggestedPrompts, 
-  buildChatPayload, 
-  getExportTasks
-} from '../features/meetings/session.js';
-import Workspace, { WorkspaceDialog } from '../features/workspace/Workspace.jsx';
-import MeetingEditor from '../features/meetings/MeetingEditor.jsx';
-import { createMutationLock } from '../features/workspace/workspace.js';
-import { 
-  DEFAULT_UPLOAD_LIMITS, 
-  getUploadLimits, 
-  getUploadError, 
-  startHealthPolling, 
-  buildProcessingQuery 
-} from '../features/recording/upload.js';
-import MeetingLibrary from '../features/meetings/MeetingLibrary.jsx';
-import { 
-  canOpenAnotherMeeting, 
-  formatMeetingDuration, 
-  getNavigationPage, 
-  navigateTo, 
-  subscribeToNavigation
-} from './navigation.js';
-import { buildMeetingSavePayload } from '../features/meetings/storage.js';
+import { PanelLeftOpen, PanelLeftClose, Play, Compass } from 'lucide-react';
+
+// ─── 2. Application Shell & Features ─────────────────────────────────────────
 import Sidebar from './Sidebar.jsx';
 import CommandCenter from '../features/chat/CommandCenter.jsx';
 import LandingPage from '../features/landing/LandingPage.jsx';
-import { readChatStream } from '../features/chat/chat-stream.js';
-import { useMobileViewport } from '../shared/hooks/mobile-viewport.js';
+import MeetingLibrary from '../features/meetings/MeetingLibrary.jsx';
+import MeetingEditor from '../features/meetings/MeetingEditor.jsx';
+import Workspace, { WorkspaceDialog } from '../features/workspace/Workspace.jsx';
+import LazyPanel from '../shared/ui/LazyPanel.jsx';
+import FeedbackNotice from '../shared/ui/FeedbackNotice.jsx';
 
-import { 
-  PanelLeftOpen, 
-  PanelLeftClose, 
-  Zap, 
-  Play,
-  Sparkles,
-  Compass
-} from 'lucide-react';
+// ─── 3. API, Navigation & Domain Services ────────────────────────────────────
+import { API_BASE, apiFetch } from '../features/auth/api-client.js';
+import {
+  canOpenAnotherMeeting,
+  formatMeetingDuration,
+  getNavigationPage,
+  navigateTo,
+  subscribeToNavigation
+} from './navigation.js';
+import {
+  normalizeCitation,
+  normalizeChatMessages,
+  createRequestGate,
+  resultFromMeeting,
+  editSpeakerAttribution,
+  getSuggestedPrompts,
+  buildChatPayload,
+  getExportTasks
+} from '../features/meetings/session.js';
+import { buildMeetingSavePayload } from '../features/meetings/storage.js';
+import {
+  DEFAULT_UPLOAD_LIMITS,
+  getUploadLimits,
+  getUploadError,
+  startHealthPolling,
+  buildProcessingQuery
+} from '../features/recording/upload.js';
+import { createMutationLock } from '../features/workspace/workspace.js';
+import { readChatStream } from '../features/chat/chat-stream.js';
+import { userMessage, warningMessage } from '../shared/lib/user-errors.js';
+import { useMobileViewport } from '../shared/hooks/mobile-viewport.js';
 
 const loadDocumentWorkspace = () => import('../features/meetings/DocumentWorkspace.jsx');
 const loadOverview = () => import('../features/overview/Overview.jsx');
@@ -85,52 +82,60 @@ const getDefaultChatGreeting = (currResult) => {
  * 4. WCAG AA Accessibility: Explicit focus-visible ring-3 offsets, ARIA roles, and high contrast ratios.
  */
 function App({ account, onLogout, signingOut = false, accountError = '' }) {
+  // ─── 1. Navigation & Shell Layout State ─────────────────────────────────────
   const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'landing');
+  const isMobile = useMobileViewport();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   const toggleSidebar = useCallback(() => setIsSidebarCollapsed(value => !value), []);
-  const isMobile = useMobileViewport();
   const [notice, setNotice] = useState(null);
   const noticeId = useRef(0);
   const notify = (message, kind = 'success') => setNotice({ id: ++noticeId.current, message, kind });
 
-  // Core Session States
+  // ─── 2. Meeting Session & Media State ───────────────────────────────────────
   const [file, setFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [result, setResult] = useState(null);
-  const suggestedPrompts = useMemo(() => getSuggestedPrompts(result), [result]);
   const [currentMeetingId, setCurrentMeetingId] = useState(null);
   const [meetingTitle, setMeetingTitle] = useState('');
+  const [isDemoResult, setIsDemoResult] = useState(false);
+  const [warnings, setWarnings] = useState([]);
   const [showEditor, setShowEditor] = useState(false);
-  
-  // Pipeline Settings
-  const [semanticChat, setSemanticChat] = useState(false);
-  const [embeddingModel] = useState('embeddinggemma');
+  const [metaInfo, setMetaInfo] = useState(null);
+  const audioRef = useRef(null);
+  const sessionVersion = useRef(0);
+  const [recordingSession, setRecordingSession] = useState(0);
+
+  // ─── 3. Pipeline Configuration & Toggles ───────────────────────────────────
+  const [selectedModel, setSelectedModel] = useState('auto');
+  const [spokenLanguage, setSpokenLanguage] = useState('');
   const [enableMmr, setEnableMmr] = useState(true);
   const [mmrLambda, setMmrLambda] = useState(0.65);
   const [showAdvancedMmr, setShowAdvancedMmr] = useState(false);
   const [enableDiarization, setEnableDiarization] = useState(true);
   const [numSpeakers, setNumSpeakers] = useState('');
   const [speakerFilter, setSpeakerFilter] = useState('all');
-  const [mmrTelemetry, setMmrTelemetry] = useState(null);
   const [transcriptView, setTranscriptView] = useState('raw'); // 'raw' | 'segments' | 'mmr'
-  const [isCopied, setIsCopied] = useState(false);
-  const [summaryCopied, setSummaryCopied] = useState(false);
-  const [completedTasks, setCompletedTasks] = useState({});
-  const [updatingTasks, setUpdatingTasks] = useState({});
-  const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
-  const [uploadLimits, setUploadLimits] = useState(DEFAULT_UPLOAD_LIMITS);
-  const uploadError = getUploadError(file, uploadLimits);
-  const [selectedModel, setSelectedModel] = useState('auto');
-  const [spokenLanguage, setSpokenLanguage] = useState('');
+  const [mmrTelemetry, setMmrTelemetry] = useState(null);
   const [saveToLibrary, setSaveToLibrary] = useState(true);
   const [isSavingMeeting, setIsSavingMeeting] = useState(false);
-  const saveKey = useRef(null);
-  const saveGate = useRef(createRequestGate());
-  const [metaInfo, setMetaInfo] = useState(null);
+  const [uploadLimits, setUploadLimits] = useState(DEFAULT_UPLOAD_LIMITS);
+  const [healthStatus, setHealthStatus] = useState({ online: false, checking: true });
+  const [semanticChat, setSemanticChat] = useState(false);
+  const [embeddingModel] = useState('embeddinggemma');
+  const uploadError = getUploadError(file, uploadLimits);
 
-  // History & SQLite
+  // ─── 4. Deliverables & Speaker Attribution State ───────────────────────────
+  const [completedTasks, setCompletedTasks] = useState({});
+  const [updatingTasks, setUpdatingTasks] = useState({});
+  const [isSpeakerSaving, setIsSpeakerSaving] = useState(false);
+  const [speakerRename, setSpeakerRename] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [summaryCopied, setSummaryCopied] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  // ─── 5. Library & Meeting History State ─────────────────────────────────────
   const [meetingsHistory, setMeetingsHistory] = useState([]);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -138,33 +143,29 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
   const [historyOffset, setHistoryOffset] = useState(0);
   const [historyError, setHistoryError] = useState(null);
   const [loadingMeetingId, setLoadingMeetingId] = useState(null);
-  const [isSpeakerSaving, setIsSpeakerSaving] = useState(false);
-  const [speakerRename, setSpeakerRename] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [libraryFilters, setLibraryFilters] = useState({ project: '', days: '', sort: 'newest' });
+  const libraryFiltersRef = useRef(libraryFilters);
+  const historyQueryRef = useRef('');
+  const historyOffsetRef = useRef(0);
 
-  // Chat State
+  // ─── 6. Chat & Assistant State ─────────────────────────────────────────────
   const [chatMessages, setChatMessages] = useState([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [isDemoResult, setIsDemoResult] = useState(false);
-  const [warnings, setWarnings] = useState([]);
+  const suggestedPrompts = useMemo(() => getSuggestedPrompts(result), [result]);
 
-  // Gates & Locks
+  // ─── 7. Concurrency Gates & Mutation Locks ─────────────────────────────────
   const processGate = useRef(createRequestGate());
   const chatGate = useRef(createRequestGate());
   const historyGate = useRef(createRequestGate());
   const detailGate = useRef(createRequestGate());
   const speakerGate = useRef(createRequestGate());
+  const saveGate = useRef(createRequestGate());
+  const saveKey = useRef(null);
   const speakerBusy = useRef(false);
   const contentMutations = useRef(createMutationLock());
   const detailRelease = useRef(null);
-  const historyQueryRef = useRef('');
-  const historyOffsetRef = useRef(0);
-  const [libraryFilters, setLibraryFilters] = useState({ project: '', days: '', sort: 'newest' });
-  const libraryFiltersRef = useRef(libraryFilters);
-  const sessionVersion = useRef(0);
-  const [recordingSession, setRecordingSession] = useState(0);
-  const audioRef = useRef(null);
 
+  // ─── 8. Lifecycle Effects & Global Subscriptions ───────────────────────────
   // Keyboard shortcut listener (Ctrl+B / Cmd+B for sidebar, Ctrl+N for new meeting)
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -194,6 +195,12 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     return () => { process.cancel(); chat.cancel(); history.cancel(); detail.cancel(); speaker.cancel(); save.cancel(); };
   }, []);
 
+  // Revoke previews when their session ends, including component unmount.
+  useEffect(() => {
+    return () => { if (audioUrl?.startsWith('blob:')) URL.revokeObjectURL(audioUrl); };
+  }, [audioUrl]);
+
+  // ─── 9. Session Reset & File Selection ──────────────────────────────────────
   const invalidateSession = (preserveResultMetadata = false) => {
     sessionVersion.current += 1;
     setRecordingSession(sessionVersion.current);
@@ -216,16 +223,12 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     if (!preserveResultMetadata) { setWarnings([]); setIsDemoResult(false); }
   };
 
-  // Revoke previews when their session ends, including component unmount.
-  useEffect(() => {
-    return () => { if (audioUrl?.startsWith('blob:')) URL.revokeObjectURL(audioUrl); };
-  }, [audioUrl]);
-
   const selectRecording = recording => {
     setFile(recording);
     setAudioUrl(URL.createObjectURL(recording));
   };
 
+  // ─── 10. Meeting Library Queries & Loading ─────────────────────────────────
   const fetchMeetingHistory = useCallback(async function loadHistory(query = historyQueryRef.current, offset = historyOffsetRef.current) {
     const request = historyGate.current.begin();
     historyOffsetRef.current = offset;
@@ -359,6 +362,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     }
   };
 
+  // ─── 11. Service Health Polling & Processing Timer ─────────────────────────
   useEffect(() => startHealthPolling({
     fetchHealth: options => apiFetch(`${API_BASE}/api/health`, options),
     onHealth: data => {
@@ -381,6 +385,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     return () => clearInterval(timer);
   }, [isProcessing]);
 
+  // ─── 12. Audio Dropzone & Processing Pipeline ──────────────────────────────
   const onDrop = (acceptedFiles) => {
     if (contentMutations.current.isLocked()) return;
     if (acceptedFiles?.length > 0) { handleReset(); selectRecording(acceptedFiles[0]); }
@@ -595,6 +600,109 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     setIsChatLoading(false);
   };
 
+  // ─── 13. Deliverables & Speaker Mutation Handlers ───────────────────────────
+  const toggleTask = async (idx) => {
+    if (speakerBusy.current || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
+    const release = contentMutations.current.tryAcquire();
+    if (!release) return;
+    const isNowDone = !completedTasks[idx];
+    const version = sessionVersion.current;
+    setUpdatingTasks(prev => ({ ...prev, [idx]: true }));
+
+    try {
+      if (currentMeetingId) {
+        const response = await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/tasks/${idx}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending', expected_revision: result?.revision || 0 })
+        });
+        const data = await response.json();
+        if (version !== sessionVersion.current) return;
+        if (data.meeting) { handleUpdatedMeeting(data.meeting); notify('Task updated'); return; }
+      }
+
+      if (version !== sessionVersion.current) return;
+      setCompletedTasks(prev => ({
+        ...prev,
+        [idx]: isNowDone
+      }));
+      notify('Task updated');
+    } catch (err) {
+      if (version !== sessionVersion.current) return;
+      console.error("Failed to update task:", err);
+      setErrorMessage(userMessage(err, 'save'));
+      notify(userMessage(err, 'save'), 'error');
+    } finally {
+      release();
+      if (version === sessionVersion.current) setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
+    }
+  };
+
+  const applySpeakerEdit = async (oldName, newName, segmentIndex = null) => {
+    if (!result || speakerBusy.current || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
+    if (!newName.trim() || newName.length > 128 || [...newName].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
+      setErrorMessage('Use a speaker name with 1–128 characters.');
+      return;
+    }
+    const release = contentMutations.current.tryAcquire();
+    if (!release) return;
+    const request = speakerGate.current.begin();
+    speakerBusy.current = true;
+    setIsSpeakerSaving(true);
+    chatGate.current.cancel();
+    setIsChatLoading(false);
+    try {
+      let updated;
+      if (currentMeetingId) {
+        const response = await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/speakers`, {
+          method: 'PATCH', 
+          signal: request.signal, 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ old_name: oldName, new_name: newName.trim(), segment_index: segmentIndex }),
+        });
+        const data = await response.json();
+
+        if (!request.isCurrent()) return;
+        updated = { ...result, ...resultFromMeeting(data.meeting) };
+      } else {
+        updated = editSpeakerAttribution({ ...result, chat_history: chatMessages }, oldName, newName.trim(), segmentIndex);
+      }
+      if (!request.isCurrent()) return;
+      setResult(updated);
+      setTranscriptView('segments');
+      setChatMessages(updated.chat_history.length ? updated.chat_history : getDefaultChatGreeting(updated));
+      if (speakerFilter === oldName) setSpeakerFilter(newName.trim());
+      notify('Speaker name updated');
+      return true;
+    } catch (error) {
+      if (request.isCurrent()) { setErrorMessage(userMessage(error, 'save')); notify(userMessage(error, 'save'), 'error'); }
+    } finally {
+      release();
+      if (request.isCurrent()) { speakerBusy.current = false; setIsSpeakerSaving(false); }
+    }
+  };
+
+  const handleRenameSpeaker = (oldName) => {
+    if (!oldName || !result || contentMutations.current.isLocked() || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
+    setErrorMessage(null);
+    setSpeakerRename({ oldName, name: oldName });
+  };
+
+  const handleCycleSpeaker = (segmentIdx) => {
+    if (!result || !result.segments || !result.segments[segmentIdx] || contentMutations.current.isLocked() || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
+    const currentSpk = result.segments[segmentIdx].speaker;
+    const speakersList = (result.speakers && result.speakers.length > 0)
+      ? result.speakers
+      : ['Speaker 1', 'Speaker 2'];
+    
+    const currIdx = speakersList.indexOf(currentSpk);
+    const nextSpk = speakersList[(currIdx + 1) % speakersList.length];
+    if (nextSpk === currentSpk) return;
+
+    applySpeakerEdit(currentSpk, nextSpk, segmentIdx);
+  };
+
+  // ─── 14. Meeting Persistence & Export Actions ──────────────────────────────
   const handleSaveMeeting = async () => {
     if (!result || currentMeetingId || isDemoResult || isProcessing || isChatLoading || showEditor || speakerRename) return;
     const release = contentMutations.current.tryAcquire();
@@ -638,6 +746,117 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     }
   };
 
+  const getFullMarkdown = () => {
+    if (!result) return "";
+    const items = result.action_items || [];
+    let transcriptBlock = result.transcript || "";
+    if (result.segments && result.segments.some(s => s.speaker)) {
+      transcriptBlock = result.segments.map(s => `**${s.speaker}** (${s.timestamp || ''}): ${s.text}`).join('\n\n');
+    }
+
+    let insightsBlock = "";
+    if (result.insights) {
+      const decs = (result.insights.decisions || []).map(d => `- **[Decision: ${d.status || 'proposed'}]** ${d.text}${d.timestamp ? ` (${d.timestamp})` : ''}`).join('\n');
+      const risks = (result.insights.risks || []).map(r => `- **[Risk]** ${r.text}${r.timestamp ? ` (${r.timestamp})` : ''}`).join('\n');
+      const ques = (result.insights.open_questions || []).map(q => `- **[Open Question]** ${q.text}${q.timestamp ? ` (${q.timestamp})` : ''}`).join('\n');
+      insightsBlock = `\n\n## KEY DECISIONS & GOVERNANCE INSIGHTS\n### Decisions\n${decs || 'None'}\n\n### Blockers & Delivery Risks\n${risks || 'None'}\n\n### Open Questions\n${ques || 'None'}`;
+    }
+
+    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION DELIVERABLES\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}${insightsBlock}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
+  };
+
+  const handleCopyResult = () => {
+    if (!result) return;
+    navigator.clipboard.writeText(getFullMarkdown()).then(() => {
+      setIsCopied(true);
+      notify('Meeting notes copied to clipboard');
+      setTimeout(() => setIsCopied(false), 2500);
+    }).catch(() => notify('We couldn’t copy the notes. Select and copy the text, or export a file instead.', 'error'));
+  };
+
+  const handleCopySummary = (e) => {
+    e?.stopPropagation();
+    if (!result?.summary) return;
+    navigator.clipboard.writeText(result.summary).then(() => {
+      setSummaryCopied(true);
+      notify('Summary copied to clipboard');
+      setTimeout(() => setSummaryCopied(false), 2000);
+    }).catch(() => notify('We couldn’t copy the notes. Select and copy the text, or export a file instead.', 'error'));
+  };
+
+  const handleDownloadMarkdown = () => {
+    if (!result) return;
+    const blob = new Blob([getFullMarkdown()], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadJson = () => {
+    if (!result) return;
+    const exportTasks = getExportTasks(result.action_items || [], completedTasks);
+    const exportData = {
+      meeting_id: currentMeetingId,
+      filename: file?.name || meetingTitle,
+      created_at: new Date().toISOString(),
+      summary: result.summary,
+      action_items: exportTasks,
+      transcript: result.transcript,
+      condensed_transcript: result.condensed_transcript,
+      duration: result.duration,
+      language: result.language,
+      segments: result.segments,
+      insights: result.insights,
+      chat_history: chatMessages,
+      warnings,
+      demo_mode: isDemoResult
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `meeting-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadTxt = () => {
+    if (!result) return;
+    const items = result.action_items || [];
+    const textContent = `=====================================================
+MEETING EXECUTIVE SUMMARY
+=====================================================
+${result.summary || ""}
+
+=====================================================
+ACTION DELIVERABLES
+=====================================================
+${items.map((it, idx) => `[${completedTasks[idx] ? 'DONE' : 'PENDING'}] ${it.task} | Owner: ${it.assignee || 'Unassigned'}${it.deadline ? ` | Due: ${it.deadline}` : ''}`).join('\n')}
+
+=====================================================
+CONVERSATIONAL TRANSCRIPT
+=====================================================
+${result.transcript || ""}
+`;
+    const blob = new Blob([textContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `meeting-transcript-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // ─── 15. Chat & Audio Assistant Handlers ────────────────────────────────────
   const handleSeekAudio = (seconds) => {
     if (audioRef.current && Number.isFinite(seconds)) {
       audioRef.current.currentTime = Math.max(0, seconds);
@@ -759,217 +978,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     });
   };
 
-  const toggleTask = async (idx) => {
-    if (speakerBusy.current || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
-    const release = contentMutations.current.tryAcquire();
-    if (!release) return;
-    const isNowDone = !completedTasks[idx];
-    const version = sessionVersion.current;
-    setUpdatingTasks(prev => ({ ...prev, [idx]: true }));
-
-    try {
-      if (currentMeetingId) {
-        const response = await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/tasks/${idx}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending', expected_revision: result?.revision || 0 })
-        });
-        const data = await response.json();
-        if (version !== sessionVersion.current) return;
-        if (data.meeting) { handleUpdatedMeeting(data.meeting); notify('Task updated'); return; }
-      }
-
-      if (version !== sessionVersion.current) return;
-      setCompletedTasks(prev => ({
-        ...prev,
-        [idx]: isNowDone
-      }));
-      notify('Task updated');
-    } catch (err) {
-      if (version !== sessionVersion.current) return;
-      console.error("Failed to update task:", err);
-      setErrorMessage(userMessage(err, 'save'));
-      notify(userMessage(err, 'save'), 'error');
-    } finally {
-      release();
-      if (version === sessionVersion.current) setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
-    }
-  };
-
-  const getFullMarkdown = () => {
-    if (!result) return "";
-    const items = result.action_items || [];
-    let transcriptBlock = result.transcript || "";
-    if (result.segments && result.segments.some(s => s.speaker)) {
-      transcriptBlock = result.segments.map(s => `**${s.speaker}** (${s.timestamp || ''}): ${s.text}`).join('\n\n');
-    }
-
-    let insightsBlock = "";
-    if (result.insights) {
-      const decs = (result.insights.decisions || []).map(d => `- **[Decision: ${d.status || 'proposed'}]** ${d.text}${d.timestamp ? ` (${d.timestamp})` : ''}`).join('\n');
-      const risks = (result.insights.risks || []).map(r => `- **[Risk]** ${r.text}${r.timestamp ? ` (${r.timestamp})` : ''}`).join('\n');
-      const ques = (result.insights.open_questions || []).map(q => `- **[Open Question]** ${q.text}${q.timestamp ? ` (${q.timestamp})` : ''}`).join('\n');
-      insightsBlock = `\n\n## KEY DECISIONS & GOVERNANCE INSIGHTS\n### Decisions\n${decs || 'None'}\n\n### Blockers & Delivery Risks\n${risks || 'None'}\n\n### Open Questions\n${ques || 'None'}`;
-    }
-
-    return `# MEETING EXECUTIVE SUMMARY\n\n${result.summary || ""}\n\n## ACTION DELIVERABLES\n${items.map((item, idx) => `- [${completedTasks[idx] ? 'x' : ' '}] ${item.task || ""} (Assignee: ${item.assignee || "Unassigned"}${item.deadline ? `, Deadline: ${item.deadline}` : ''})`).join('\n')}${insightsBlock}\n\n## CONVERSATIONAL TRANSCRIPT\n${transcriptBlock}`;
-  };
-
-  const handleCopyResult = () => {
-    if (!result) return;
-    navigator.clipboard.writeText(getFullMarkdown()).then(() => {
-      setIsCopied(true);
-      notify('Meeting notes copied to clipboard');
-      setTimeout(() => setIsCopied(false), 2500);
-    }).catch(() => notify('We couldn’t copy the notes. Select and copy the text, or export a file instead.', 'error'));
-  };
-
-  const handleCopySummary = (e) => {
-    e?.stopPropagation();
-    if (!result?.summary) return;
-    navigator.clipboard.writeText(result.summary).then(() => {
-      setSummaryCopied(true);
-      notify('Summary copied to clipboard');
-      setTimeout(() => setSummaryCopied(false), 2000);
-    }).catch(() => notify('We couldn’t copy the notes. Select and copy the text, or export a file instead.', 'error'));
-  };
-
-  const applySpeakerEdit = async (oldName, newName, segmentIndex = null) => {
-    if (!result || speakerBusy.current || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
-    if (!newName.trim() || newName.length > 128 || [...newName].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
-      setErrorMessage('Use a speaker name with 1–128 characters.');
-      return;
-    }
-    const release = contentMutations.current.tryAcquire();
-    if (!release) return;
-    const request = speakerGate.current.begin();
-    speakerBusy.current = true;
-    setIsSpeakerSaving(true);
-    chatGate.current.cancel();
-    setIsChatLoading(false);
-    try {
-      let updated;
-      if (currentMeetingId) {
-        const response = await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/speakers`, {
-          method: 'PATCH', 
-          signal: request.signal, 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ old_name: oldName, new_name: newName.trim(), segment_index: segmentIndex }),
-        });
-        const data = await response.json();
-
-        if (!request.isCurrent()) return;
-        updated = { ...result, ...resultFromMeeting(data.meeting) };
-      } else {
-        updated = editSpeakerAttribution({ ...result, chat_history: chatMessages }, oldName, newName.trim(), segmentIndex);
-      }
-      if (!request.isCurrent()) return;
-      setResult(updated);
-      setTranscriptView('segments');
-      setChatMessages(updated.chat_history.length ? updated.chat_history : getDefaultChatGreeting(updated));
-      if (speakerFilter === oldName) setSpeakerFilter(newName.trim());
-      notify('Speaker name updated');
-      return true;
-    } catch (error) {
-      if (request.isCurrent()) { setErrorMessage(userMessage(error, 'save')); notify(userMessage(error, 'save'), 'error'); }
-    } finally {
-      release();
-      if (request.isCurrent()) { speakerBusy.current = false; setIsSpeakerSaving(false); }
-    }
-  };
-
-  const handleRenameSpeaker = (oldName) => {
-    if (!oldName || !result || contentMutations.current.isLocked() || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
-    setErrorMessage(null);
-    setSpeakerRename({ oldName, name: oldName });
-  };
-
-  const handleCycleSpeaker = (segmentIdx) => {
-    if (!result || !result.segments || !result.segments[segmentIdx] || contentMutations.current.isLocked() || isSpeakerSaving || Object.values(updatingTasks).some(Boolean)) return;
-    const currentSpk = result.segments[segmentIdx].speaker;
-    const speakersList = (result.speakers && result.speakers.length > 0)
-      ? result.speakers
-      : ['Speaker 1', 'Speaker 2'];
-    
-    const currIdx = speakersList.indexOf(currentSpk);
-    const nextSpk = speakersList[(currIdx + 1) % speakersList.length];
-    if (nextSpk === currentSpk) return;
-
-    applySpeakerEdit(currentSpk, nextSpk, segmentIdx);
-  };
-
-  const handleDownloadMarkdown = () => {
-    if (!result) return;
-    const blob = new Blob([getFullMarkdown()], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadJson = () => {
-    if (!result) return;
-    const exportTasks = getExportTasks(result.action_items || [], completedTasks);
-    const exportData = {
-      meeting_id: currentMeetingId,
-      filename: file?.name || meetingTitle,
-      created_at: new Date().toISOString(),
-      summary: result.summary,
-      action_items: exportTasks,
-      transcript: result.transcript,
-      condensed_transcript: result.condensed_transcript,
-      duration: result.duration,
-      language: result.language,
-      segments: result.segments,
-      insights: result.insights,
-      chat_history: chatMessages,
-      warnings,
-      demo_mode: isDemoResult
-    };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `meeting-export-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadTxt = () => {
-    if (!result) return;
-    const items = result.action_items || [];
-    const textContent = `=====================================================
-MEETING EXECUTIVE SUMMARY
-=====================================================
-${result.summary || ""}
-
-=====================================================
-ACTION DELIVERABLES
-=====================================================
-${items.map((it, idx) => `[${completedTasks[idx] ? 'DONE' : 'PENDING'}] ${it.task} | Owner: ${it.assignee || 'Unassigned'}${it.deadline ? ` | Due: ${it.deadline}` : ''}`).join('\n')}
-
-=====================================================
-CONVERSATIONAL TRANSCRIPT
-=====================================================
-${result.transcript || ""}
-`;
-    const blob = new Blob([textContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `meeting-transcript-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
+  // ─── 16. Shell Composition & Page Rendering ────────────────────────────────
   const isContentSaving = loadingMeetingId !== null || isSavingMeeting || isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
   const canOpenMeeting = canOpenAnotherMeeting({ processing: isProcessing, saving: isContentSaving, editing: showEditor || Boolean(speakerRename) });
 
