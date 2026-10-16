@@ -29,24 +29,24 @@
 ## Deliverables
 
 ### 1. Baseline and environment
-- [ ] Verify baseline tests, Docker executable/engine and preserve a clean Git branch.
-- [ ] Read current Authlib/provider/Tailwind documentation before implementation.
+- [x] Verify baseline tests, Docker executable/engine and preserve a clean Git branch.
+- [x] Read current Authlib/provider/Tailwind documentation before implementation.
 
 ### 2. Frontend source groups and patched build tooling
-- [ ] Move app shell to `src/app`, functionality to `src/features`, reusable UI/hooks to `src/shared`, global CSS to `src/styles`; update imports and recursive test discovery.
-- [ ] Migrate Tailwind build dependencies with compatibility styling; run tests, lint, production build and complete npm audit.
+- [x] Move app shell to `src/app`, functionality to `src/features`, reusable UI/hooks to `src/shared`, global CSS to `src/styles`; update imports and recursive test discovery.
+- [x] Migrate Tailwind build dependencies with compatibility styling; run tests, lint, production build and complete npm audit.
 
 ### 3. Backend modules, account storage and OAuth
-- [ ] Group implementation in `ai-summary-service/app`, retaining compatibility entry points when imported by existing tooling.
-- [ ] Add identity/session/state storage and request-selected database path. Write failing tests for isolation before implementing it.
-- [ ] Implement Google/GitHub adapters, PKCE/state binding, callback identity checks, opaque sessions, status/logout and CSRF middleware. Mock provider HTTP only in tests.
-- [ ] Verify private access controls and the legacy local workflow with focused and full tests.
+- [x] Group implementation in `ai-summary-service/app`, retaining compatibility entry points when imported by existing tooling.
+- [x] Add identity/session/state storage and request-selected database path. Write failing tests for isolation before implementing it.
+- [x] Implement Google/GitHub adapters, PKCE/state binding, callback identity checks, opaque sessions, status/logout and CSRF middleware. Mock provider HTTP only in tests.
+- [x] Verify private access controls and the legacy local workflow with focused and full tests.
 
 ### 4. Sign-in UI and setup
-- [ ] Add a gated account workspace, provider availability, credentialed API helper, CSRF mutation headers and logout/session-expiry cleanup.
-- [ ] Add local environment example, OAuth callback setup and folder map; update startup, CI and smoke scripts for explicit local/private modes.
+- [x] Add a gated account workspace, provider availability, credentialed API helper, CSRF mutation headers and logout/session-expiry cleanup.
+- [x] Add local environment example, OAuth callback setup and folder map; update startup, CI and smoke scripts for explicit local/private modes.
 
 ### 5. Verification and integration
-- [ ] Run isolated Compose build/start, nginx/API/SSE/audio checks and persistence restart when Docker is available.
-- [ ] Run full model-enabled backend, lightweight backend, frontend tests/lint/build/dependency audit and browser flows.
+- [x] Run isolated Compose build/start, nginx/API/SSE/audio checks and persistence restart when Docker is available.
+- [x] Run full model-enabled backend, lightweight backend, frontend tests/lint/build/dependency audit and browser flows.
 - [ ] Review integration, fix validated findings, update benchmark/report and integrate locally. Report exact remaining owner/environment prerequisites.

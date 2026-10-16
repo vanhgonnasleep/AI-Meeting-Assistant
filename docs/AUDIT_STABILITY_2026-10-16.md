@@ -1,5 +1,7 @@
 # Clarion stability audit — 2026-10-16
 
+Follow-up: [private accounts and Docker acceptance](PRIVATE_AUTH_ACCEPTANCE_2026-10-16.md) resolves the build-tool advisories and records actual container/multiplatform verification plus account isolation. Results below describe the earlier audit snapshot.
+
 Follow-up to [the rescue acceptance](CLARION_RESCUE_REPORT.md), based on `8b2173f`.
 Implementation branch: `codex/audit-rescue-stability`. Integration is local to `main`; no remote push is included. Gmail/GitHub authentication remains outside this change, as requested.
 
