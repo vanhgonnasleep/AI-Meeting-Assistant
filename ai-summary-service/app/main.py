@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.core.request_limits import RequestLimitsMiddleware
+from app.core.error_boundary import StorageErrorMiddleware
 from app.core.runtime_config import MAX_FILE_SIZE_BYTES, MAX_UPLOAD_MB, MAX_AUDIO_DURATION_SECONDS, MediaLimitError
 import requests
 import json
@@ -26,6 +27,7 @@ if str(ROOT_DIR) not in sys.path:
 from app.pipeline.summarization import AIServiceError, generate_failsafe_summary, summarize_transcript
 from app.api.schemas.chat import ChatMessageRequest
 from app.api.schemas.meetings import MeetingUpdateRequest, SpeakerEditRequest, TaskStatusUpdateRequest
+from app.api.schemas.identifiers import StoredId, SQLITE_MAX_INTEGER
 
 # Dynamic Integration with Team Modules (Plug-and-Play)
 try:
@@ -121,6 +123,7 @@ ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv(
 app.add_middleware(RequestLimitsMiddleware, allowed_origins=ALLOWED_ORIGINS,
                    upload_limit=MAX_FILE_SIZE_BYTES + 1024 * 1024)
 app.add_middleware(PrivateWorkspaceMiddleware)
+app.add_middleware(StorageErrorMiddleware)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=[value.strip() for value in os.environ.get(
     'CLARION_ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1],testserver,test').split(',') if value.strip()])
 # Enable CORS for React Frontend
@@ -564,10 +567,7 @@ def process_audio(
 
         if not transcript or not transcript.strip():
             if stt_error:
-                clean_err = stt_error
-                if "Invalid data found when processing input" in stt_error or "Failed to load audio" in stt_error:
-                    clean_err = "The uploaded file could not be decoded as valid audio. Please upload a valid audio file (.mp3, .wav, .m4a) or switch to 'Instant Demo' mode."
-                raise HTTPException(status_code=400, detail=f"Speech transcription failed: {clean_err}")
+                raise HTTPException(status_code=400, detail="We could not transcribe this recording. Try a WAV or MP3 file, or record it again.")
             raise HTTPException(
                 status_code=400,
                 detail="No clear speech could be transcribed from the uploaded audio file. Please check the file audio."
@@ -697,7 +697,7 @@ def process_audio(
     except HTTPException as he:
         raise he
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="We could not finish processing this recording. Keep your file and try again shortly.") from e
 
 # ==========================================
 # DATABASE - MEETING HISTORY ENDPOINTS (Đoàn Hoàng Long)
@@ -720,7 +720,7 @@ def transcribe_chunk_endpoint(file: UploadFile = File(...), whisper_model: Whisp
 
 @app.get("/api/meetings")
 def get_all_meetings_endpoint(q: Optional[str] = Query(None, max_length=500, description="Search query string"),
-                              limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
+                              limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0, le=SQLITE_MAX_INTEGER),
                               compact: bool = Query(False), project: Optional[str] = Query(None, max_length=128),
                               days: Optional[int] = Query(None, ge=1, le=365),
                               sort: Literal['newest', 'oldest', 'duration', 'tasks'] = Query('newest')):
@@ -732,7 +732,7 @@ def get_all_meetings_endpoint(q: Optional[str] = Query(None, max_length=500, des
 
 
 @app.patch("/api/meetings/{meeting_id}/speakers")
-def edit_meeting_speaker_endpoint(meeting_id: int, payload: SpeakerEditRequest):
+def edit_meeting_speaker_endpoint(meeting_id: StoredId, payload: SpeakerEditRequest):
     if crud is None:
         raise HTTPException(503, "Database module not available.")
     record = crud.edit_meeting_speaker(meeting_id, payload.old_name, payload.new_name, payload.segment_index)
@@ -741,7 +741,7 @@ def edit_meeting_speaker_endpoint(meeting_id: int, payload: SpeakerEditRequest):
     return {"status": "success", "meeting": jsonable_encoder(record)}
 
 @app.get("/api/meetings/{meeting_id}")
-def get_meeting_by_id(meeting_id: int):
+def get_meeting_by_id(meeting_id: StoredId):
     """Retrieves a single meeting record by ID."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
@@ -751,7 +751,7 @@ def get_meeting_by_id(meeting_id: int):
     return {"status": "success", "meeting": jsonable_encoder(meeting)}
 
 @app.put("/api/meetings/{meeting_id}")
-def update_meeting_by_id(meeting_id: int, payload: MeetingUpdateRequest):
+def update_meeting_by_id(meeting_id: StoredId, payload: MeetingUpdateRequest):
     """Updates an existing meeting record."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
@@ -769,7 +769,7 @@ def update_meeting_by_id(meeting_id: int, payload: MeetingUpdateRequest):
     return {"status": "success", "updated": True}
 
 @app.patch("/api/meetings/{meeting_id}/tasks/{task_idx}")
-def update_meeting_task_status(meeting_id: int, task_idx: int, payload: TaskStatusUpdateRequest):
+def update_meeting_task_status(meeting_id: StoredId, task_idx: int, payload: TaskStatusUpdateRequest):
     """Toggles or updates the status of an action item in a meeting record."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
@@ -796,7 +796,7 @@ def get_analytics():
     return {"status": "success", "analytics": stats}
 
 @app.delete("/api/meetings/{meeting_id}")
-def delete_meeting_by_id(meeting_id: int):
+def delete_meeting_by_id(meeting_id: StoredId):
     """Deletes a meeting record by ID."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
@@ -810,7 +810,7 @@ def delete_meeting_by_id(meeting_id: int):
 # ==========================================
 
 @app.post("/api/meetings/{meeting_id}/chat")
-def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageRequest):
+def chat_with_meeting_endpoint(meeting_id: StoredId, payload: ChatMessageRequest):
     """
     Asks a question about a saved meeting record. Uses Lite-RAG with audio timestamp
     citations and persists the conversation turn into SQLite.
@@ -876,7 +876,7 @@ def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageRequest):
 
 
 @app.get("/api/meetings/{meeting_id}/chat")
-def get_meeting_chat_history_endpoint(meeting_id: int):
+def get_meeting_chat_history_endpoint(meeting_id: StoredId):
     """Retrieves persisted Q&A history for a specific meeting."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
@@ -887,7 +887,7 @@ def get_meeting_chat_history_endpoint(meeting_id: int):
 
 
 @app.delete("/api/meetings/{meeting_id}/chat")
-def clear_meeting_chat_history_endpoint(meeting_id: int):
+def clear_meeting_chat_history_endpoint(meeting_id: StoredId):
     """Clears all persisted Q&A messages for a meeting."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")

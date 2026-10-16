@@ -3,11 +3,12 @@ import math
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
+from .identifiers import StoredId
 
 
 class ChatMessageRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
-    meeting_id: Optional[int] = None
+    meeting_id: Optional[StoredId] = None
     transcript: Optional[str] = Field(None, max_length=1_000_000)
     summary: Optional[str] = Field(None, max_length=50_000)
     segments: Optional[List[Dict[str, Any]]] = Field(None, max_length=20_000)

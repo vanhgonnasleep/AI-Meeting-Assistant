@@ -4,6 +4,7 @@ from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from .identifiers import StoredId
 
 
 TaskStatus = Literal["pending", "in_progress", "completed", "done"]
@@ -131,4 +132,4 @@ class ProjectRequest(BaseModel):
 
 class ProjectAssignmentRequest(BaseModel):
     expected_revision: int = Field(ge=0, strict=True)
-    project_id: int | None = Field(ge=1, strict=True)
+    project_id: StoredId | None = Field(strict=True)
