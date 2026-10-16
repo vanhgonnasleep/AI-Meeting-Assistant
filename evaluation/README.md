@@ -19,6 +19,10 @@ python scripts/evaluate_pipeline.py run --manifest .evaluation-data/fleurs-vi/ma
 python scripts/evaluate_pipeline.py report .evaluation-runs/<run-id>
 ```
 
+Preflight tách riêng: `preflight --kind asr --models tiny base` không cần Ollama; `preflight --kind nlp_text --llm-model llama3:latest` không cần checkpoint Whisper. Lệnh run tự xác định khả năng cần từ loại case trong manifest. Adapter tùy chỉnh nhận thêm keyword `require_llm` ở preflight.
+
+Coverage báo planned/attempted/completed/failed/unattempted từ ma trận case × variant đã đóng băng; variant chưa bắt đầu vẫn xuất hiện. Run bị ngắt hoặc thiếu case không xuất F1 từ tập con đã hoàn thành.
+
 Preflight kiểm hash checkpoint chính thức. Mặc định không tự tải model; nếu thiếu, chỉ thêm `--allow-model-download` khi chủ động muốn chuẩn bị tiny/base. LLM phải được cài sẵn trong Ollama local; không tự pull. Không cần đăng nhập ứng dụng. Không đọc `.env`; nếu cấu hình Ollama khác, chỉ hỗ trợ endpoint loopback. Whisper dùng CPU/CUDA đúng môi trường thực; thông tin card vật lý không suy ra tốc độ GPU. RTF loại model load/download, bao gồm decode + transcription và có thể có overhead inference lần đầu; không có warm-up riêng. Các tùy chọn Whisper giữ nguyên pipeline, cố định language=vi, diarize=false. Summary gọi cấu hình CPU-context hiện có; Ollama có thể tự offload GPU độc lập với Torch. Seed LLM không cố định nên kết quả sinh có thể khác giữa các lần chạy.
 
 Mỗi run có thư mục mới, manifest/audio đã đóng băng, checksum, cấu hình, phiên bản thư viện, Git revision/dirty, raw output, thời gian, lỗi và `rows.jsonl` ghi từng bước. `run.json` cập nhật atomically; Ctrl+C giữ trạng thái interrupted. Code thoát: 0 complete, 1 partial inference, 2 lỗi đầu vào/preflight. Không coi fallback heuristic là LLM thành công. Đọc `report.html` trực tiếp offline; CSV/JSON/Markdown chứa cùng lần chạy. `npm run benchmark` vẫn giữ nguyên và là benchmark kỹ thuật khác, không thay thế kết quả ASR.

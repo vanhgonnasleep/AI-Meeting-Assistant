@@ -86,3 +86,35 @@ def test_filled_template_not_overwritten(tmp_path):
     (tmp_path/'review.csv').write_text('human work',encoding='utf-8')
     generate_reports(tmp_path)
     assert (tmp_path/'review.csv').read_text() == 'human work'
+
+
+def test_interrupted_run_never_scores_completed_subset_or_hides_unstarted_variant(tmp_path):
+    run = sample(tmp_path,True)
+    run['status'] = 'interrupted'
+    run['cases'].append({**run['cases'][0], 'case_id':'never-ran'})
+    run['cases'].append({'case_id':'audio','kind':'asr','reference_text':'xin'})
+    run['config']['models'] = ['tiny','base']
+    run['rows'] = [run['rows'][1]]
+    (tmp_path/'run.json').write_text(json.dumps(run),encoding='utf-8')
+    generate_reports(tmp_path,review_csv=review(tmp_path))
+    result = summary(tmp_path)
+    assert result['nlp']['mmr_off']['status']=='not_evaluated'
+    assert result['nlp']['mmr_off']['planned']==2
+    assert result['nlp']['mmr_off']['unattempted']==1
+    assert result['nlp']['mmr_on']['unattempted']==2
+    assert 'f1' not in result['nlp']['mmr_off']
+    assert result['asr']['base']['planned']==1
+    assert result['asr']['base']['attempted']==0
+    assert result['asr']['base']['unattempted']==1
+
+
+def test_evidence_checkout_does_not_change_checksum_bytes():
+    from pathlib import Path
+    import subprocess
+    root=Path(__file__).resolve().parents[2]
+    if not (root/'.git').exists():
+        pytest.skip('Source export without Git checkout')
+    path='docs/defense/evaluation/2026-10-16-pilot/run.json'
+    filtered=subprocess.check_output(['git','hash-object','--path',path,path],cwd=root)
+    raw=subprocess.check_output(['git','hash-object','--no-filters',path],cwd=root)
+    assert filtered==raw, 'Git newline conversion must not invalidate evidence checksums'

@@ -50,6 +50,9 @@ def run_evaluation(manifest_paths: list[Path], output_root: Path, *, models: lis
     cases = [case for manifest in manifest_paths for case in load_cases(manifest)]
     if len({c['case_id'] for c in cases}) != len(cases):
         raise ValueError('Duplicate case IDs across manifests')
+    needs_asr = any(c['kind']=='asr' for c in cases)
+    needs_llm = any(c['kind']=='nlp_text' for c in cases)
+    models = models if needs_asr else []
     root = Path(output_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     run_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid.uuid4().hex[:10]
@@ -95,10 +98,10 @@ def run_evaluation(manifest_paths: list[Path], output_root: Path, *, models: lis
         _write_run(path, run)
 
     try:
-        metadata = active.preflight(models, allow_download=allow_download)
+        metadata = active.preflight(models, allow_download=allow_download, require_llm=needs_llm)
         run['metadata'].update({k: metadata[k] for k in ('device','python','platform','packages','models','llm_models','storage','cuda_available','gpu') if k in metadata})
         available = metadata.get('llm_models')
-        if available is not None and not any(m['name'] == llm_model for m in available):
+        if needs_llm and available is not None and not any(m['name'] == llm_model for m in available):
             raise RuntimeError('Requested LLM is not installed; no automatic pull')
         run['status'] = 'running'
         _write_run(path, run)

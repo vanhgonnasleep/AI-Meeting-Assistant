@@ -26,6 +26,8 @@ def main(argv=None, *, adapter=None):
         command.add_argument('--models',nargs='+',choices=['tiny','base'],default=['tiny','base'])
         command.add_argument('--llm-model',default='llama3:latest')
         command.add_argument('--allow-model-download',action='store_true')
+        if name == 'preflight':
+            command.add_argument('--kind',choices=['all','asr','nlp_text'],default='all',help='Check STT and LLM independently when only one experiment is needed')
         if name == 'run':
             command.add_argument('--manifest',type=Path,action='append',required=True)
             command.add_argument('--output',type=Path,default=Path('.evaluation-runs'))
@@ -37,8 +39,9 @@ def main(argv=None, *, adapter=None):
         if args.command == 'prepare-fleurs':
             print(prepare_fleurs(args.output,limit=args.limit))
         elif args.command == 'preflight':
-            metadata = (adapter or PipelineAdapter()).preflight(args.models,allow_download=args.allow_model_download)
-            if 'llm_models' in metadata and not any(m['name']==args.llm_model for m in metadata['llm_models']):
+            metadata = (adapter or PipelineAdapter()).preflight(args.models if args.kind!='nlp_text' else [],
+                         allow_download=args.allow_model_download,require_llm=args.kind!='asr')
+            if args.kind!='asr' and 'llm_models' in metadata and not any(m['name']==args.llm_model for m in metadata['llm_models']):
                 raise ValueError('Requested LLM is not installed; prepare it explicitly outside evaluation')
             print(json.dumps(metadata,ensure_ascii=False,indent=2))
         elif args.command == 'run':

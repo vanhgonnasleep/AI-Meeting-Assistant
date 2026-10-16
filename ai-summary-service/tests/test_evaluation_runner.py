@@ -10,7 +10,7 @@ from scripts.evaluation.runner import run_evaluation
 
 
 class FakeAdapter:
-    def preflight(self, models, *, allow_download):
+    def preflight(self, models, *, allow_download, require_llm=True):
         return {'device': 'cpu', 'models': models, 'SECRET': 'never-save'}
 
     def transcribe(self, case, model):
@@ -115,3 +115,37 @@ def test_adapter_import_uses_temporary_database_in_fresh_process(tmp_path):
     assert result.returncode == 0, result.stderr
     assert owner.read_bytes() == b'owner untouched'
     assert not (tmp_path/'owner-data').exists()
+
+
+@pytest.mark.parametrize('kind', ['asr','nlp_text'])
+def test_runner_preflights_only_manifest_capabilities(tmp_path,kind):
+    path = manifests(tmp_path)
+    cases = [json.loads(x) for x in path.read_text(encoding='utf-8').splitlines()]
+    path.write_text(''.join(json.dumps(c)+'\n' for c in cases if c['kind']==kind),encoding='utf-8')
+    class Independent(FakeAdapter):
+        def preflight(self,models,*,allow_download,require_llm=True):
+            assert bool(models)==(kind=='asr')
+            assert require_llm==(kind=='nlp_text')
+            return {}
+    out=run_evaluation([path],tmp_path/'runs',models=['tiny'],llm_model='fake',adapter=Independent())
+    assert json.loads((out/'run.json').read_text(encoding='utf-8'))['status']=='complete'
+
+
+def test_asr_preflight_never_contacts_ollama(tmp_path,monkeypatch):
+    import requests
+    from scripts.evaluation import adapters
+    monkeypatch.setattr(adapters,'verify_checkpoint',lambda *a: {'name':'tiny','sha256':'verified'})
+    monkeypatch.setattr(requests,'get',lambda *a,**kw: pytest.fail('Ollama is offline; ASR must not contact it'))
+    assert adapters.PipelineAdapter().preflight(['tiny'],allow_download=False,require_llm=False)['models']
+
+
+def test_nlp_preflight_never_checks_whisper_cache(monkeypatch):
+    import requests
+    from scripts.evaluation import adapters
+    monkeypatch.setattr(adapters,'verify_checkpoint',lambda *a: pytest.fail('No ASR weights required'))
+    class Response:
+        def raise_for_status(self): pass
+        def json(self): return {'models':[{'name':'fake','digest':'known'}]}
+    monkeypatch.setattr(requests,'get',lambda *a,**kw: Response())
+    result=adapters.PipelineAdapter().preflight([],allow_download=False,require_llm=True)
+    assert result['models']==[] and result['llm_models'][0]['name']=='fake'

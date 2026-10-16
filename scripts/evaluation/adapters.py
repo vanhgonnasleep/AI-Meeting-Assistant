@@ -34,13 +34,19 @@ class PipelineAdapter:
         self._active_model = None
         self._cache = None
 
-    def preflight(self, models, *, allow_download=False):
-        import requests
-        import whisper
-        import torch
+    def preflight(self, models, *, allow_download=False, require_llm=True):
+        metadata = {'python': platform.python_version(), 'platform': platform.platform(),
+                    'packages': {}, 'models': [], 'storage': 'temporary-isolated', 'device': 'not_requested'}
         cache = Path(os.environ.get('XDG_CACHE_HOME', str(Path.home()/'.cache'))) / 'whisper'
         self._cache = cache
         weights = []
+        if models:
+            import whisper
+            import torch
+            metadata.update(device='cuda' if torch.cuda.is_available() else 'cpu',
+                            cuda_available=torch.cuda.is_available(),
+                            gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
+            metadata['packages'].update({name: importlib.metadata.version(name) for name in ('openai-whisper','torch','numpy')})
         for model in models:
             try:
                 info = verify_checkpoint(model, cache, whisper)
@@ -55,19 +61,18 @@ class PipelineAdapter:
                 _atomic_download(whisper._MODELS[model], cache/f'{model}.pt', 400*1024*1024, _download)
                 info = verify_checkpoint(model, cache, whisper)
             weights.append(info)
-        base = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
-        parsed = urlsplit(base)
-        if parsed.hostname not in {'localhost', '127.0.0.1', '::1'} or parsed.username or parsed.query:
-            raise ValueError('Evaluation requires a local Ollama endpoint')
-        response = requests.get(base+'/api/tags', timeout=10)
-        response.raise_for_status()
-        llm_models = [{'name': m['name'], 'digest': m.get('digest')} for m in response.json().get('models', [])]
-        return {'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-                'python': platform.python_version(), 'platform': platform.platform(),
-                'packages': {name: importlib.metadata.version(name) for name in ('openai-whisper','torch','numpy','requests')},
-                'models': weights, 'llm_models': llm_models, 'storage': 'temporary-isolated',
-                'cuda_available': torch.cuda.is_available(),
-                'gpu': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}
+        metadata['models'] = weights
+        if require_llm:
+            import requests
+            base = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
+            parsed = urlsplit(base)
+            if parsed.hostname not in {'localhost', '127.0.0.1', '::1'} or parsed.username or parsed.query:
+                raise ValueError('Evaluation requires a local Ollama endpoint')
+            response = requests.get(base+'/api/tags', timeout=10)
+            response.raise_for_status()
+            metadata['llm_models'] = [{'name': m['name'], 'digest': m.get('digest')} for m in response.json().get('models', [])]
+            metadata['packages']['requests'] = importlib.metadata.version('requests')
+        return metadata
 
     def _initialize(self):
         if self._modules is not None:

@@ -84,11 +84,18 @@ def _score_row(case, row, review):
 
 def _nlp_scores(run, reviews):
     cases = {c['case_id']: c for c in run['cases']}
+    expected = {c['case_id'] for c in run['cases'] if c['kind']=='nlp_text'}
     result = {}
-    for variant in sorted({r['variant'] for r in run['rows'] if r['kind'] == 'nlp_text'}):
+    variants = {'mmr_off','mmr_on'} if expected else set()
+    variants.update(r['variant'] for r in run['rows'] if r['kind']=='nlp_text')
+    for variant in sorted(variants):
         rows = [r for r in run['rows'] if r['kind'] == 'nlp_text' and r['variant'] == variant]
+        ids = {r['case_id'] for r in rows}
+        coverage = {'planned':len(expected), 'attempted':len(rows), 'completed':sum(r['status']=='ok' for r in rows),
+                    'failed':sum(r['status']=='error' for r in rows),'partial':sum(r['status']=='partial' for r in rows),
+                    'unattempted':len(expected-ids)}
         scored = []
-        eligible = True
+        eligible = ids==expected and len(rows)==len(expected) and run['status'] in {'complete','partial'}
         for row in rows:
             case = cases[row['case_id']]
             review = reviews.get((row['case_id'],variant))
@@ -99,12 +106,12 @@ def _nlp_scores(run, reviews):
             elif score is not None:
                 scored.append(score)
         if not eligible or len(scored) != len(rows):
-            result[variant] = {'status':'not_evaluated','attempted':len(rows),
+            result[variant] = {'status':'not_evaluated',**coverage,
                                'reason':'All rows need successful generation, approved references and completed human review.'}
             continue
         totals = {key:sum(s[key] for s in scored) for key in scored[0]}
         tp,fp,fn = (totals[k] for k in ('tp','fp','fn'))
-        totals.update(status='evaluated',attempted=len(rows),
+        totals.update(status='evaluated',**coverage,
                       precision=tp/(tp+fp) if tp+fp else None, recall=tp/(tp+fn) if tp+fn else None,
                       f1=2*tp/(2*tp+fp+fn) if 2*tp+fp+fn else None,
                       fact_coverage=totals['covered_facts']/totals['reference_facts'] if totals['reference_facts'] else None)
@@ -125,9 +132,14 @@ def generate_reports(run_dir: Path, *, review_csv: Path | None = None) -> list[P
         raise ValueError('Expected a version-1 persisted evaluation run')
     reviews = _reviews(review_csv,run)
     asr = {}
-    for variant in sorted({r['variant'] for r in run['rows'] if r['kind'] == 'asr'}):
+    expected_asr = {c['case_id'] for c in run.get('cases',[]) if c['kind']=='asr'}
+    variants = set(run.get('config',{}).get('models',[])) if expected_asr else set()
+    variants.update(r['variant'] for r in run['rows'] if r['kind']=='asr')
+    for variant in sorted(variants):
         rows = [r for r in run['rows'] if r['kind'] == 'asr' and r['variant'] == variant]
         totals = aggregate_asr(rows)
+        totals['planned'] = len(expected_asr)
+        totals['unattempted'] = len(expected_asr-{r['case_id'] for r in rows})
         measured = [r for r in rows if r['status']=='ok' and r.get('timing',{}).get('audio_seconds',0)>0]
         duration = sum(r['timing']['audio_seconds'] for r in measured)
         totals['rtf'] = sum(r['timing']['inference_seconds'] for r in measured)/duration if duration else None
@@ -173,10 +185,10 @@ def generate_reports(run_dir: Path, *, review_csv: Path | None = None) -> list[P
     escaped_summary = escape(json.dumps(summary,ensure_ascii=False,indent=2))
     def rate(value):
         return f'{100*value:.2f}%' if value is not None else '—'
-    metric_rows = ''.join(f'<tr><td>{escape(name)}</td><td>{values["completed"]}/{values["attempted"]}</td>'
+    metric_rows = ''.join(f'<tr><td>{escape(name)}</td><td>{values["completed"]}/{values["planned"]}</td>'
                           f'<td>{rate(values["cer"]["rate"])}</td><td>{rate(values["wer"]["rate"])}</td>'
                           f'<td>{values["rtf"]:.3f}</td></tr>' if values['rtf'] is not None else
-                          f'<tr><td>{escape(name)}</td><td>{values["completed"]}/{values["attempted"]}</td>'
+                          f'<tr><td>{escape(name)}</td><td>{values["completed"]}/{values["planned"]}</td>'
                           f'<td>{rate(values["cer"]["rate"])}</td><td>{rate(values["wer"]["rate"])}</td><td>—</td></tr>'
                           for name,values in asr.items())
     nlp_status = ' · '.join(f'{name}: {value["status"]}' for name,value in summary['nlp'].items())
