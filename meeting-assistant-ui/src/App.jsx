@@ -34,6 +34,8 @@ import Sidebar from './Sidebar.jsx';
 import CommandCenter from './CommandCenter.jsx';
 import DocumentWorkspace from './DocumentWorkspace.jsx';
 import LandingPage from './LandingPage.jsx';
+import { readChatStream } from './chat-stream.js';
+import { useMobileViewport } from './mobile-viewport.js';
 
 import { 
   AlertTriangle, 
@@ -83,6 +85,8 @@ const getDefaultChatGreeting = (currResult) => {
 function App() {
   const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'landing');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const toggleSidebar = useCallback(() => setIsSidebarCollapsed(value => !value), []);
+  const isMobile = useMobileViewport();
   const [notice, setNotice] = useState(null);
   const noticeId = useRef(0);
   const notify = (message, kind = 'success') => setNotice({ id: ++noticeId.current, message, kind });
@@ -153,6 +157,8 @@ function App() {
   const detailRelease = useRef(null);
   const historyQueryRef = useRef('');
   const historyOffsetRef = useRef(0);
+  const [libraryFilters, setLibraryFilters] = useState({ project: '', days: '', sort: 'newest' });
+  const libraryFiltersRef = useRef(libraryFilters);
   const sessionVersion = useRef(0);
   const audioRef = useRef(null);
 
@@ -224,6 +230,9 @@ function App() {
     setHistoryError(null);
     try {
       const params = new URLSearchParams({ q: query, limit: '20', offset: String(offset), compact: 'true' });
+      for (const [key, value] of Object.entries(libraryFiltersRef.current)) {
+        if (value) params.set(key, value);
+      }
       const resMeetings = await fetch(`${API_BASE}/api/meetings?${params}`, { signal: request.signal });
       if (!resMeetings.ok) throw new Error('Unable to load meeting history.');
       const data = await resMeetings.json();
@@ -241,7 +250,7 @@ function App() {
   useEffect(() => {
     const timer = setTimeout(() => fetchMeetingHistory(historySearchQuery, historyOffsetRef.current), 250);
     return () => clearTimeout(timer);
-  }, [historySearchQuery, fetchMeetingHistory]);
+  }, [historySearchQuery, libraryFilters, fetchMeetingHistory]);
 
   useEffect(() => {
     if (!notice) return;
@@ -655,7 +664,7 @@ function App() {
     setIsChatLoading(true);
 
     try {
-      let endpoint = `${API_BASE}/api/chat`;
+      const endpoint = `${API_BASE}/api/chat/stream`;
       const payload = buildChatPayload({ 
         question: cleanQ, 
         meetingId: currentMeetingId,
@@ -665,10 +674,6 @@ function App() {
         semantic: semanticChat, 
         embeddingModel 
       });
-
-      if (currentMeetingId) {
-        endpoint = `${API_BASE}/api/meetings/${currentMeetingId}/chat`;
-      }
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -682,18 +687,25 @@ function App() {
         throw new Error(errData.detail || `Chat request failed (HTTP ${res.status})`);
       }
 
-      const data = await res.json();
+      const messageId = request.id ?? newUserMsg.created_at;
+      let answer = '';
+      setChatMessages(prev => [...prev, { role: 'assistant', content: '', citations: [], streaming: true, streamId: messageId }]);
+      const data = await readChatStream(res, token => {
+        if (!request.isCurrent()) return;
+        answer += token;
+        setChatMessages(prev => prev.map(msg => msg.streamId === messageId ? { ...msg, content: answer } : msg));
+      });
       if (!request.isCurrent()) return;
 
       const aiMsg = {
         role: 'assistant',
-        content: data.answer || "I couldn't find relevant context in the meeting transcript to answer that.",
+        content: data.answer || answer,
         citations: data.citations || [],
         mode: data.mode || (data.cached ? 'cached' : 'live'),
         retrieval_warning: data.retrieval_warning || null,
         created_at: new Date().toISOString()
       };
-      setChatMessages(prev => [...prev, aiMsg]);
+      setChatMessages(prev => prev.map(msg => msg.streamId === messageId ? aiMsg : msg));
       setResult(previous => previous ? { ...previous, chat_history: [...chatMessages, newUserMsg, aiMsg] } : previous);
     } catch (err) {
       if (!request.isCurrent()) return;
@@ -704,7 +716,7 @@ function App() {
         citations: [],
         created_at: new Date().toISOString()
       };
-      setChatMessages(prev => [...prev, errorMsg]);
+      setChatMessages(prev => [...prev.filter(msg => !msg.streaming), errorMsg]);
     } finally {
       if (request.isCurrent()) setIsChatLoading(false);
     }
@@ -997,7 +1009,7 @@ ${result.transcript || ""}
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onToggleCollapse={toggleSidebar}
         meetings={meetingsHistory}
         currentMeetingId={currentMeetingId}
         onSelectMeeting={meeting => {
@@ -1023,7 +1035,8 @@ ${result.transcript || ""}
       />
 
       {/* 2. MAIN APPLICATION CONTENT AREA */}
-      <div 
+      <div
+        inert={isMobile && !isSidebarCollapsed}
         className={`flex-1 flex flex-col min-w-0 transition-all duration-250 ease-out ${
           isSidebarCollapsed ? 'md:ml-16 ml-0' : 'md:ml-72 ml-0'
         }`}
@@ -1035,6 +1048,8 @@ ${result.transcript || ""}
               type="button"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               aria-label={isSidebarCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+              aria-controls="meeting-sidebar"
+              aria-expanded={!isSidebarCollapsed}
               className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 border border-slate-200 transition-all active:scale-95 cursor-pointer"
               title="Toggle sidebar (Ctrl+B)"
             >
@@ -1143,6 +1158,14 @@ ${result.transcript || ""}
               onDelete={handleDeletePastMeeting}
               canOpen={canOpenMeeting}
               onNewMeeting={handleNewMeeting}
+              filters={libraryFilters}
+              onFiltersChange={filters => {
+                libraryFiltersRef.current = filters;
+                historyOffsetRef.current = 0;
+                historyGate.current.cancel();
+                setLoadingHistory(true);
+                setLibraryFilters(filters);
+              }}
             />
           ) : page === 'tasks' || page === 'projects' ? (
             <Workspace
@@ -1223,6 +1246,7 @@ ${result.transcript || ""}
         <CommandCenter
           onSendChatMessage={handleSendChatMessage}
           chatMessages={chatMessages}
+          isNavigationOpen={isMobile && !isSidebarCollapsed}
           isChatLoading={isChatLoading}
           isBusy={isProcessing || isContentSaving || showEditor || Boolean(speakerRename)}
           onClearChat={handleClearChat}

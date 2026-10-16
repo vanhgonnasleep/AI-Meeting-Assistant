@@ -38,6 +38,7 @@ export default function CommandCenter({
   chatMessages = [],
   isChatLoading = false,
   isBusy = false,
+  isNavigationOpen = false,
   onClearChat,
   onRecordedAudio,
   suggestedPrompts = [],
@@ -144,6 +145,7 @@ export default function CommandCenter({
 
   return (
     <div 
+      inert={isNavigationOpen}
       role="region" 
       aria-label="Floating AI command center dock" 
       className="clarion-dock no-print fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl select-none"
@@ -151,7 +153,7 @@ export default function CommandCenter({
       {/* Sliding AI Chat Drawer (Slides Up Above Dock) */}
       {isDrawerOpen && (
         <div 
-          className="mb-3 w-full bg-white/95 backdrop-blur-xl border border-slate-300/80 rounded-3xl shadow-glass shadow-slate-950/80 p-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 flex flex-col max-h-[460px]"
+          className="chat-drawer mb-3 w-full bg-white/95 backdrop-blur-xl border border-slate-300/80 rounded-3xl shadow-glass shadow-slate-950/80 p-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 flex flex-col max-h-[460px]"
         >
           {/* Drawer Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-200">
@@ -193,6 +195,9 @@ export default function CommandCenter({
           {/* Messages Scroll Area */}
           <div 
             ref={chatScrollRef}
+            role="log"
+            aria-label="Meeting chat messages"
+            aria-busy={isChatLoading}
             className="flex-1 overflow-y-auto py-3 space-y-3 scrollbar-thin max-h-[320px] pr-1"
           >
             {chatMessages.length === 0 ? (
@@ -225,8 +230,9 @@ export default function CommandCenter({
                           : 'bg-slate-50/90 text-slate-800 border border-slate-200/80 rounded-tl-none'
                       }`}
                     >
-                      <div className="whitespace-pre-wrap">
+                      <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                         {isUser ? msg.content : (renderFormattedChatText ? renderFormattedChatText(msg.content) : msg.content)}
+                        {msg.streaming && <span aria-label="Generating answer" className="inline-block ml-0.5 w-0.5 h-3 align-middle bg-indigo-600 animate-pulse" />}
                       </div>
 
                       {/* Source Citations with Click-to-Seek */}
@@ -259,7 +265,7 @@ export default function CommandCenter({
               })
             )}
 
-            {isChatLoading && (
+            {isChatLoading && !chatMessages.some(msg => msg.streaming && msg.content) && (
               <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50/60 border border-slate-200 text-slate-600 text-xs w-fit">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-700" />
                 <span>AI is analyzing transcript context and citations...</span>
@@ -296,7 +302,7 @@ export default function CommandCenter({
           disabled={isChatLoading || isBusy} className="accent-indigo-500" />
         Hybrid retrieval (requires a local embedding model)
       </label>}
-      <div className="relative flex items-center gap-2 p-2 rounded-2xl bg-white/85 backdrop-blur-xl border border-slate-300/60 shadow-glass shadow-slate-950/80">
+      <div className="command-controls relative flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-2xl bg-white/85 backdrop-blur-xl border border-slate-300/60 shadow-glass shadow-slate-950/80">
         
         {/* Multimodal Recording Button with Fluid Motion States */}
         {!isRecording ? (
@@ -341,7 +347,7 @@ export default function CommandCenter({
         )}
 
         {/* Text Input Field */}
-        <div className="flex-1 min-w-0 flex items-center">
+        <div className="command-input flex-1 min-w-0 flex items-center">
           <input
             type="text"
             value={chatInput}

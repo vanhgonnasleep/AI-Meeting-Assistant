@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { 
   Plus, 
   Search, 
@@ -17,6 +17,7 @@ import {
 import { appPageHref } from './navigation.js';
 import { groupMeetingsByDate } from './history.js';
 import { formatMeetingDuration } from './navigation.js';
+import { useMobileViewport } from './mobile-viewport.js';
 
 /**
  * Staff-level Collapsible Sidebar Component
@@ -43,6 +44,35 @@ export default function Sidebar({
   activePage = 'studio',
   onNavigate,
 }) {
+  const sidebarRef = useRef(null);
+  const isMobile = useMobileViewport();
+  const drawerOpen = isMobile && !isCollapsed;
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusable = () => [...sidebarRef.current.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select')]
+      .filter(element => element.getClientRects().length);
+    const frame = requestAnimationFrame(() => sidebarRef.current?.focus());
+    const onKeyDown = event => {
+      if (event.key === 'Escape') { event.preventDefault(); onToggleCollapse(); }
+      if (event.key !== 'Tab') return;
+      const elements = focusable();
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (!elements.includes(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [drawerOpen, onToggleCollapse]);
   // The server searches transcript, summary and tasks as well as filenames.
   const grouped = useMemo(() => groupMeetingsByDate(meetings), [meetings]);
 
@@ -124,9 +154,18 @@ export default function Sidebar({
   };
 
   return (
+    <>
+    {drawerOpen && <button type="button" className="mobile-sidebar-backdrop fixed inset-0 z-50 bg-slate-900/25 backdrop-blur-sm md:hidden"
+      aria-label="Close navigation menu" tabIndex={-1} onClick={onToggleCollapse} />}
     <aside
+      id="meeting-sidebar"
+      ref={sidebarRef}
+      tabIndex={-1}
+      role={drawerOpen ? 'dialog' : undefined}
+      aria-modal={drawerOpen ? true : undefined}
+      inert={isMobile && isCollapsed}
       aria-label="Meeting history and navigation"
-      className={`clarion-sidebar fixed top-0 bottom-0 left-0 z-30 flex flex-col bg-white/80 backdrop-blur-xl border-r border-slate-200/80 transition-all duration-250 ease-out select-none ${
+      className={`clarion-sidebar fixed top-0 bottom-0 left-0 z-[60] md:z-30 flex flex-col bg-white/80 backdrop-blur-xl border-r border-slate-200/80 transition-all duration-250 ease-out select-none ${
         isCollapsed ? 'w-0 -translate-x-full md:w-16 md:translate-x-0' : 'w-72 translate-x-0'
       }`}
     >
@@ -312,5 +351,6 @@ export default function Sidebar({
         )}
       </div>
     </aside>
+    </>
   );
 }

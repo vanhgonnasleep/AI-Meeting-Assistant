@@ -337,7 +337,7 @@ def search_meetings_fts(query: str, limit: int = 50):
         connection.close()
 
 
-def get_meeting_page(search=None, limit=50, offset=0, compact=False):
+def get_meeting_page(search=None, limit=50, offset=0, compact=False, project=None, days=None, sort='newest'):
     """Search before pagination; compact rows exclude transcript, segments and chat."""
     where, params = "", []
     if search and search.strip():
@@ -352,19 +352,35 @@ def get_meeting_page(search=None, limit=50, offset=0, compact=False):
             # instr also avoids treating % and _ as SQL LIKE wildcards.
             where = "WHERE (instr(casefold(filename), ?) > 0 OR instr(casefold(executive_summary), ?) > 0 OR instr(casefold(raw_transcript), ?) > 0 OR instr(casefold(action_items), ?) > 0)"
             params = [term.casefold()] * 4
-    projection = "*" if not compact else "id, filename, substr(executive_summary, 1, 600) AS executive_summary, '' AS raw_transcript, action_items, duration, language, created_at, updated_at"
+    filters = []
+    if project:
+        filters.append('project_id IN (SELECT id FROM projects WHERE name_key=?)')
+        params.append(project.strip().casefold())
+    if days is not None:
+        filters.append("julianday(created_at) BETWEEN julianday('now', ?) AND julianday('now')")
+        params.append(f'-{int(days)} days')
+    if filters:
+        where += (' AND ' if where else 'WHERE ') + ' AND '.join(filters)
+    orders = {
+        'newest': 'julianday(created_at) DESC, id DESC',
+        'oldest': 'julianday(created_at) IS NULL, julianday(created_at) ASC, id ASC',
+        'duration': 'duration DESC, id DESC',
+        'tasks': "CASE WHEN json_valid(action_items) THEN CASE WHEN json_type(action_items)='array' THEN json_array_length(action_items) ELSE 0 END ELSE 0 END DESC, id DESC",
+    }
+    order = orders.get(sort, orders['newest'])
+    projection = "*" if not compact else "id, filename, project_id, substr(executive_summary, 1, 600) AS executive_summary, '' AS raw_transcript, action_items, duration, language, created_at, updated_at"
     connection = get_connection()
     try:
         connection.execute("BEGIN")
         total = connection.execute(f"SELECT COUNT(*) FROM meetings {where}", params).fetchone()[0]
         rows = connection.execute(
-            f"SELECT {projection} FROM meetings {where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+            f"SELECT {projection} FROM meetings {where} ORDER BY {order} LIMIT ? OFFSET ?",
             [*params, limit, offset],
         ).fetchall()
         if compact:
             records = []
             for row in rows:
-                entry = {key: row[key] for key in ("id", "filename", "executive_summary", "duration", "language", "created_at", "updated_at")}
+                entry = {key: row[key] for key in ("id", "filename", "project_id", "executive_summary", "duration", "language", "created_at", "updated_at")}
                 record = row_to_meeting(row)
                 entry["duration"] = record.duration
                 entry["action_item_count"] = len(record.action_items)

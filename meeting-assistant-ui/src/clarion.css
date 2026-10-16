@@ -144,8 +144,13 @@ dialog::backdrop { background: rgb(44 57 91 / .24); backdrop-filter: blur(6px); 
   .clarion-app .workspace-page { padding: 18px; }
 }
 @media (max-width: 767px) {
+  .clarion-sidebar { max-width: calc(100vw - 48px); }
   .clarion-sidebar[class~='w-0'] { visibility: hidden; }
-  .clarion-dock { left: 50%; width: calc(100% - 28px); bottom: 14px; }
+  .clarion-dock { left: 50%; width: calc(100% - 28px); bottom: max(14px, env(safe-area-inset-bottom)); }
+  .clarion-dock .command-input { flex-basis: 120px; }
+  .clarion-dock .chat-drawer { max-height: min(460px, calc(100dvh - 160px)); }
+  .clarion-dock .command-controls button { min-width: 36px; min-height: 36px; }
+  .clarion-dock [role='log'] { overscroll-behavior: contain; }
 }
 @media (max-width: 520px) {
   .workspace-toolbar { padding-inline: 15px; gap: 10px; }

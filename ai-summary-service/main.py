@@ -802,11 +802,14 @@ def transcribe_chunk_endpoint(file: UploadFile = File(...), whisper_model: Whisp
 @app.get("/api/meetings")
 def get_all_meetings_endpoint(q: Optional[str] = Query(None, max_length=500, description="Search query string"),
                               limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
-                              compact: bool = Query(False)):
+                              compact: bool = Query(False), project: Optional[str] = Query(None, max_length=128),
+                              days: Optional[int] = Query(None, ge=1, le=365),
+                              sort: Literal['newest', 'oldest', 'duration', 'tasks'] = Query('newest')):
     """Retrieves all past meetings from SQLite database (Đoàn Hoàng Long), with optional search."""
     if crud is None:
         raise HTTPException(status_code=503, detail="Database module not available.")
-    return {"status": "success", **crud.get_meeting_page(search=q, limit=limit, offset=offset, compact=compact)}
+    return {"status": "success", **crud.get_meeting_page(search=q, limit=limit, offset=offset, compact=compact,
+                                                        project=project, days=days, sort=sort)}
 
 
 class SpeakerEditRequest(BaseModel):
