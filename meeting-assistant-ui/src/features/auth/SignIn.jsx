@@ -1,34 +1,150 @@
-import { GitHubMark, GoogleMark } from '../../shared/ui/BrandMarks.jsx';
-import { API_BASE } from './api-client.js';
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Check,
+  FileText,
+  LockKeyhole,
+  Quote,
+} from 'lucide-react';
+import { ClarionMark } from '../../shared/ui/BrandMarks.jsx';
+import ProviderButtons from './components/ProviderButtons.jsx';
+import { navigateEntry } from '../../app/entry-navigation.js';
 
 const CALLBACK_ERRORS = {
   cancelled: 'Sign-in was cancelled. You can try again when you are ready.',
-  provider_failed: 'Your account could not be verified. Please try signing in again.',
+  provider_failed:
+    'Your account could not be verified. Please try signing in again.',
 };
 
-export default function SignIn({ providers = {}, error, onRetry, checking = false }) {
-  const callbackError = CALLBACK_ERRORS[new URLSearchParams(globalThis.location?.search).get('auth_error')];
-  return <main className="min-h-screen bg-canvas px-5 py-12 flex items-center justify-center">
-    <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 sm:p-10 shadow-panel space-y-6">
-      <div className="space-y-3">
-        <p className="text-xs font-semibold tracking-widest uppercase text-indigo-700">Clarion</p>
-        <h1 className="text-3xl font-semibold text-slate-900">Your private meeting workspace</h1>
-        <p className="text-sm leading-6 text-slate-600">Sign in to organize your meetings, transcripts and action items in your own library.</p>
-      </div>
-      {(error || callbackError) && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{error || callbackError}</p>}
-      {checking ? <p role="status" className="text-sm text-slate-600">Checking your session…</p> : <>
-        <div className="space-y-3">
-          {[['google', 'Google', GoogleMark], ['github', 'GitHub', GitHubMark]].map(([provider, label, Mark]) => (
-            <button key={provider} type="button" disabled={!providers[provider]}
-              onClick={() => { window.location.assign(`${API_BASE}/api/auth/${provider}/login`); }}
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-45 disabled:cursor-not-allowed">
-              <Mark size={20} />Continue with {label}
+export default function SignIn({
+  providers = {},
+  error,
+  onRetry,
+  checking = false,
+  onHome = () => navigateEntry('landing'),
+  onPreview = () => navigateEntry('preview'),
+}) {
+  const callbackError =
+    CALLBACK_ERRORS[
+      new URLSearchParams(globalThis.location?.search).get('auth_error')
+    ];
+  return (
+    <div className="auth-experience">
+      <header className="auth-public-header">
+        <button type="button" className="auth-brand" onClick={onHome}>
+          <ClarionMark size={27} />
+          clarion.
+        </button>
+        <button type="button" onClick={onHome}>
+          <ArrowLeft size={14} />
+          Back to the story
+        </button>
+      </header>
+      <main className="auth-layout">
+        <section className="auth-story" aria-label="A look inside Clarion">
+          <span className="auth-eyebrow">
+            THE MEETING ENDS. THE IDEAS DON'T.
+          </span>
+          <h2>
+            Good conversations
+            <br />
+            deserve <em>a next step.</em>
+          </h2>
+          <p>
+            One calm place for your notes, decisions
+            <br />
+            and everything that comes after.
+          </p>
+          <div className="auth-note-preview">
+            <div>
+              <span>
+                <FileText size={16} />
+                Q3 budget review
+              </span>
+              <small>PREPARED SAMPLE</small>
+            </div>
+            <Quote size={25} />
+            <h3>
+              Less “what did we agree?”
+              <br />
+              More “let's get started.”
+            </h3>
+            <p>$50,000 for Q3 social campaigns.</p>
+            <footer>
+              <span className="auth-sample-avatar">J</span>
+              <div>
+                <strong>Prepare the financial report</strong>
+                <small>John · Friday afternoon</small>
+              </div>
+              <Check size={17} />
+            </footer>
+          </div>
+          <button
+            type="button"
+            className="auth-preview-link"
+            onClick={onPreview}
+          >
+            Explore preview <ArrowUpRight size={16} />
+          </button>
+          <span className="auth-preview-note">
+            No account needed to look around.
+          </span>
+        </section>
+        <section className="auth-signin-panel">
+          <div>
+            <span className="auth-eyebrow">MAKE IT YOURS</span>
+            <h1>Your private meeting workspace</h1>
+            <p>
+              Sign in to organize your meetings, transcripts and action items in
+              your own library.
+            </p>
+          </div>
+          {(error || callbackError) && (
+            <p
+              role="alert"
+              className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
+            >
+              {error || callbackError}
+            </p>
+          )}
+          {checking ? (
+            <p role="status" className="text-sm text-slate-600">
+              Checking your session…
+            </p>
+          ) : (
+            <>
+              <ProviderButtons providers={providers} />
+              {!providers.google && !providers.github && !error && (
+                <p className="text-sm text-slate-600">
+                  Sign-in is being configured. Contact your administrator to
+                  enable Google or GitHub.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={onRetry}
+                className="text-sm font-medium text-indigo-700 underline underline-offset-4"
+              >
+                Check connection again
+              </button>
+            </>
+          )}
+          <div className="auth-privacy-note">
+            <LockKeyhole size={17} />
+            <p>
+              A library of your own.
+              <br />
+              <span>Private to your account. AI runs locally.</span>
+            </p>
+          </div>
+          <div className="auth-signin-footer">
+            <span>Just taking a look?</span>
+            <button type="button" onClick={onPreview}>
+              Explore preview <ArrowUpRight size={14} />
             </button>
-          ))}
-        </div>
-        {!providers.google && !providers.github && !error && <p className="text-sm text-slate-600">Sign-in is being configured. Contact your administrator to enable Google or GitHub.</p>}
-        <button type="button" onClick={onRetry} className="text-sm font-medium text-indigo-700 underline underline-offset-4">Check connection again</button>
-      </>}
-    </section>
-  </main>;
+          </div>
+        </section>
+      </main>
+    </div>
+  );
 }

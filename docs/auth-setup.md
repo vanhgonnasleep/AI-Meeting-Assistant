@@ -2,6 +2,8 @@
 
 Private mode is the default. Every account has a separate meeting library, projects, chat and voice profiles. Google sign-in accepts a Google account, including Gmail accounts; it does not request Gmail messages. GitHub sign-in requests profile and email access, without repository permissions.
 
+The product home and `#/preview/overview` are public: visitors can inspect prepared sample meetings, tasks and projects before signing in, including when the backend is unavailable. This is a client-only preview, not access to the legacy local library or an account. `#/signin` opens Google/GitHub sign-in. Private deep links still require a valid session. Sample changes reset when leaving preview and are never saved to a private library.
+
 ## Configure the server
 
 Copy the repository's `.env.example` to `.env`, then fill in the four provider variables locally:

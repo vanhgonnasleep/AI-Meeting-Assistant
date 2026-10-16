@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import App from '../../app/App.jsx';
 import SignIn from './SignIn.jsx';
 import { API_BASE, apiClient, apiFetch } from './api-client.js';
-import { navigateTo } from '../../app/navigation.js';
+import { navigateTo, subscribeToNavigation } from '../../app/navigation.js';
+import { getEntryRoute, navigateEntry } from '../../app/entry-navigation.js';
+import LandingPage from '../landing/LandingPage.jsx';
+import LazyPanel from '../../shared/ui/LazyPanel.jsx';
 import { discardLegacyConnectorSettings } from './browser-privacy.js';
 
+const loadPreviewWorkspace = () => import('../preview/PreviewWorkspace.jsx');
+
 export default function AuthGate() {
+  const entry = useSyncExternalStore(subscribeToNavigation, getEntryRoute, () => 'signin');
   const [state, setState] = useState({ phase: 'checking', session: null, error: '' });
   const [signingOut, setSigningOut] = useState(false);
   const logoutPending = useRef(false);
@@ -23,7 +29,7 @@ export default function AuthGate() {
       const session = await response.json();
       if (controller.signal.aborted) return;
       if (!['private', 'local'].includes(session.mode)) throw new Error('The server returned an invalid session.');
-      if (session.user && !window.location.hash) navigateTo('overview');
+      if (session.user && (!window.location.hash || window.location.hash === '#/signin')) navigateTo('overview');
       apiClient.configureSession(session);
       setState({ phase: 'ready', session, error: '' });
     } catch (error) {
@@ -74,8 +80,22 @@ export default function AuthGate() {
     }
   };
 
-  if (state.phase !== 'ready' || (state.session.mode === 'private' && !state.session.user)) {
-    return <SignIn providers={state.session?.providers} error={state.error} checking={state.phase === 'checking'} onRetry={refresh} />;
+  const canEnter = state.phase === 'ready' && (state.session.mode === 'local' || state.session.user);
+  const openWorkspace = () => canEnter ? navigateTo('overview') : navigateEntry('signin');
+  if (entry.startsWith('preview/')) {
+    return <LazyPanel load={loadPreviewWorkspace} name="workspace preview"
+      recoveryNote="Return to the home page or retry loading this prepared sample."
+      onClose={() => navigateEntry('landing')} fallback={<p role="status" className="p-8">Loading preview…</p>}>
+      {PreviewWorkspace => <PreviewWorkspace page={entry.split('/')[1]} onOpenWorkspace={openWorkspace} />}
+    </LazyPanel>;
+  }
+  if (entry === 'landing' && !canEnter) {
+    return <LandingPage onLaunchApp={openWorkspace} onOpenDashboard={() => navigateEntry('preview')}
+      onPreview={() => navigateEntry('preview')} />;
+  }
+  if (!canEnter) {
+    return <SignIn providers={state.session?.providers} error={state.error} checking={state.phase === 'checking'} onRetry={refresh}
+      onHome={() => navigateEntry('landing')} onPreview={() => navigateEntry('preview')} />;
   }
   return <App key={state.session.user?.id || 'local'} account={state.session.user} onLogout={logout}
     signingOut={signingOut} accountError={state.error} />;
