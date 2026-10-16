@@ -45,5 +45,5 @@
 ## Phase 4 — acceptance
 
 - [x] Review final changes and fix material findings with regression tests.
-- [ ] Merge each verified branch locally with explicit merge commits, run full backend/model and frontend checks, run npm run benchmark.
-- [ ] Record actual counts and environment limitations in docs/CLARION_RESCUE_REPORT.md. Preserve prior benchmark version; no fabricated results.
+- [x] Merge each verified branch locally with explicit merge commits, run full backend/model and frontend checks, run npm run benchmark.
+- [x] Record actual counts and environment limitations in docs/CLARION_RESCUE_REPORT.md. Preserve prior benchmark version; no fabricated results.

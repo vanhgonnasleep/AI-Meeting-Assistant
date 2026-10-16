@@ -23,14 +23,14 @@ The nine tasks in the supplied Master Prompt are implemented. Changes were commi
 - `npm run lint` — exit 0, no ESLint errors.
 - `npm run build` — exit 0. Vite reports the existing large main-bundle warning; this is not a build failure.
 - Browser: 375 × 812 and 768 × 1024 checks showed no horizontal overflow. Verified drawer opening, keyboard focus containment, Escape/restore, library controls and a real local Ollama answer with `rag_llm` mode and source citations. Browser testing used an isolated temporary database, leaving the user's meeting database untouched.
-- Compose YAML parses and referenced Dockerfiles exist. Container launch, actual nginx proxying and Linux/ARM inference require a Docker-enabled machine.
+- Compose configuration and referenced Dockerfiles were reviewed. Docker CLI validation, container launch, actual nginx proxying and Linux/ARM inference require a Docker-enabled machine; a standalone YAML parser is also unavailable in this Python environment.
 - Two existing dependency deprecation warnings remain from FastAPI/Starlette's test client integration.
 
 An independent read-only review identified three Important defects: stale ISO dates after editing, underscore query tokenization and a stale browser chat placeholder race. Each was reproduced with a failing regression, fixed, and verified with the full suite. No Critical findings or deferred code-review minors.
 
 ## Measurements
 
-`npm run benchmark` completed and regenerated [BENCHMARK_REPORT.md](BENCHMARK_REPORT.md). This run measured MMR mean 0.70 ms / p95 0.75 ms; SQLite write p95 1.07 ms; Whisper tiny CPU inference 1.46 s for 29.05 s audio (RTF 0.05). These are fixture-specific measurements, not end-to-end latency or accuracy guarantees.
+`npm run benchmark` completed and regenerated [BENCHMARK_REPORT.md](BENCHMARK_REPORT.md), which contains the final measured values. These are fixture-specific measurements, not end-to-end latency or accuracy guarantees.
 
 The pre-existing uncommitted benchmark report is preserved in the Git stash named `clarion-rescue: preserve pre-existing benchmark report`, plus a temporary backup `clarion-benchmark-before-rescue.md` in the Windows temporary directory. The final report intentionally replaces its generated measurements with this run's values.
 
