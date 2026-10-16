@@ -312,7 +312,7 @@ def cluster_speaker_embeddings(
 def refine_speakers_with_llm(
     segments: List[Dict[str, Any]],
     model_name: Optional[str] = None,
-    api_url: str = "http://localhost:11434/api/generate",
+    api_url: Optional[str] = None,
     timeout_sec: float = 20.0
 ) -> List[Dict[str, Any]]:
     """
@@ -325,6 +325,7 @@ def refine_speakers_with_llm(
 
     try:
         import requests
+        api_url = api_url or os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/') + '/api/generate'
         import json
 
         # Process in chunks of up to 40 segments to keep prompt focused and latency low (<3-5s)

@@ -1,5 +1,6 @@
 """Opt-in local embeddings with bounded work, cache and honest lexical fallback."""
 import hashlib
+import os
 import math
 import re
 import time
@@ -53,7 +54,7 @@ def _embeddings(texts, model):
         if remaining <= 0:
             raise TimeoutError('Embedding time limit reached')
         batch = missing[start:start + BATCH_SIZE]
-        result = requests.post('http://localhost:11434/api/embed',
+        result = requests.post(os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/') + '/api/embed',
                                json={'model': model, 'input': [source[key] for key in batch], 'truncate': False},
                                timeout=remaining)
         result.raise_for_status()

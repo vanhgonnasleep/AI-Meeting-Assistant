@@ -305,12 +305,37 @@ def get_all_meetings(search: Optional[str] = None) -> list[MeetingRecord]:
     return [row_to_meeting(row) for row in rows]
 
 
+def search_meetings_fts(query: str, limit: int = 50):
+    """Return bounded FTS matches, ranked by relevance, for a literal word query."""
+    if not query or not query.strip():
+        return []
+    expression = ' AND '.join('"' + word.replace('"', '""') + '"' for word in query.split())
+    connection = get_connection()
+    try:
+        rows = connection.execute("""SELECT meetings.* FROM meetings
+            JOIN meetings_fts ON meetings.id=meetings_fts.rowid
+            WHERE meetings_fts MATCH ? ORDER BY rank, meetings.id DESC LIMIT ?""",
+            (expression, max(1, min(int(limit), 100)))).fetchall()
+        return [row_to_meeting(row) for row in rows]
+    finally:
+        connection.close()
+
+
 def get_meeting_page(search=None, limit=50, offset=0, compact=False):
     """Search before pagination; compact rows exclude transcript, segments and chat."""
     where, params = "", []
     if search and search.strip():
-        where = "WHERE instr(casefold(filename), ?) > 0 OR instr(casefold(executive_summary), ?) > 0 OR instr(casefold(raw_transcript), ?) > 0 OR instr(casefold(action_items), ?) > 0"
-        params = [search.strip().casefold()] * 4
+        term = search.strip()
+        if re.fullmatch(r'[\w\s]+', term, re.UNICODE):
+            # Quote each token: AND/OR/NOT in user text remain literal words.
+            expression = ' AND '.join('"' + word + '"' for word in term.split())
+            where = "WHERE (id IN (SELECT rowid FROM meetings_fts WHERE meetings_fts MATCH ?) OR instr(casefold(filename), ?) > 0)"
+            params = [expression, term.casefold()]
+        else:
+            # Unicode casefold preserves the existing literal substring contract.
+            # instr also avoids treating % and _ as SQL LIKE wildcards.
+            where = "WHERE (instr(casefold(filename), ?) > 0 OR instr(casefold(executive_summary), ?) > 0 OR instr(casefold(raw_transcript), ?) > 0 OR instr(casefold(action_items), ?) > 0)"
+            params = [term.casefold()] * 4
     projection = "*" if not compact else "id, filename, substr(executive_summary, 1, 600) AS executive_summary, '' AS raw_transcript, action_items, duration, language, created_at, updated_at"
     connection = get_connection()
     try:

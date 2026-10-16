@@ -1,9 +1,10 @@
 import sqlite3
+import os
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "meeting.db"
+DB_PATH = Path(os.environ.get("CLARION_DB_PATH", str(BASE_DIR / "meeting.db")))
 
 # Columns added after the initial schema. Each entry is applied with a
 # non-destructive ALTER TABLE when missing, so existing databases keep their data.
@@ -65,6 +66,29 @@ def init_db():
         connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_meetings_save_key ON meetings(save_key) WHERE save_key IS NOT NULL")
         connection.execute("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_project ON meetings(project_id, created_at DESC, id DESC)")
+        # External-content FTS does not populate historical rows automatically.
+        had_fts = connection.execute("SELECT 1 FROM sqlite_master WHERE name='meetings_fts'").fetchone()
+        connection.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS meetings_fts USING fts5(
+            raw_transcript, executive_summary, action_items,
+            content='meetings', content_rowid='id'
+        )""")
+        connection.execute("""CREATE TRIGGER IF NOT EXISTS meetings_ai AFTER INSERT ON meetings BEGIN
+            INSERT INTO meetings_fts(rowid, raw_transcript, executive_summary, action_items)
+            VALUES (new.id, new.raw_transcript, new.executive_summary, new.action_items);
+        END""")
+        connection.execute("""CREATE TRIGGER IF NOT EXISTS meetings_ad AFTER DELETE ON meetings BEGIN
+            INSERT INTO meetings_fts(meetings_fts, rowid, raw_transcript, executive_summary, action_items)
+            VALUES ('delete', old.id, old.raw_transcript, old.executive_summary, old.action_items);
+        END""")
+        connection.execute("""CREATE TRIGGER IF NOT EXISTS meetings_au
+            AFTER UPDATE OF raw_transcript, executive_summary, action_items ON meetings BEGIN
+            INSERT INTO meetings_fts(meetings_fts, rowid, raw_transcript, executive_summary, action_items)
+            VALUES ('delete', old.id, old.raw_transcript, old.executive_summary, old.action_items);
+            INSERT INTO meetings_fts(rowid, raw_transcript, executive_summary, action_items)
+            VALUES (new.id, new.raw_transcript, new.executive_summary, new.action_items);
+        END""")
+        if not had_fts:
+            connection.execute("INSERT INTO meetings_fts(meetings_fts) VALUES ('rebuild')")
         connection.commit()
     finally:
         connection.close()

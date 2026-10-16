@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -91,7 +92,7 @@ except ImportError:
     extract_insights_heuristic = None
 
 try:
-    from meeting_chat import answer_meeting_question, retrieve_relevant_segments
+    from meeting_chat import answer_meeting_question, retrieve_relevant_segments, stream_meeting_question
 except ImportError:
     answer_meeting_question = None
     retrieve_relevant_segments = None
@@ -177,8 +178,9 @@ def get_gpu_info() -> Tuple[str, bool]:
             pass
     return "CPU Mode (No Dedicated GPU)", False
 
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
-OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
+OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
+OLLAMA_API_URL = OLLAMA_BASE_URL + '/api/generate'
+OLLAMA_TAGS_URL = OLLAMA_BASE_URL + '/api/tags'
 
 def get_installed_ollama_models() -> List[str]:
     """Retrieves list of models currently installed in local Ollama."""
@@ -1047,6 +1049,51 @@ def standalone_chat_endpoint(payload: ChatMessageRequest):
         "mode": result.get("mode", "rag_llm"),
         "retrieval_warning": result.get("retrieval_warning"),
     }
+
+@app.post('/api/chat/stream')
+def stream_chat_endpoint(payload: ChatMessageRequest):
+    record = None
+    if payload.meeting_id and payload.meeting_id > 0:
+        if crud is None:
+            raise HTTPException(503, 'Database module not available.')
+        record = crud.get_meeting(payload.meeting_id)
+        if record is None:
+            raise HTTPException(404, 'Meeting record not found.')
+    _, has_gpu = get_gpu_info()
+    selected_model = resolve_model(payload.model or 'auto', has_gpu=has_gpu)
+
+    def frames():
+        events = stream_meeting_question(
+            question=payload.question,
+            transcript=record.raw_transcript if record else payload.transcript or (DEMO_TRANSCRIPT if payload.demo_mode else ''),
+            summary=record.executive_summary if record else payload.summary,
+            segments=record.segments if record else payload.segments or (DEMO_SEGMENTS if payload.demo_mode else None),
+            model_name=selected_model, has_gpu=has_gpu,
+            language=(record.language if record else payload.language) or 'en',
+            is_demo=bool(payload.demo_mode and record is None), semantic=payload.semantic,
+            embedding_model=payload.embedding_model,
+        )
+        try:
+            for event in events:
+                if event.get('done') and not event.get('error') and record:
+                    saved = crud.append_chat_messages(int(record.id), [
+                        {'role': 'user', 'content': payload.question.strip()},
+                        {'role': 'assistant', 'content': event['answer'], 'citations': event.get('citations', []),
+                         'mode': event.get('mode'), 'retrieval_warning': event.get('retrieval_warning')},
+                    ], expected_generation=record.chat_generation)
+                    if not saved:
+                        event = {'done': True, 'error': 'Meeting changed during this answer. Please ask again.', 'citations': []}
+                    else:
+                        event['chat_history'] = crud.get_chat_history(int(record.id)) or []
+                yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
+        except Exception:
+            yield 'data: ' + json.dumps({'done': True, 'error': 'Chat stream failed. Please retry.', 'citations': []}) + '\n\n'
+        finally:
+            events.close()
+
+    return StreamingResponse(frames(), media_type='text/event-stream',
+                             headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
 
 from workspace_api import create_workspace_router
 from storage_api import router as storage_router

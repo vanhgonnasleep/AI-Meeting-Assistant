@@ -1,0 +1,14 @@
+.git
+.superpowers
+**/node_modules
+**/venv
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/dist
+**/*.db*
+**/*.sqlite*
+**/*.env
+database/backups
+samples
+*.pdf
