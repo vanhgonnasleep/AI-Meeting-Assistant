@@ -1,5 +1,8 @@
 import sqlite3
 import os
+import json
+from datetime import datetime
+from .deadlines import normalize_deadline_to_iso
 from pathlib import Path
 
 
@@ -66,6 +69,10 @@ def init_db():
         connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_meetings_save_key ON meetings(save_key) WHERE save_key IS NOT NULL")
         connection.execute("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE)")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_project ON meetings(project_id, created_at DESC, id DESC)")
+        connection.execute('''CREATE TABLE IF NOT EXISTS speaker_profiles (
+            id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, embedding TEXT NOT NULL,
+            sample_count INTEGER NOT NULL DEFAULT 1, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
         # External-content FTS does not populate historical rows automatically.
         had_fts = connection.execute("SELECT 1 FROM sqlite_master WHERE name='meetings_fts'").fetchone()
         connection.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS meetings_fts USING fts5(
@@ -89,6 +96,22 @@ def init_db():
         END""")
         if not had_fts:
             connection.execute("INSERT INTO meetings_fts(meetings_fts) VALUES ('rebuild')")
+        connection.execute('CREATE TABLE IF NOT EXISTS schema_migrations(name TEXT PRIMARY KEY)')
+        if not connection.execute("SELECT 1 FROM schema_migrations WHERE name='deadline_iso_v1'").fetchone():
+            for row in connection.execute('SELECT id, action_items, created_at FROM meetings').fetchall():
+                try:
+                    items = json.loads(row['action_items'] or '[]')
+                    reference = datetime.fromisoformat(row['created_at'])
+                    if not isinstance(items, list):
+                        continue
+                    for item in items:
+                        if isinstance(item, dict) and 'deadline_iso' not in item:
+                            item['deadline_iso'] = normalize_deadline_to_iso(item.get('deadline'), reference)
+                    connection.execute('UPDATE meetings SET action_items=? WHERE id=?',
+                                       (json.dumps(items, ensure_ascii=False), row['id']))
+                except (ValueError, TypeError):
+                    continue
+            connection.execute("INSERT INTO schema_migrations(name) VALUES('deadline_iso_v1')")
         connection.commit()
     finally:
         connection.close()

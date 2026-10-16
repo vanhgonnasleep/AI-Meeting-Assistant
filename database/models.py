@@ -17,6 +17,7 @@ class ActionItem:
     assignee: Optional[str] = "Unassigned"
     deadline: Optional[str] = None
     status: str = "pending"
+    deadline_iso: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert dataclass instance to standard dictionary."""
@@ -83,6 +84,7 @@ class MeetingRecord:
                         task=str(item.get("task", "")).strip(),
                         assignee=item.get("assignee") or "Unassigned",
                         deadline=item.get("deadline"),
+                        deadline_iso=item.get("deadline_iso"),
                         status=item.get("status", "pending")
                     ))
                 elif isinstance(item, str) and item.strip():

@@ -32,6 +32,7 @@ try:
     from agent1_transcribe import (
         transcribe_audio,
         transcribe_audio_detailed,
+        transcribe_audio_chunk,
         get_whisper_model_info,
         get_whisper_device
     )
@@ -719,6 +720,7 @@ def process_audio(
                         task=item.get("task", ""),
                         assignee=item.get("assignee") or "Unassigned",
                         deadline=item.get("deadline"),
+                        deadline_iso=item.get("deadline_iso"),
                         status=item.get("status", "pending")
                     )
                     if isinstance(item, dict) else item
@@ -783,6 +785,19 @@ class MeetingUpdateRequest(BaseModel):
 
 class TaskStatusUpdateRequest(BaseModel):
     status: str
+
+@app.post('/api/transcribe-chunk')
+def transcribe_chunk_endpoint(file: UploadFile = File(...), whisper_model: WhisperModel = Query('tiny'),
+                              language: Optional[str] = Query(None, max_length=16)):
+    validate_audio_upload(file)
+    data = file.file.read(8 * 1024 * 1024 + 1)
+    try:
+        return {'status': 'success', **transcribe_safely(transcribe_audio_chunk, data, model_name=whisper_model, language=language)}
+    except MediaLimitError as exc:
+        raise HTTPException(413, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
 
 @app.get("/api/meetings")
 def get_all_meetings_endpoint(q: Optional[str] = Query(None, max_length=500, description="Search query string"),

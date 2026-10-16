@@ -1,5 +1,6 @@
 """Meeting workspace routes, with inference supplied by the application."""
 import json
+from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -32,7 +33,15 @@ class EditableTask(BaseModel):
     task: str = Field(min_length=1, max_length=4000, strict=True)
     assignee: str | None = Field("Unassigned", max_length=128, strict=True)
     deadline: str | None = Field(None, max_length=128, strict=True)
+    deadline_iso: str | None = Field(None, max_length=10, strict=True)
     status: TaskStatus = "pending"
+
+    @field_validator('deadline_iso')
+    @classmethod
+    def iso_calendar_date(cls, value):
+        if value is not None and (len(value) != 10 or date.fromisoformat(value).isoformat() != value):
+            raise ValueError('deadline_iso must be YYYY-MM-DD')
+        return value
 
     @field_validator("task")
     @classmethod

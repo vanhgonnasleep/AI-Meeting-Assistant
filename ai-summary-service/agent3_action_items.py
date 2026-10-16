@@ -10,6 +10,8 @@ Task: Design specialized prompt for Llama 3 to extract
 import json
 import os
 import re
+from datetime import datetime
+from database.deadlines import normalize_deadline_to_iso
 from typing import List, Dict, Optional, Any
 try:
     import ollama
@@ -62,6 +64,7 @@ def extract_action_items_heuristic(transcript: str) -> List[Dict[str, Any]]:
                     "task": raw_task,
                     "assignee": assignee if assignee else "Unassigned",
                     "deadline": deadline,
+                    "deadline_iso": normalize_deadline_to_iso(deadline, datetime.now()),
                     "status": "pending"
                 })
                 break
@@ -216,6 +219,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
                     "task": str(item.get("task", "")).strip(),
                     "assignee": str(item.get("assignee") or "Unassigned").strip(),
                     "deadline": str(item.get("deadline")).strip() if item.get("deadline") else None,
+                    "deadline_iso": normalize_deadline_to_iso(item.get('deadline'), datetime.now()),
                     "status": str(item.get("status", "pending")).strip()
                 })
 
