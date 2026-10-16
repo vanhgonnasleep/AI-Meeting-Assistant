@@ -73,6 +73,19 @@ def test_local_storage_failure_also_has_json_and_cors(monkeypatch):
     assert response.headers['access-control-allow-origin'] == 'http://localhost:5173'
 
 
+def test_malformed_csrf_header_is_denied_without_a_server_error(monkeypatch):
+    monkeypatch.setenv('CLARION_AUTH_MODE', 'private')
+    client = TestClient(main.app, raise_server_exceptions=False)
+    client.cookies.set(middleware.SESSION_COOKIE, store.create_session(
+        'google', {'subject': 'audit', 'name': 'Audit', 'email': None}))
+    response = client.post('/api/projects', json={'name': 'Do not create'}, headers={
+        b'Origin': b'http://localhost:5173', b'X-CSRF-Token': b'\xff',
+    })
+    assert response.status_code == 403
+    assert response.headers['access-control-allow-origin'] == 'http://localhost:5173'
+    assert client.get('/api/projects').json()['projects'] == []
+
+
 @pytest.mark.parametrize('stage', ['transcription', 'summarization'])
 def test_processing_failure_never_returns_internal_exception_text(monkeypatch, stage):
     marker = 'private-file-path-and-internal-diagnostic'

@@ -57,8 +57,9 @@ class PrivateWorkspaceMiddleware:
             return await JSONResponse({'detail': 'Sign in to access your private workspace.'}, status_code=401)(scope, receive, send)
         if session and scope['method'] not in {'GET', 'HEAD', 'OPTIONS'}:
             headers = Headers(scope=scope)
+            csrf = headers.get('x-csrf-token', '')
             if (headers.get('origin') != config.frontend_url
-                    or not secrets.compare_digest(headers.get('x-csrf-token', ''), session['csrf'])):
+                    or not csrf.isascii() or not secrets.compare_digest(csrf, session['csrf'])):
                 return await JSONResponse({'detail': 'Request verification failed. Reload and try again.'}, status_code=403)(scope, receive, send)
         if not session or public:
             return await self.app(scope, receive, send)
