@@ -1,5 +1,7 @@
 # Navigating the meeting workspace
 
+Start at `/` for the public product introduction, or choose **Preview workspace** to browse prepared examples at `#/preview/overview` without signing in. Preview includes sample notes/transcript, task checkboxes and projects; it does not run live AI or save to your account. Use **Your workspace** to sign in for your own library, or visit `#/signin` directly. A private workspace already opened in this tab stays mounted while you preview, preserving unsaved work; signing out removes that account state. Preview task changes reset after leaving the sample.
+
 The workspace uses cool white surfaces and periwinkle accents across five pages. The sidebar lists saved meetings and links to every page. Collapse or expand it with its button or Ctrl+B (Cmd+B on macOS). On a small screen, it starts collapsed and closes after selecting a page or meeting.
 
 | Page | What to do here |

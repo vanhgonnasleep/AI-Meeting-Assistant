@@ -21,6 +21,10 @@
 
 ## 📌 Executive Summary
 
+**Explore before signing in.** Clarion includes a public product tour and an interactive workspace with prepared meeting, task and project samples. Your private library still requires Google/GitHub sign-in. [See the interface and validation notes](docs/ui/public-preview/README.md).
+
+![Clarion public workspace preview](docs/ui/public-preview/overview.png)
+
 > 📖 **TECHNICAL DEFENSE PREPARATION:** Check out the complete [TECHNICAL_DEFENSE_GUIDE.md](docs/defense/TECHNICAL_DEFENSE_GUIDE.md) for step-by-step live coding cheatsheets (adding fields, endpoints, algorithms, and bug fixes) tailored for instructor defense questions.
 
 **AI Meeting Assistant** processes meetings using local Whisper and Ollama inference. Private mode supports Google/GitHub sign-in with a separate library for each account; explicit local mode retains offline single-user operation. Initial dependency/model downloads require internet access. Users upload audio or video recordings (.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv), and the system executes a modular pipeline:
