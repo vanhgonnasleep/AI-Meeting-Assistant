@@ -215,3 +215,54 @@ test('successful task changes consume the returned meeting and use its new revis
     assert.deepEqual(submitted, [{ status: 'completed', expected_revision: 7 }, { status: 'pending', expected_revision: 8 }]);
   } finally { await view.close(); }
 });
+
+test('starting a new meeting after the sample demo restores real processing and enables saving', async () => {
+  apiClient.configureSession(null);
+  globalThis.fetch = async input => {
+    const url = new URL(input, location.origin);
+    if (url.pathname === '/api/health') return json({ ollama_online: true });
+    if (url.pathname === '/api/meetings') return json({ meetings: [], total: 0 });
+    if (url.pathname === '/q3_product_budget_review.mp3') return new Response('fixture sample audio');
+    if (url.pathname === '/api/process-audio') {
+      assert.equal(url.searchParams.get('demo_mode'), 'true');
+      return json({ mode: 'instant_demo', data: { transcript: 'Fixture demo transcript', summary: 'Fixture demo summary', action_items: [], segments: [] } });
+    }
+    throw new Error(`Unexpected fixture request ${url.pathname}`);
+  };
+  const view = await mount(App);
+  await React.act(async () => { await server.ssrLoadModule('/src/features/meetings/DocumentWorkspace.jsx'); });
+  const model = () => view.container.querySelector('[aria-label="Processing model"]');
+  try {
+    await click([...view.container.querySelectorAll('button')].find(button => button.textContent.includes('Load Sample Audio')));
+    assert.equal(model().value, 'instant_demo', 'Loading a sample explicitly selects demo processing');
+    await click([...view.container.querySelectorAll('button')].find(button => button.textContent.includes('Start Processing')));
+    assert.match(view.container.textContent, /Fixture demo summary/);
+    assert.match(view.container.textContent, /DEMO/);
+    await click(view.container.querySelector('[aria-label="Start new meeting"]'));
+    assert.equal(model().value, 'auto');
+    const save = [...view.container.querySelectorAll('label')].find(label => label.textContent.includes('Save results to library')).querySelector('input');
+    assert.equal(save.disabled, false);
+    assert.equal(save.checked, true);
+  } finally { await view.close(); }
+});
+
+test('starting a new meeting preserves an intentionally selected real processing model', async () => {
+  apiClient.configureSession(null);
+  globalThis.fetch = async input => {
+    const path = new URL(input, location.origin).pathname;
+    if (path === '/api/health') return json({ ollama_online: true });
+    if (path === '/api/meetings') return json({ meetings: [], total: 0 });
+    throw new Error(`Unexpected fixture request ${path}`);
+  };
+  const view = await mount(App);
+  await React.act(async () => { await server.ssrLoadModule('/src/features/meetings/DocumentWorkspace.jsx'); });
+  try {
+    await React.act(async () => {
+      const model = view.container.querySelector('[aria-label="Processing model"]');
+      model.value = 'llama3.2:1b';
+      model.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
+    await click(view.container.querySelector('[aria-label="Start new meeting"]'));
+    assert.equal(view.container.querySelector('[aria-label="Processing model"]').value, 'llama3.2:1b');
+  } finally { await view.close(); }
+});
