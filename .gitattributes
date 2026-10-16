@@ -1,2 +1,2 @@
 # Measured evidence is checksummed as bytes; preserve it across Windows/Linux.
-docs/defense/evaluation/** -text
+docs/defense/evaluation/** -text whitespace=cr-at-eol

@@ -4,7 +4,7 @@ Mở [báo cáo HTML offline](report.html), [kết quả JSON](summary.json), [t
 
 ## Kết quả đã đo
 
-Run `20261016T145301Z-b6f6da53e5`, inference tại commit `cd8feba` (working tree clean lúc khởi chạy), report bổ sung normalized CSV tại `ae87c7e`. Python 3.14.7, Whisper 20250625, Torch 2.14.0, thiết bị STT **CPU**, CUDA không khả dụng. Model hash và Ollama digest có trong `run.json`. Không tải model trong lần chấm vì tiny/base đã có cache đúng hash.
+Run `20261016T145301Z-b6f6da53e5`, inference tại commit `cd8feba` (working tree clean lúc khởi chạy), report bổ sung normalized CSV tại `ae87c7e`, sau đó thêm coverage đầy đủ bằng renderer đã sửa sau review. Python 3.14.7, Whisper 20250625, Torch 2.14.0, thiết bị STT **CPU**, CUDA không khả dụng. Model hash và Ollama digest có trong `run.json`. Không tải model trong lần chấm vì tiny/base đã có cache đúng hash.
 
 | Model | Thành công | CER | Whitespace-WER | RTF | Model load |
 |---|---:|---:|---:|---:|---:|
@@ -35,4 +35,4 @@ Snapshot Git chỉ chứa evidence dạng text và report; audio đã đóng bă
 
 ## Kiểm tra phần mềm
 
-Backend: 370 test pass, gồm các model integration test và 44 test evaluation. Frontend: 125 pass, lint/build pass; npm audit không có vulnerability, pip check không có dependency hỏng. Một cảnh báo deprecation từ Starlette/AnyIO. Reviewer độc lập và tích hợp được ghi ở tài liệu bàn giao cuối; số test không phải độ chính xác AI.
+Backend: 376 test pass, gồm các model integration test và 50 test evaluation. Frontend: 125 pass, lint/build pass; npm audit không có vulnerability, pip check không có dependency hỏng. Một cảnh báo deprecation từ Starlette/AnyIO. Reviewer độc lập và tích hợp được ghi ở tài liệu bàn giao cuối; số test không phải độ chính xác AI.

@@ -79,6 +79,8 @@ Pilot tiếng đọc FLEURS (Google, CC-BY-4.0), không đánh giá diarization 
         "rate": 0.2112605879422023,
         "scorable_rows": 20
       },
+      "planned": 20,
+      "unattempted": 0,
       "rtf": 0.12532565261041334,
       "audio_seconds": 239.04,
       "model_load_seconds": 0.6062179000000469
@@ -105,6 +107,8 @@ Pilot tiếng đọc FLEURS (Google, CC-BY-4.0), không đánh giá diarization 
         "rate": 0.4499252615844544,
         "scorable_rows": 20
       },
+      "planned": 20,
+      "unattempted": 0,
       "rtf": 0.1598538880522038,
       "audio_seconds": 239.04,
       "model_load_seconds": 0.34774169999946025
@@ -113,12 +117,22 @@ Pilot tiếng đọc FLEURS (Google, CC-BY-4.0), không đánh giá diarization 
   "nlp": {
     "mmr_off": {
       "status": "not_evaluated",
+      "planned": 6,
       "attempted": 6,
+      "completed": 6,
+      "failed": 0,
+      "partial": 0,
+      "unattempted": 0,
       "reason": "All rows need successful generation, approved references and completed human review."
     },
     "mmr_on": {
       "status": "not_evaluated",
+      "planned": 6,
       "attempted": 6,
+      "completed": 5,
+      "failed": 0,
+      "partial": 1,
+      "unattempted": 0,
       "reason": "All rows need successful generation, approved references and completed human review."
     }
   }
