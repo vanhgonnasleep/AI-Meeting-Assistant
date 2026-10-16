@@ -15,6 +15,8 @@ from typing import Any, Dict, List, Optional
 
 from .db import get_connection, init_db
 from .models import MeetingRecord, ActionItem, INSIGHT_CATEGORIES, empty_insights
+from .deadlines import normalize_deadline_to_iso
+from .voiceprints import upsert_speaker_profile, get_speaker_profiles, match_speaker_profile, normalized_embedding, _upsert_speaker_profile
 
 
 # Make sure the database exists
@@ -66,6 +68,7 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
                             task=str(item.get("task") or "").strip(),
                             assignee=str(item.get("assignee") or "Unassigned"),
                             deadline=str(item["deadline"]) if item.get("deadline") is not None else None,
+                            deadline_iso=item.get("deadline_iso"),
                             status=str(item.get("status") or "pending"),
                         )
                     )
@@ -113,13 +116,25 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
     )
 
 
-def action_items_to_json(action_items: Any) -> Optional[str]:
+def action_items_to_json(action_items: Any, reference_date=None) -> Optional[str]:
     """
     Convert action items to JSON string for SQLite storage.
     Ensures output is always a standardized JSON array.
     """
     if action_items is None:
         return None
+
+    # Action items are stored as a JSON array in SQLite, so each task retains
+    # its own ISO date rather than a single incorrect meeting-level deadline.
+    if isinstance(action_items, list):
+        normalized = []
+        for item in action_items:
+            entry = item.to_dict() if isinstance(item, ActionItem) else dict(item) if isinstance(item, dict) else item
+            if isinstance(entry, dict):
+                if not entry.get('deadline_iso'):
+                    entry['deadline_iso'] = normalize_deadline_to_iso(entry.get('deadline'), reference_date or datetime.now())
+            normalized.append(entry)
+        action_items = normalized
 
     if isinstance(action_items, str):
         # Validate that it is valid JSON, otherwise wrap as task string
@@ -146,6 +161,7 @@ def action_items_to_json(action_items: Any) -> Optional[str]:
                     "task": item.task,
                     "assignee": item.assignee,
                     "deadline": item.deadline,
+                    "deadline_iso": item.deadline_iso,
                     "status": item.status,
                 })
             elif isinstance(item, dict):
@@ -377,6 +393,17 @@ def edit_meeting_speaker(meeting_id, old_name, new_name, segment_index=None):
         if not indices:
             connection.rollback()
             return None
+        vectors = [record.segments[i].get('voice_embedding') for i in indices]
+        vectors = [v for v in vectors if isinstance(v, list) and v]
+        if vectors and not re.fullmatch(r'Speaker\s+\d+', new_name, re.IGNORECASE):
+            # Only a human correction enrolls an identity, never an LLM guess.
+            try:
+                vectors = [normalized_embedding(v) for v in vectors]
+                if len({len(v) for v in vectors}) == 1:
+                    centroid = [sum(values) / len(vectors) for values in zip(*vectors)]
+                    _upsert_speaker_profile(connection, new_name, centroid)
+            except ValueError:
+                pass  # Legacy/malformed acoustic metadata must not block a text correction.
         affected_starts = {record.segments[i].get("start") for i in indices}
         for index in indices:
             record.segments[index]["speaker"] = new_name

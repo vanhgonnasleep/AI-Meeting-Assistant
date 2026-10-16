@@ -10,6 +10,7 @@ Task: Integrate OpenAI Whisper (or equivalent) to transcribe
 import os
 import shutil
 import tempfile
+import subprocess
 from contextlib import nullcontext
 from threading import Lock
 from pathlib import Path
@@ -17,6 +18,7 @@ from typing import Union, Optional, Dict, Any, List, BinaryIO, Tuple
 from fastapi import UploadFile
 from audio_preparation import PreparedAudio, MediaLimitError, SAMPLE_RATE, ffmpeg_executable
 from runtime_config import MAX_AUDIO_DURATION_SECONDS, AUDIO_CHUNK_SECONDS
+from database.voiceprints import match_speaker_profile
 
 CHUNK_OVERLAP_SECONDS = 3.0
 MAX_TRANSCRIPT_SEGMENTS = 20000
@@ -456,6 +458,18 @@ def diarize_segments(
         if use_llm_refinement:
             segments = refine_speakers_with_llm(segments, model_name=llm_model)
 
+        for index in set(speaker_indices):
+            selected = [embedding for embedding, label in zip(embeddings, speaker_indices) if label == index]
+            centroid = torch.stack(selected).mean(dim=0)
+            centroid = centroid / torch.norm(centroid).clamp_min(1e-8)
+            vector = centroid.detach().cpu().tolist()
+            name = match_speaker_profile(vector) if any(abs(v) > 1e-8 for v in vector) else None
+            for segment, label in zip(segments, speaker_indices):
+                if label == index:
+                    segment['voice_embedding'] = vector
+                    if name:
+                        segment['speaker'] = name
+
         unique_speakers = list(dict.fromkeys(seg["speaker"] for seg in segments if seg.get("speaker")))
         return segments, unique_speakers
     except MediaLimitError:
@@ -781,6 +795,43 @@ def transcribe_audio_detailed(
                 os.remove(temp_path)
             except Exception as e:
                 print(f"[Agent 1 STT Warning] Failed to delete temp file {temp_path}: {e}")
+
+
+MAX_CHUNK_SECONDS = 30
+MAX_CHUNK_BYTES = 8 * 1024 * 1024
+
+
+def transcribe_audio_chunk(data: bytes, model_name=None, language=None):
+    """Decode a bounded, standalone WAV/WebM chunk through RAM-only FFmpeg pipes."""
+    import numpy as np
+    if not data:
+        raise ValueError('Audio chunk is empty')
+    if len(data) > MAX_CHUNK_BYTES:
+        raise MediaLimitError('Audio chunk exceeds 8 MiB')
+    command = [ffmpeg_executable(), '-nostdin', '-hide_banner', '-loglevel', 'error',
+               '-threads', '1', '-i', 'pipe:0', '-vn', '-t', str(MAX_CHUNK_SECONDS + 0.01),
+               '-f', 'f32le', '-ac', '1', '-ar', str(SAMPLE_RATE), 'pipe:1']
+    try:
+        result = subprocess.run(command, input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError('Audio chunk decoding timed out') from exc
+    if result.returncode != 0 or not result.stdout:
+        raise ValueError('Unable to decode audio chunk')
+    audio = np.frombuffer(result.stdout, dtype='<f4').copy()
+    if len(audio) > MAX_CHUNK_SECONDS * SAMPLE_RATE:
+        raise MediaLimitError('Audio chunk must be at most 30 seconds')
+    if not np.isfinite(audio).all():
+        raise ValueError('Invalid audio samples')
+    duration = len(audio) / SAMPLE_RATE
+    if np.sqrt(np.mean(audio ** 2)) < 0.0001:
+        return {'text': '', 'language': language or '', 'duration': duration}
+    model = get_whisper_model(model_name=model_name)
+    options = {'fp16': get_whisper_device() == 'cuda', 'condition_on_previous_text': False}
+    if language:
+        options['language'] = language
+    result = model.transcribe(audio, **options)
+    return {'text': str(result.get('text') or '').strip(), 'language': result.get('language') or language or '',
+            'duration': duration}
 
 
 def transcribe_audio(
