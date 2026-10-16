@@ -120,3 +120,11 @@ def test_closing_generator_closes_upstream_without_consuming_rest(monkeypatch):
     next(events)
     events.close()
     assert upstream.closed
+
+
+def test_underscore_queries_are_literal_not_fts_phrase_separators():
+    ids = [crud.create_meeting(filename=str(i), raw_transcript=text) for i, text in enumerate(['foo-bar', 'foo bar', 'foo_bar', '_'])]
+    client = TestClient(main.app)
+    exact = client.get('/api/meetings', params={'q': 'foo_bar'}).json()
+    assert [r['id'] for r in exact['meetings']] == [ids[2]]
+    assert client.get('/api/meetings', params={'q': '_'}).json()['total'] == 2

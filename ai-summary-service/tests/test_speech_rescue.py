@@ -1,5 +1,6 @@
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 import wave
 
 import pytest
@@ -9,6 +10,7 @@ import agent1_transcribe as stt
 import agent3_action_items as actions
 import database.crud as crud
 import database.db as db
+from database import workspace
 import main
 
 
@@ -134,3 +136,50 @@ def test_diarization_reuses_enrolled_name(monkeypatch):
                                          subdivide_sentences=False, use_llm_refinement=False, prepared_audio=object())
     assert names == ['Alice']
     assert segments[0]['voice_embedding'] == [1., 0., 0.]
+
+
+def test_review_recomputes_iso_date_after_edit_and_clear():
+    mid = crud.create_meeting(filename='dates.wav', action_items=[{'task': 'Ship', 'deadline': '2026-12-31'}])
+    item = crud.get_meeting(mid).action_items[0].to_dict()
+    item['deadline'] = '2027-01-05'
+    record = workspace.review_meeting(mid, 0, 'draft', action_items=[item])
+    assert record.action_items[0].deadline_iso == '2027-01-05'
+    item = record.action_items[0].to_dict()
+    item['deadline'] = None
+    assert workspace.review_meeting(mid, record.revision, 'draft', action_items=[item]).action_items[0].deadline_iso is None
+
+
+def test_edited_relative_date_uses_original_meeting_day():
+    mid = crud.create_meeting(filename='dates.wav', action_items=[{'task': 'Ship', 'deadline': '2026-12-31'}])
+    with db.get_connection() as connection:
+        connection.execute("UPDATE meetings SET created_at='2026-10-14 10:00:00' WHERE id=?", (mid,))
+    crud.update_meeting(mid, action_items=[{'task': 'Ship', 'deadline': 'tomorrow', 'deadline_iso': '2026-12-31'}])
+    assert crud.get_meeting(mid).action_items[0].deadline_iso == '2026-10-15'
+
+
+def test_deadline_normalization_handles_single_item_and_json_storage_inputs():
+    import json
+    from database.models import ActionItem
+    for data in (ActionItem(task='Ship', deadline='2026-12-31'), {'task':'Ship', 'deadline':'2026-12-31'},
+                 '[{"task":"Ship","deadline":"2026-12-31"}]'):
+        assert json.loads(crud.action_items_to_json(data))[0]['deadline_iso'] == '2026-12-31'
+
+
+def test_chunk_real_whisper_on_bundled_sample(request):
+    if not request.config.getoption('--run-model-tests'):
+        pytest.skip('Use --run-model-tests for local Whisper integration')
+    sample = Path(__file__).resolve().parents[2] / 'samples' / 'sample_meeting_en.wav'
+    result = stt.transcribe_audio_chunk(sample.read_bytes(), model_name='tiny', language='en')
+    assert result['text'].strip()
+    assert result['language'] == 'en'
+    assert 0 < result['duration'] <= 30
+
+
+def test_unrelated_edit_preserves_already_resolved_relative_date():
+    mid = crud.create_meeting(filename='dates.wav', action_items=[
+        {'task': 'Ship', 'assignee': 'Alice', 'deadline': 'tomorrow', 'deadline_iso': '2026-10-15'},
+    ])
+    item = crud.get_meeting(mid).action_items[0].to_dict()
+    item['assignee'] = 'Bob'
+    record = workspace.review_meeting(mid, 0, 'draft', action_items=[item])
+    assert record.action_items[0].deadline_iso == '2026-10-15'

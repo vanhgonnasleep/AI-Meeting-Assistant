@@ -689,11 +689,13 @@ function App() {
 
       const messageId = request.id ?? newUserMsg.created_at;
       let answer = '';
-      setChatMessages(prev => [...prev, { role: 'assistant', content: '', citations: [], streaming: true, streamId: messageId }]);
       const data = await readChatStream(res, token => {
         if (!request.isCurrent()) return;
         answer += token;
         setChatMessages(prev => prev.map(msg => msg.streamId === messageId ? { ...msg, content: answer } : msg));
+      }, {
+        isCurrent: request.isCurrent,
+        onStart: () => setChatMessages(prev => [...prev, { role: 'assistant', content: '', citations: [], streaming: true, streamId: messageId }]),
       });
       if (!request.isCurrent()) return;
 

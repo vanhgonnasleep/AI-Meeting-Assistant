@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readChatStream } from './chat-stream.js';
+import { createRequestGate } from './session.js';
 
 function response(chunks) {
   return { body: new ReadableStream({ start(controller) {
@@ -32,4 +33,19 @@ test('SSE reader rejects partial answers without completion and terminal errors'
 test('SSE reader rejects malformed frames and oversized data', async () => {
   await assert.rejects(readChatStream(response(['data: not-json\n\n']), () => {}));
   await assert.rejects(readChatStream(response(['x'.repeat(1_100_000)]), () => {}), /budget/i);
+});
+
+test('an old fetch resolving after session invalidation cannot insert a streaming placeholder', async () => {
+  const gate = createRequestGate();
+  const old = gate.begin();
+  const messages = [];
+  let deliver;
+  const pending = new Promise(resolve => { deliver = resolve; });
+  const work = (async () => readChatStream(await pending, token => messages.push(token), {
+    isCurrent: old.isCurrent, onStart: () => messages.push('placeholder'),
+  }))();
+  gate.begin();
+  deliver(response(['data: {"token":"old answer"}\n\ndata: {"done":true}\n\n']));
+  assert.equal(await work, null);
+  assert.deepEqual(messages, []);
 });

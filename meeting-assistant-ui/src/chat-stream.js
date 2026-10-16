@@ -1,13 +1,19 @@
 /** Consume POST SSE, including frames split across reads and UTF-8 code points. */
-export async function readChatStream(response, onToken) {
+export async function readChatStream(response, onToken, { isCurrent = () => true, onStart = () => {} } = {}) {
+  if (!isCurrent()) {
+    await response.body?.cancel().catch(() => {});
+    return null;
+  }
   if (!response.body) throw new Error('Streaming is unavailable in this browser.');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let textSize = 0;
   try {
+    onStart();
     for (;;) {
       const { value, done } = await reader.read();
+      if (!isCurrent()) return null;
       buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
       if (buffer.length > 1_000_000) throw new Error('Chat stream exceeds the text budget.');
       let boundary;
