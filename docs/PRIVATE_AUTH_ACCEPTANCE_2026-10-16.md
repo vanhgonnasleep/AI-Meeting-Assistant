@@ -1,6 +1,6 @@
 # Private accounts, organization and Docker acceptance — 2026-10-16
 
-Follow-up: [the post-OAuth regression audit](POST_OAUTH_AUDIT_2026-10-16.md) records seven corrected workflow/test-isolation findings and the newer test counts. The measurements below describe the original private-account acceptance snapshot.
+Follow-up: [the post-OAuth regression audit](POST_OAUTH_AUDIT_2026-10-16.md) records eight corrected workflow/test-isolation findings and the newer test counts. The measurements below describe the original private-account acceptance snapshot.
 
 This completes the implementation follow-up to the [stability audit](AUDIT_STABILITY_2026-10-16.md): private Google/GitHub sign-in, organized source folders, patched frontend tooling and actual Docker verification. Integration is local; no remote push or external account provisioning is included.
 

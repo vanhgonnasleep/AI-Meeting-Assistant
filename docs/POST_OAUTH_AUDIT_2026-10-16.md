@@ -13,6 +13,7 @@ One additional audit of baseline `d8d5b31`, after actual Google/GitHub login ver
 | A saved long meeting could not save corrections | Storage/transcription accepted 20,000 segments while review/chat accepted only 10,000; review snapshots also had a smaller body allowance. Review/chat now accept 20,000 segments. Review snapshots share the 16 MiB save budget; combined text and other JSON request limits remain bounded. The regression saves and corrects all 20,000 segments with preserved metadata. |
 | JSON chat returned an invalidated answer | The JSON route ignored a failed generation-checked append. It now returns 409 if source edits, history clearing or meeting deletion invalidate inference, matching streaming semantics. |
 | Owner configuration polluted tests | Creating the private `.env` made 115 baseline tests fail with `Invalid host header`; these were one collection-time configuration issue, not 115 application defects. Test collection now disables personal dotenv loading and sets isolated hosts, origins, blank provider credentials and temporary storage. A subprocess regression deliberately supplies conflicting owner settings before collection. |
+| Demo mode carried into a new meeting | After loading a sample, New Meeting retained Instant Demo and disabled real library saving. Reset now returns demo sessions to Auto, while retaining deliberately selected real processing models. Two additional React DOM regressions cover both behaviors. |
 
 The required task-status body is now `{ "status": "completed", "expected_revision": 0 }`, with the revision from the loaded meeting. Missing/invalid revisions return 422; stale revisions return 409. External callers must adopt this safety contract. The bundled frontend and regression callers have been updated.
 
@@ -20,12 +21,14 @@ The required task-status body is now `{ "status": "completed", "expected_revisio
 
 - Full backend with actual model integrations: **326 passed**, zero skipped; one existing upstream Starlette/AnyIO deprecation warning.
 - Lightweight Python 3.11 test environment: **314 passed, 11 skipped** for optional model/tensor dependencies.
-- Frontend: **123 passed**, including seven new real React DOM/jsdom workflow regressions. Four SSR fixtures disable unneeded WebSocket listeners so parallel tests do not compete for a fixed port.
-- ESLint and production Vite build passed. Main entry: **488.80 kB**, gzip **152.30 kB**. Full npm audit, including the new test-only jsdom dependency: **0 vulnerabilities**.
+- Frontend: **125 passed**, including nine new real React DOM/jsdom workflow regressions. Four SSR fixtures disable unneeded WebSocket listeners so parallel tests do not compete for a fixed port.
+- ESLint and production Vite build passed. Main entry: **488.83 kB**, gzip **152.31 kB**. Full npm audit, including the new test-only jsdom dependency: **0 vulnerabilities**.
 - Both Python environments passed `pip check`. `git diff --check` passed.
 - Regression failures were observed before their fixes. The full test suites use disposable databases and provider fixtures; real account libraries and credentials were not used for automated regression runs.
 
 Logs are retained locally as `%TEMP%/clarion-post-oauth-fixed-backend.log`, `clarion-post-oauth-lite.log` and `clarion-post-oauth-fixed-frontend.log`. Earlier OAuth and container evidence remains in [the private-account acceptance report](PRIVATE_AUTH_ACCEPTANCE_2026-10-16.md). Container recipes were unchanged by this patch; ARM runtime, public HTTPS deployment and physical microphone capture were not repeated in this audit.
+
+Integrated locally through merges `9ac0767` and `4e78246`, without a remote push. Post-merge backend verification passed all 326 tests with the owner's configured `.env` present; the final demo-mode correction changed only frontend files. Final frontend verification passed all 125 tests, lint/build and the complete dependency audit. Logs are `%TEMP%/clarion-post-oauth-main-backend.log` and `%TEMP%/clarion-post-oauth-final-frontend.log`. The normal local service was restarted with access logging disabled; its Google session survived. Browser smoke exercised a clearly marked in-memory demo and the export control; the generated JSON contents were validated by the actual-callback DOM regression. No test meeting was saved to the owner's library. Browser screenshots remain outside Git under `%TEMP%/clarion-post-oauth-browser`.
 
 No account-isolation bypass was validated in the reviewed OAuth/session/storage/streaming paths. Automated account-boundary coverage remains supplemented by the prior live provider checks. This conclusion is limited to the reviewed paths and exercised cases.
 
