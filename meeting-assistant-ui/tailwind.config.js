@@ -1,3 +1,5 @@
+import legacyColors from './src/styles/legacy-colors.js';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -10,6 +12,7 @@ export default {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       colors: {
+        ...legacyColors,
         canvas: 'rgb(var(--canvas-rgb) / <alpha-value>)',
         indigo: {
           950: '#242c58',

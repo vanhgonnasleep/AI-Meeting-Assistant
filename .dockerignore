@@ -9,6 +9,7 @@
 **/*.db*
 **/*.sqlite*
 **/*.env
+**/.env*
 database/backups
 samples
 *.pdf

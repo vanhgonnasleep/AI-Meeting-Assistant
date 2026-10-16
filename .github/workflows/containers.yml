@@ -22,6 +22,9 @@ jobs:
   compose-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: clarion-container-smoke
+      COMPOSE_FILE: docker-compose.yml:docker/compose.smoke.yml
     steps:
       - uses: actions/checkout@v7
         with:
@@ -37,6 +40,18 @@ jobs:
       - run: docker compose restart backend
       - run: docker compose up -d --wait --wait-timeout 120
       - run: python scripts/container_smoke.py --verify --state "$RUNNER_TEMP/clarion-smoke.json"
+      - run: docker compose up -d --force-recreate --wait --wait-timeout 120
+        env:
+          CLARION_SMOKE_AUTH_MODE: private
+      - run: python scripts/container_smoke.py --private
+      - name: Verify health with a strict custom host
+        run: docker compose up -d --force-recreate --wait --wait-timeout 120
+        env:
+          CLARION_SMOKE_AUTH_MODE: private
+          CLARION_PUBLIC_URL: https://meetings.example
+          CLARION_FRONTEND_URL: https://meetings.example
+          CLARION_ALLOWED_HOSTS: meetings.example
+          CORS_ORIGINS: https://meetings.example
       - if: always()
         run: docker compose logs --no-color --tail 100
       - if: always()

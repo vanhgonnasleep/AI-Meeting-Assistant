@@ -17,7 +17,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from main import app
-from agent1_transcribe import (
+from app.pipeline.transcription import (
     transcribe_audio,
     transcribe_audio_detailed,
     get_whisper_model_info,

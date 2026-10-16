@@ -1,6 +1,6 @@
 # Clarion performance measurements
 
-Generated: 2026-10-16 15:34:15 +0700
+Generated: 2026-10-16 19:07:34 +0700
 Python: 3.14.7; platform: win32; SQLite: 3.50.4.
 These measurements describe this machine and these fixtures only.
 
@@ -14,8 +14,8 @@ lambda 0.65 and target sentence ratio 0.55.
 | Original words | 251 |
 | Condensed words | 126 |
 | Word-count reduction | 49.8% |
-| Mean latency | 0.75 ms |
-| p95 latency | 0.89 ms |
+| Mean latency | 0.7 ms |
+| p95 latency | 0.82 ms |
 
 Word reduction does not measure token savings, information retention or summary accuracy.
 Selection performs O(K * N) sparse cosine comparisons; K proportional to N is quadratic.
@@ -28,11 +28,11 @@ lock contention and comparison with rollback journaling were not measured.
 
 | Metric | Measured value |
 | --- | --- |
-| Write p50 | 0.94 ms |
-| Write p95 | 1.22 ms |
-| Write p99 | 1.47 ms |
-| Read p95 | 0.04 ms |
-| Sequential writes per second (100 / total write time) | 1024.7 |
+| Write p50 | 0.91 ms |
+| Write p95 | 1.23 ms |
+| Write p99 | 1.74 ms |
+| Read p95 | 0.03 ms |
+| Sequential writes per second (100 / total write time) | 1052.1 |
 
 ## Whisper transcription
 
@@ -46,9 +46,9 @@ A missing measurement has no substituted baseline.
 | Metric | Value |
 | --- | --- |
 | Audio duration (seconds) | 29.05 |
-| Inference duration (seconds) | 1.81 |
-| Real-time factor (inference / audio duration) | 0.062 |
-| Processing speed | 16.1x real-time |
+| Inference duration (seconds) | 1.83 |
+| Real-time factor (inference / audio duration) | 0.063 |
+| Processing speed | 15.9x real-time |
 
 This benchmark does not evaluate transcription accuracy, factual grounding, end-to-end
 summary quality, network isolation or privacy compliance.

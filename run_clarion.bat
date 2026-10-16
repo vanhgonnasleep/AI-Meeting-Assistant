@@ -13,7 +13,7 @@ echo.
 where npm >nul 2>nul
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Node.js / npm is not installed or not in PATH!
-    echo Please install Node.js 20 or 24 LTS from https://nodejs.org and try again.
+    echo Please install Node.js 24 LTS from https://nodejs.org and try again.
     pause
     exit /b 1
 )

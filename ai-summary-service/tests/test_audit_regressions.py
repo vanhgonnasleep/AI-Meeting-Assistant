@@ -5,9 +5,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main
-import agent3_action_items as actions
+import app.pipeline.action_items as actions
 from database import crud, db
-from runtime_config import MediaLimitError
+from app.core.runtime_config import MediaLimitError
 
 
 @pytest.mark.parametrize('route', ['/api/transcribe', '/api/process-audio'])

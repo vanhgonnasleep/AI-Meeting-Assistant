@@ -121,7 +121,7 @@ def test_correction_can_repair_corrupted_profile_metadata():
 def test_diarization_preserves_each_turn_embedding_for_human_corrections(monkeypatch):
     torch = pytest.importorskip('torch')
     pytest.importorskip('whisper')
-    import agent1_transcribe as stt
+    import app.pipeline.transcription as stt
     vectors = iter([torch.tensor([1., 0., 0.]), torch.tensor([0., 1., 0.])])
     monkeypatch.setattr(stt, '_embedding_from_pcm', lambda *a: next(vectors))
     segments, _ = stt.diarize_segments([

@@ -15,8 +15,8 @@ from database import crud
 
 def make_client(summary_function=lambda *a, **k: "Regenerated summary"):
     app = FastAPI()
-    if importlib.util.find_spec("workspace_api"):
-        from workspace_api import create_workspace_router
+    if importlib.util.find_spec("app.api.workspace"):
+        from app.api.workspace import create_workspace_router
         app.include_router(create_workspace_router(summary_function))
     return TestClient(app)
 
@@ -248,7 +248,7 @@ def test_summary_regeneration_preserves_source_and_other_extraction():
 
 
 def test_regeneration_auto_resolution_uses_hardware_boolean():
-    from workspace_api import create_workspace_router
+    from app.api.workspace import create_workspace_router
     calls = []
     def resolve(model, has_gpu):
         calls.append((model, has_gpu))

@@ -11,9 +11,9 @@ from fastapi.testclient import TestClient
 
 import main
 import database.crud as crud
-from mmr_extractor import MMRExtractor
-from meeting_chat import answer_meeting_question, retrieve_relevant_segments
-from meeting_insights import extract_insights_heuristic
+from app.pipeline.mmr import MMRExtractor
+from app.pipeline.chat import answer_meeting_question, retrieve_relevant_segments
+from app.pipeline.insights import extract_insights_heuristic
 
 client = TestClient(main.app)
 
@@ -183,7 +183,7 @@ def test_cleared_chat_is_not_restored_by_inflight_answer(monkeypatch):
 def test_whisper_model_cache_does_not_accumulate_weights(monkeypatch):
     import sys
     from types import SimpleNamespace
-    import agent1_transcribe as stt
+    import app.pipeline.transcription as stt
     monkeypatch.setattr(stt, "_MODEL_CACHE", {})
     fake = SimpleNamespace(available_models=lambda: ["tiny", "base"], load_model=lambda name, device: name)
     monkeypatch.setitem(sys.modules, "whisper", fake)
@@ -193,7 +193,7 @@ def test_whisper_model_cache_does_not_accumulate_weights(monkeypatch):
 
 
 def test_action_parser_preserves_brackets_and_apostrophes_in_task(monkeypatch):
-    import agent3_action_items as actions
+    import app.pipeline.action_items as actions
     from types import SimpleNamespace
     monkeypatch.setattr(actions, "OLLAMA_LIB_AVAILABLE", False)
     body = '[{"task": "Review [Q3] and John\'s report", "assignee": "Alice", "deadline": null, "status": "pending"}]'
@@ -203,7 +203,7 @@ def test_action_parser_preserves_brackets_and_apostrophes_in_task(monkeypatch):
 
 
 def test_action_sdk_has_finite_timeout(monkeypatch):
-    import agent3_action_items as actions
+    import app.pipeline.action_items as actions
     from types import SimpleNamespace
     class TimedClient:
         def __init__(self, *, timeout):
@@ -254,7 +254,7 @@ def test_reduce_prompt_keeps_context_inside_the_declared_transcript_boundary(mon
 
 
 def test_speaker_refinement_cannot_change_a_turn_outside_its_current_chunk(monkeypatch):
-    import agent1_transcribe as stt
+    import app.pipeline.transcription as stt
     from types import SimpleNamespace
     replies = iter(['[{"line":41,"speaker":"Wrong"}]', '[]'])
     monkeypatch.setattr(requests, "post", lambda *a, **k: SimpleNamespace(status_code=200, json=lambda: {"response": next(replies)}))

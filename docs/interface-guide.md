@@ -19,7 +19,7 @@ Open **GitHub & Gmail** from a meeting's document toolbar. Both destinations sho
 - **GitHub issue:** enter `owner/repository`, select tasks and preview one. **Open issue draft** opens that task's title, owner, deadline and source context on GitHub. You submit the issue there. An invalid repository or empty task selection disables the link.
 - **Gmail draft:** add real recipient addresses and choose a short briefing or full minutes. The preview shows the same body carried by the Gmail link. Long minutes are shortened to fit the link, with an explicit notice and **Copy full minutes** alternative. Speaker names never become invented email addresses.
 
-Opening a draft does not publish an issue or send an email. The separate, collapsed **Advanced** section retains direct issue creation with a personal access token and explicitly labels that action as immediate creation. Tokens remain stored in this browser as before.
+Opening a draft does not publish an issue or send an email. The separate, collapsed **Advanced** section retains direct issue creation with a personal access token and explicitly labels that action as immediate creation. The token and repository stay only in the open dialog; closing it clears both. Sign-in startup and account boundaries also remove the legacy browser-storage keys so credentials cannot carry over to another account.
 
 The landing examples are labeled sample drafts. Their prepared outputs demonstrate the workflow; switching tabs does not run transcription or an AI model.
 

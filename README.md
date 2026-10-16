@@ -15,15 +15,15 @@
 [![Ollama](https://img.shields.io/badge/LLM-Llama_3_(8B_/_3.2_1B)-white.svg?logo=ollama&logoColor=black)](https://ollama.com)
 [![SQLite](https://img.shields.io/badge/Database-SQLite_WAL-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![Quality checks](https://github.com/vanhgonnasleep/AI-Meeting-Assistant/actions/workflows/checks.yml/badge.svg)](https://github.com/vanhgonnasleep/AI-Meeting-Assistant/actions/workflows/checks.yml)
-[![Defense Guide](https://img.shields.io/badge/Technical_Defense-Master_Guide-orange.svg)](TECHNICAL_DEFENSE_GUIDE.md)
+[![Defense Guide](https://img.shields.io/badge/Technical_Defense-Master_Guide-orange.svg)](docs/defense/TECHNICAL_DEFENSE_GUIDE.md)
 
 ---
 
 ## 📌 Executive Summary
 
-> 📖 **TECHNICAL DEFENSE PREPARATION:** Check out the complete [TECHNICAL_DEFENSE_GUIDE.md](TECHNICAL_DEFENSE_GUIDE.md) for step-by-step live coding cheatsheets (adding fields, endpoints, algorithms, and bug fixes) tailored for instructor defense questions.
+> 📖 **TECHNICAL DEFENSE PREPARATION:** Check out the complete [TECHNICAL_DEFENSE_GUIDE.md](docs/defense/TECHNICAL_DEFENSE_GUIDE.md) for step-by-step live coding cheatsheets (adding fields, endpoints, algorithms, and bug fixes) tailored for instructor defense questions.
 
-**AI Meeting Assistant** processes meetings using local Whisper and Ollama inference. The application currently targets single-user local operation and has no account authentication. Initial dependency/model downloads require internet access. Users upload audio or video recordings (.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv), and the system executes a modular pipeline:
+**AI Meeting Assistant** processes meetings using local Whisper and Ollama inference. Private mode supports Google/GitHub sign-in with a separate library for each account; explicit local mode retains offline single-user operation. Initial dependency/model downloads require internet access. Users upload audio or video recordings (.mp3, .wav, .m4a, .ogg, .flac, .mp4, .webm, .mkv), and the system executes a modular pipeline:
 
 1. **Speech-to-Text & Diarization (Agent 1):** Transcribes audio/video with Whisper timestamps and estimates speaker groups using acoustic features. Users can correct and persist speaker attribution; this is not verified speaker identification.
 2. **Algorithmic Redundancy Reduction (MMR Filter):** Uses sparse TF-IDF and Maximal Marginal Relevance to select less redundant sentences. Compression and retained information depend on the transcript and selected ratio.
@@ -32,6 +32,8 @@
 5. **Persistent History (Agent 4):** Records complete meeting sessions in SQLite via Python standard library dataclasses (`MeetingRecord`, `ActionItem`) with WAL concurrency mode for historical review.
 6. **Review & Workspace:** Edit saved minutes, task details and decision statuses; explicitly mark reviewed records. A global task view supports filters and source links. Projects connect meetings through a decision timeline. Revision checks protect against stale editor writes.
 7. **Optional Hybrid Chat:** Combine keyword retrieval with local Ollama embeddings while retaining source citations. Missing or invalid embeddings produce a visible keyword fallback; semantic similarity is not answer confidence.
+
+Configure sign-in using [.env.example](.env.example) and the [authentication guide](docs/auth-setup.md). Without provider credentials the private library stays locked; provider buttons indicate that setup is required.
 
 See the [workspace usage guide](docs/workspace-guide.md) for editing/review rules, project assignment and optional embedding model setup. No embedding model is downloaded automatically.
 
@@ -91,9 +93,9 @@ See the [interface guide](docs/interface-guide.md) for page navigation, processi
 
 | Team Member | System Role | Primary Module | Core Contribution |
 |:---|:---|:---|:---|
-| **Triệu Quang Thiện** | Agent 1: Speech-to-Text & Diarization | `ai-summary-service/agent1_transcribe.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping, acoustic voiceprint clustering (Speaker Diarization). |
-| **Lương Việt Anh (Lead)** | Orchestrator & Agent 2 | `ai-summary-service/main.py`<br>`ai-summary-service/mmr_extractor.py`<br>`meeting-assistant-ui/` | Pipeline orchestration, MMR redundancy reduction algorithm, Llama 3 Map-Reduce engine, full React UI frontend. |
-| **Nguyễn Quang Minh** | Agent 3: Action Items | `ai-summary-service/agent3_action_items.py` | JSON-constrained task and assignee extraction, bracket-depth parsing, trailing comma and quote sanitizer. |
+| **Triệu Quang Thiện** | Agent 1: Speech-to-Text & Diarization | `ai-summary-service/app/pipeline/transcription.py` | Whisper integration, automatic FFmpeg detection, temp file memory protection, segment timestamping, acoustic voiceprint clustering (Speaker Diarization). |
+| **Lương Việt Anh (Lead)** | Orchestrator & Agent 2 | `ai-summary-service/main.py`<br>`ai-summary-service/app/pipeline/mmr.py`<br>`meeting-assistant-ui/` | Pipeline orchestration, MMR redundancy reduction algorithm, Llama 3 Map-Reduce engine, full React UI frontend. |
+| **Nguyễn Quang Minh** | Agent 3: Action Items | `ai-summary-service/app/pipeline/action_items.py` | JSON-constrained task and assignee extraction, bracket-depth parsing, trailing comma and quote sanitizer. |
 | **Đoàn Hoàng Long** | Agent 4: Database | `database/models.py`<br>`database/crud.py`<br>`database/db.py` | Python dataclasses data models (`MeetingRecord`, `ActionItem`), SQLite CRUD operations, WAL concurrent connection management, history drawer API. |
 
 ---
@@ -317,7 +319,7 @@ See [maintenance notes](docs/maintenance-2026-10-04.md) for the verified fixes, 
 - Stop waiting invalidates the browser request. Server work may continue and can appear in History later.
 - Set `VITE_API_BASE_URL` before starting/building the frontend to use another local backend address.
 - History searches all stored meetings without downloading full transcripts. Speaker names can be corrected and remain available after reopening.
-- The API is a local, single-user service. External deployment requires authentication and a separate deployment review.
+- Private mode requires an account. Set up provider credentials and deployment origins using the [sign-in guide](docs/auth-setup.md); explicit local mode remains a single-user workflow.
 
 ## 🔒 Security, Isolation & Engineering Safeguards
 
@@ -332,34 +334,21 @@ See [maintenance notes](docs/maintenance-2026-10-04.md) for the verified fixes, 
 
 ## 📂 Repository Structure
 
+Implementation is grouped by feature and responsibility. See the [complete source map](docs/source-layout.md) and [Google/GitHub setup](docs/auth-setup.md).
+
+```text
+ai-summary-service/app/       api/, auth/, core/, pipeline/, fixtures/
+ai-summary-service/tests/    backend regressions and model integration
+database/                    schema and storage implementation
+meeting-assistant-ui/src/    app/, features/, shared/, styles/
+docker/                      nginx and isolated smoke configuration
+scripts/                     maintenance, benchmarks, container checks
+docs/                        setup, guides, audit evidence and plans
+docs/defense/                technical defense and presentation guides
+docs/reports/                archived midterm HTML/PDF reports
 ```
-AI-Meeting-Assistant/
-├── README.md                      # Comprehensive project documentation
-├── setup_low_spec.bat             # Automated low-spec setup script
-├── ai-summary-service/            # Backend service (FastAPI)
-│   ├── main.py                    # Orchestration pipeline, REST API & telemetry
-│   ├── agent1_transcribe.py       # Agent 1: Whisper Speech-to-Text module
-│   ├── agent3_action_items.py     # Agent 3: Action Items JSON extraction
-│   ├── mmr_extractor.py           # Algorithmic Phase: Maximal Marginal Relevance
-│   ├── requirements.txt           # Python dependencies
-│   └── tests/                     # Isolated regression and integration tests
-│       ├── test_api.py            # API integration & CRUD contract tests
-│       ├── test_mmr.py            # MMR mathematical & multilingual tests
-│       └── test_stt.py            # Whisper STT & audio endpoint tests
-├── database/                      # Persistent storage layer (SQLite)
-│   ├── db.py                      # Connection manager & WAL initialization
-│   ├── models.py                  # Python dataclasses
-│   ├── crud.py                    # Database CRUD operations
-│   └── meeting.db                 # SQLite database (auto-generated)
-└── meeting-assistant-ui/          # Frontend client (React 19 + Vite + Tailwind)
-    ├── package.json               # Frontend dependencies & scripts
-    ├── vite.config.js             # Vite configuration
-    ├── tailwind.config.js         # Tailwind CSS styling configuration
-    └── src/
-        ├── App.jsx                # Main interactive dashboard
-        ├── App.css                # Application styles
-        └── main.jsx               # React DOM entrypoint
-```
+
+Root startup launchers and Docker configuration remain in place. `python main.py` and `uvicorn main:app` still work in the backend directory.
 
 ---
 

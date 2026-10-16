@@ -18,6 +18,9 @@ db.DB_PATH = Path(_collection_database.name) / "collection.db"
 
 @pytest.fixture(autouse=True)
 def isolated_database(tmp_path, monkeypatch):
+    # Legacy API tests exercise the explicitly selected offline/local workflow.
+    monkeypatch.setenv('CLARION_AUTH_MODE', 'local')
+    monkeypatch.setenv('CLARION_DATA_DIR', str(tmp_path / 'private-data'))
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "meeting.db")
     db.init_db()
 

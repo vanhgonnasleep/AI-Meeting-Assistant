@@ -45,7 +45,7 @@ Sounds good to me, let's wrap up today's meeting and sync again on Friday.
 
 def benchmark_mmr():
     print("[1/3] Benchmarking Maximal Marginal Relevance (MMR) Redundancy Filter...")
-    from mmr_extractor import MMRExtractor
+    from app.pipeline.mmr import MMRExtractor
 
     extractor = MMRExtractor(lambda_param=0.65)
     
@@ -175,7 +175,7 @@ def benchmark_whisper_rtf():
             model = whisper.load_model("tiny", device="cpu")
             t_load = time.perf_counter() - t_load_0
 
-            from audio_preparation import PreparedAudio
+            from app.pipeline.audio_preparation import PreparedAudio
             with PreparedAudio(sample_wav, max_duration_seconds=120) as prepared:
                 samples = prepared.read_samples(0, prepared.sample_count)
                 audio_duration = prepared.duration

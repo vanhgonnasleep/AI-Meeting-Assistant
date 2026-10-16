@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 import database.crud as crud
 import database.db as db
 import main
-import meeting_chat
+import app.pipeline.chat as meeting_chat
 
 
 def test_fts_migrates_existing_rows_and_stays_in_sync():

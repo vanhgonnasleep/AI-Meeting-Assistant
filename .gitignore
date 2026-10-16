@@ -9,6 +9,8 @@ venv/
 .venv/
 ENV/
 *.env
+**/.env*
+!**/.env.example
 .pytest_cache/
 
 # Node
@@ -27,8 +29,10 @@ Thumbs.db
 
 # Databases
 *.db
+*.db-*
 *.sqlite
 *.sqlite3
 database/*.db
 database/backups/
 .superpowers/
+/data/
