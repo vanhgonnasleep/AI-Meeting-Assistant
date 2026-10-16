@@ -24,7 +24,7 @@ services:
       - ${CLARION_DATA_PATH:-./database}:/app/data
       - whisper-cache:/root/.cache/whisper
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/openapi.json', timeout=3)"]
+      test: ["CMD", "python", "-c", "import os, urllib.request, urllib.parse; request = urllib.request.Request('http://127.0.0.1:8002/openapi.json', headers={'Host': urllib.parse.urlsplit(os.environ['CLARION_PUBLIC_URL']).netloc}); urllib.request.urlopen(request, timeout=3)"]
       interval: 15s
       timeout: 5s
       retries: 5
