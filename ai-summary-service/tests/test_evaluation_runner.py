@@ -133,10 +133,23 @@ def test_runner_preflights_only_manifest_capabilities(tmp_path,kind):
 
 def test_asr_preflight_never_contacts_ollama(tmp_path,monkeypatch):
     import requests
+    import sys
     from scripts.evaluation import adapters
+    # This contract test runs in CI without the optional model runtime installed.
+    monkeypatch.setitem(sys.modules,'whisper',SimpleNamespace())
+    monkeypatch.setitem(sys.modules,'torch',SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False)))
+    monkeypatch.setattr(adapters.importlib.metadata,'version',lambda name:'fixture-version')
     monkeypatch.setattr(adapters,'verify_checkpoint',lambda *a: {'name':'tiny','sha256':'verified'})
     monkeypatch.setattr(requests,'get',lambda *a,**kw: pytest.fail('Ollama is offline; ASR must not contact it'))
     assert adapters.PipelineAdapter().preflight(['tiny'],allow_download=False,require_llm=False)['models']
+
+
+def test_missing_model_dependencies_fail_with_preparation_guidance(monkeypatch):
+    import sys
+    from scripts.evaluation import adapters
+    monkeypatch.setitem(sys.modules,'whisper',None)
+    with pytest.raises(RuntimeError,match='dependencies are missing'):
+        adapters.PipelineAdapter().preflight(['tiny'],allow_download=False,require_llm=False)
 
 
 def test_nlp_preflight_never_checks_whisper_cache(monkeypatch):
