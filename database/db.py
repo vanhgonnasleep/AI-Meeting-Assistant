@@ -4,10 +4,12 @@ import json
 from datetime import datetime
 from .deadlines import normalize_deadline_to_iso
 from pathlib import Path
+from contextvars import ContextVar
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("CLARION_DB_PATH", str(BASE_DIR / "meeting.db")))
+ACTIVE_DB_PATH = ContextVar('clarion_account_database', default=None)
 
 # Columns added after the initial schema. Each entry is applied with a
 # non-destructive ALTER TABLE when missing, so existing databases keep their data.
@@ -27,7 +29,7 @@ MIGRATION_COLUMNS = {
 
 
 def get_connection():
-    connection = sqlite3.connect(DB_PATH, timeout=15.0, check_same_thread=False)
+    connection = sqlite3.connect(ACTIVE_DB_PATH.get() or DB_PATH, timeout=15.0, check_same_thread=False)
     connection.row_factory = sqlite3.Row
     connection.create_function("casefold", 1, lambda value: str(value or "").casefold(), deterministic=True)
     return connection

@@ -6,8 +6,8 @@ import wave
 import pytest
 from fastapi.testclient import TestClient
 
-import agent1_transcribe as stt
-import agent3_action_items as actions
+import app.pipeline.transcription as stt
+import app.pipeline.action_items as actions
 import database.crud as crud
 import database.db as db
 from database import workspace

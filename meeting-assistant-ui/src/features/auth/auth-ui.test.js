@@ -1,0 +1,33 @@
+import { after, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+after(() => server.close());
+const { default: SignIn } = await server.ssrLoadModule('/src/features/auth/SignIn.jsx');
+const { default: AuthGate } = await server.ssrLoadModule('/src/features/auth/AuthGate.jsx');
+
+test('sign-in shows only configured providers as available', () => {
+  const markup = renderToStaticMarkup(createElement(SignIn, { providers: { google: true, github: false } }));
+  const buttons = [...markup.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].map(item => item[0]);
+  assert.doesNotMatch(buttons.find(button => button.includes('Continue with Google')), /\sdisabled(?:=|\s|>)/);
+  assert.match(buttons.find(button => button.includes('Continue with GitHub')), /\sdisabled(?:=|\s|>)/);
+  assert.match(markup, /Your private meeting workspace/);
+});
+
+test('missing provider configuration and connection errors offer recovery', () => {
+  const unavailable = renderToStaticMarkup(createElement(SignIn));
+  assert.match(unavailable, /Contact your administrator/);
+  assert.match(unavailable, /Check connection again/);
+  const failed = renderToStaticMarkup(createElement(SignIn, { error: 'Server unavailable' }));
+  assert.match(failed, /role="alert"/);
+  assert.match(failed, /Server unavailable/);
+});
+
+test('the account gate initially mounts no meeting workspace before checking the session', () => {
+  const markup = renderToStaticMarkup(createElement(AuthGate));
+  assert.match(markup, /Checking your session/);
+  assert.doesNotMatch(markup, /meeting-sidebar|Command Center|Meeting History/);
+});

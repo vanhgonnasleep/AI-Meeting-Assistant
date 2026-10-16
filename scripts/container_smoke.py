@@ -7,6 +7,7 @@ import argparse
 import io
 import json
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from uuid import uuid4
@@ -26,6 +27,26 @@ def as_json(base, path, **kwargs):
     content_type, body = request(base, path, **kwargs)
     assert 'application/json' in content_type, (path, content_type)
     return json.loads(body)
+
+
+def check_private_access(base):
+    """Check the public boundary without creating any accounts or fixtures."""
+    as_json(base, '/api/health')
+    session = as_json(base, '/api/auth/session')
+    assert session['mode'] == 'private' and session['user'] is None and session['csrf_token'] is None, session
+    for path, method, payload in (
+        ('/api/meetings', 'GET', None),
+        ('/api/meetings', 'POST', {}),
+        ('/api/analytics', 'GET', None),
+        ('/api/chat/stream', 'POST', {'question': 'smoke'}),
+    ):
+        try:
+            request(base, path, method=method, payload=payload)
+        except HTTPError as error:
+            assert error.code == 401, (path, error.code, error.read())
+        else:
+            raise AssertionError(f'Unauthenticated private endpoint allowed: {path}')
+    print('PASS: private mode exposes health/session and rejects unauthenticated reads, writes and SSE.')
 
 
 def run(base, state_path, verify=False, api_only=False):
@@ -88,8 +109,16 @@ def run(base, state_path, verify=False, api_only=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base-url', default='http://127.0.0.1:5173')
-    parser.add_argument('--state', type=Path, required=True)
+    parser.add_argument('--state', type=Path, help='Required for local-mode fixture and restart checks')
+    parser.add_argument('--private', action='store_true', help='Check unauthenticated private-mode access only')
     parser.add_argument('--verify', action='store_true')
     parser.add_argument('--api-only', action='store_true')
     args = parser.parse_args()
-    run(args.base_url.rstrip('/'), args.state, args.verify, args.api_only)
+    if args.private:
+        if args.verify:
+            parser.error('--private cannot be combined with --verify')
+        check_private_access(args.base_url.rstrip('/'))
+    else:
+        if args.state is None:
+            parser.error('--state is required unless --private is supplied')
+        run(args.base_url.rstrip('/'), args.state, args.verify, args.api_only)

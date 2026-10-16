@@ -6,7 +6,7 @@ SERVICE_DIR = Path(__file__).resolve().parent.parent
 if str(SERVICE_DIR) not in sys.path:
     sys.path.insert(0, str(SERVICE_DIR))
 
-from mmr_extractor import MMRExtractor, filter_meeting_transcript
+from app.pipeline.mmr import MMRExtractor, filter_meeting_transcript
 
 
 def test_cosine_similarity_orthogonal_and_identical():
@@ -115,7 +115,7 @@ def test_sentence_split_preserves_currency_and_decimals():
 
 def test_heuristic_action_item_extractor():
     """Verify deterministic fallback rule-based extraction for offline scenarios."""
-    from agent3_action_items import extract_action_items_heuristic
+    from app.pipeline.action_items import extract_action_items_heuristic
     text = (
         "Alice will prepare the compliance audit report by Friday afternoon. "
         "Bob needs to update the database schema for version two. "

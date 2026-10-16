@@ -1,0 +1,10 @@
+# Always combine with docker-compose.yml and a unique --project-name.
+# The shared target replaces the host database bind with disposable test storage.
+services:
+  backend:
+    environment:
+      CLARION_AUTH_MODE: ${CLARION_SMOKE_AUTH_MODE:-local}
+    volumes:
+      - smoke-data:/app/data
+volumes:
+  smoke-data:

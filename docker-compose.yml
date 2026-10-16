@@ -4,15 +4,24 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     ports:
-      - "127.0.0.1:8002:8002"
+      - "127.0.0.1:${CLARION_BACKEND_PORT:-8002}:8002"
     environment:
       CLARION_DB_PATH: /app/data/meeting.db
+      CLARION_DATA_DIR: /app/data
+      CLARION_AUTH_MODE: ${CLARION_AUTH_MODE:-private}
+      CLARION_PUBLIC_URL: ${CLARION_PUBLIC_URL:-http://localhost:5173}
+      CLARION_FRONTEND_URL: ${CLARION_FRONTEND_URL:-http://localhost:5173}
+      CLARION_ALLOWED_HOSTS: ${CLARION_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
-      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./database:/app/data
+      - ${CLARION_DATA_PATH:-./database}:/app/data
       - whisper-cache:/root/.cache/whisper
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/openapi.json', timeout=3)"]
@@ -26,7 +35,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     ports:
-      - "127.0.0.1:5173:5173"
+      - "127.0.0.1:${CLARION_FRONTEND_PORT:-5173}:5173"
     depends_on:
       backend:
         condition: service_healthy

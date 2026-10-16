@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 import main
 import database.crud as crud
-from meeting_chat import answer_meeting_question, retrieve_relevant_segments
+from app.pipeline.chat import answer_meeting_question, retrieve_relevant_segments
 
 
 def offline(*args, **kwargs):

@@ -300,7 +300,7 @@ def test_analytics_endpoint():
 
 def test_meeting_insights_heuristic():
     """Verify deterministic extraction of decisions, risks, and questions with segment evidence."""
-    from meeting_insights import extract_insights_heuristic
+    from app.pipeline.insights import extract_insights_heuristic
     transcript = (
         "Speaker A: We decided to approved $50,000 for the Q3 marketing budget.\n"
         "Speaker B: However, the main risk is a potential delay if John slips on the financial report.\n"

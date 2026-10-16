@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import requests
 import pytest
 
-from meeting_chat import answer_meeting_question
+from app.pipeline.chat import answer_meeting_question
 
 
 def response(vectors):
@@ -55,7 +55,7 @@ def test_malformed_embeddings_do_not_hide_lexical_evidence(monkeypatch, vectors)
 
 
 def test_embeddings_cache_reuses_sources_and_invalidates_edited_content(monkeypatch):
-    from semantic_retrieval import clear_embedding_cache
+    from app.pipeline.semantic_retrieval import clear_embedding_cache
     clear_embedding_cache()
     calls = []
     def server(url, json, **kwargs):
@@ -100,7 +100,7 @@ def test_chat_endpoints_propagate_semantic_options_and_persist_fallback_warning(
 
 def test_regeneration_is_subject_to_existing_compute_admission():
     import asyncio
-    from request_limits import RequestLimitsMiddleware
+    from app.core.request_limits import RequestLimitsMiddleware
     called, sent = [], []
     async def app(scope, receive, send):
         called.append(True)
@@ -121,7 +121,7 @@ def test_regeneration_is_subject_to_existing_compute_admission():
 
 @pytest.mark.parametrize('attributions', [[('Alice', 2), ('Bob', 2)], [('Alice', 3), ('Alice', 4)], [('Alice', 2), ('Alice', 2)]])
 def test_hybrid_preserves_distinct_turns_with_duplicate_ids_and_text(monkeypatch, attributions):
-    from semantic_retrieval import clear_embedding_cache
+    from app.pipeline.semantic_retrieval import clear_embedding_cache
     clear_embedding_cache()
     query = 'When is migration?'
     def server(url, json, **kwargs):

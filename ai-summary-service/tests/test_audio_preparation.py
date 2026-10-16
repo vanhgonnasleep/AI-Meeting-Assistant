@@ -9,7 +9,7 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-import agent1_transcribe as stt
+import app.pipeline.transcription as stt
 
 
 def wav_bytes(seconds=0.25):
@@ -27,7 +27,7 @@ def install_model(monkeypatch, callback):
 
 
 def test_disguised_playlist_cannot_decode_a_sibling_local_file(tmp_path):
-    from audio_preparation import PreparedAudio
+    from app.pipeline.audio_preparation import PreparedAudio
     (tmp_path / 'private.wav').write_bytes(wav_bytes())
     manifest = tmp_path / 'meeting.wav'
     manifest.write_text("ffconcat version 1.0\nfile private.wav\n", encoding='utf-8')
@@ -41,7 +41,7 @@ def test_disguised_playlist_cannot_decode_a_sibling_local_file(tmp_path):
     ('flac', 'flac'), ('mp4', 'aac'), ('webm', 'libopus'), ('mkv', 'pcm_s16le'),
 ])
 def test_supported_containers_still_decode(tmp_path, extension, codec):
-    from audio_preparation import PreparedAudio, ffmpeg_executable
+    from app.pipeline.audio_preparation import PreparedAudio, ffmpeg_executable
     source = tmp_path / 'source.wav'
     source.write_bytes(wav_bytes())
     encoded = tmp_path / f'meeting.{extension}'
@@ -52,7 +52,7 @@ def test_supported_containers_still_decode(tmp_path, extension, codec):
 
 
 def test_disguised_hls_playlist_is_rejected(tmp_path):
-    from audio_preparation import PreparedAudio
+    from app.pipeline.audio_preparation import PreparedAudio
     (tmp_path / 'private.wav').write_bytes(wav_bytes())
     manifest = tmp_path / 'meeting.wav'
     manifest.write_text('#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:0.25,\nprivate.wav\n#EXT-X-ENDLIST\n', encoding='utf-8')
@@ -152,7 +152,7 @@ def test_invalid_media_never_loads_model_and_cleans_up(monkeypatch, tmp_path, co
 
 
 def test_decode_timeout_cleans_up_without_model_load(monkeypatch, tmp_path):
-    import audio_preparation
+    import app.pipeline.audio_preparation as audio_preparation
     scratch = tmp_path / "audio-temp"
     scratch.mkdir()
     monkeypatch.setattr(stt.tempfile, "tempdir", str(scratch))

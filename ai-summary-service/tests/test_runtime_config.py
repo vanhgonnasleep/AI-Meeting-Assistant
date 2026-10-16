@@ -13,7 +13,7 @@ def config_process(**settings):
         environment.pop(key, None)
     environment.update(settings)
     return subprocess.run([sys.executable, '-c',
-        'import json, runtime_config as c; print(json.dumps([c.MAX_UPLOAD_MB,c.MAX_AUDIO_DURATION_SECONDS,c.AUDIO_CHUNK_SECONDS]))'],
+        'import json; from app.core import runtime_config as c; print(json.dumps([c.MAX_UPLOAD_MB,c.MAX_AUDIO_DURATION_SECONDS,c.AUDIO_CHUNK_SECONDS]))'],
         cwd=Path(__file__).resolve().parents[1], env=environment, capture_output=True, text=True)
 
 

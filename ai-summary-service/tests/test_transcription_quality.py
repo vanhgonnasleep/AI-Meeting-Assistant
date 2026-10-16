@@ -8,7 +8,7 @@ np = pytest.importorskip("numpy")
 torch = pytest.importorskip("torch")
 pytest.importorskip("whisper")
 
-import agent1_transcribe as stt
+import app.pipeline.transcription as stt
 
 
 @pytest.fixture

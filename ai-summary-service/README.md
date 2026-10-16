@@ -6,10 +6,10 @@
 
 ## 🚀 Key Modules
 
-- **`main.py`**: FastAPI orchestrator, CORS configuration, system telemetry (`/api/health`, `/api/version`), hardware benchmarking, and multi-agent pipeline orchestration (`POST /api/process-audio`).
-- **`agent1_transcribe.py`**: Speech-to-Text extraction using OpenAI Whisper, automatic FFmpeg path resolution, and conversational timestamp alignment.
-- **`mmr_extractor.py`**: Pure-Python sparse vector space implementation of the Maximal Marginal Relevance (MMR) redundancy reduction algorithm with Unicode & multilingual tokenization.
-- **`agent3_action_items.py`**: Constrained JSON action item extractor with multi-tier bracket scanning, trailing comma elimination, and quote normalization.
+- **`app/main.py`** (through the thin `main.py` entry): FastAPI orchestrator, CORS configuration, system telemetry (`/api/health`, `/api/version`), hardware benchmarking, and multi-agent pipeline orchestration (`POST /api/process-audio`).
+- **`app/pipeline/transcription.py`**: Speech-to-Text extraction using OpenAI Whisper, automatic FFmpeg path resolution, and conversational timestamp alignment.
+- **`app/pipeline/mmr.py`**: Pure-Python sparse vector space implementation of the Maximal Marginal Relevance (MMR) redundancy reduction algorithm with Unicode & multilingual tokenization.
+- **`app/pipeline/action_items.py`**: Constrained JSON action item extractor with multi-tier bracket scanning, trailing comma elimination, and quote normalization.
 
 ---
 
@@ -43,7 +43,7 @@ pytest -v tests/
 ```
 
 For local Whisper integration, run `pytest -v tests/ --run-model-tests`.
-The server binds to loopback by default. Configure `CORS_ORIGINS` for a different local UI port; external deployment requires authentication.
+The server binds to loopback by default. Configure `CORS_ORIGINS` for a different local UI port; private mode requires configured Google/GitHub sign-in. See [authentication setup](../docs/auth-setup.md) and the [source layout](../docs/source-layout.md).
 See [maintenance notes](../docs/maintenance-2026-10-04.md) for current behavior and limitations.
 
 Uploads now default to 256 MiB and decoded recordings to 3 hours. Configure `MAX_UPLOAD_MB`, `MAX_AUDIO_DURATION_SECONDS` and `AUDIO_CHUNK_SECONDS` before starting the backend; see [media limits](../docs/media-limits.md) for ranges, low-spec settings and temporary disk requirements.
