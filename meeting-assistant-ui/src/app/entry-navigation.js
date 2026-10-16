@@ -2,6 +2,8 @@
 export const PREVIEW_PAGES = ['overview', 'meetings', 'tasks', 'projects'];
 export function getEntryRoute() {
   const path = globalThis.location?.hash?.split('?')[0] || '';
+  const callbackError = new URLSearchParams(globalThis.location?.search).get('auth_error');
+  if (!path && ['cancelled', 'provider_failed'].includes(callbackError)) return 'signin';
   if (!path || ['#/landing', '#/home'].includes(path)) return 'landing';
   if (path === '#/signin') return 'signin';
   if (path === '#/preview' || path.startsWith('#/preview/')) {

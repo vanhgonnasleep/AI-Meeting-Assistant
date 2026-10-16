@@ -165,3 +165,15 @@ test('preview skip link focuses content without leaving the public route', async
     await view.close();
   }
 });
+
+test('OAuth cancellation and provider failure return to actionable sign-in', async () => {
+  for (const code of ['cancelled', 'provider_failed']) {
+    const view = await mount(`?auth_error=${code}`);
+    try {
+      assert.match(view.container.textContent, /Your private meeting workspace/);
+      assert.ok(view.container.querySelector('[role="alert"]'));
+      assert.match(view.container.textContent, code === 'cancelled' ? /Sign-in was cancelled/ : /could not be verified/);
+      assert.ok(button(view, 'Explore preview'));
+    } finally { await view.close(); }
+  }
+});

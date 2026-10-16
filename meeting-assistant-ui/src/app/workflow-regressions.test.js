@@ -29,8 +29,11 @@ before(async () => {
     enforce: 'pre',
     transform(source, id) {
       if (!id.replaceAll('\\', '/').endsWith('/features/auth/AuthGate.jsx')) return;
-      return source.replace("import App from '../../app/App.jsx';", `function App({ account, onLogout, signingOut }) {
-        return <button disabled={signingOut} onClick={onLogout}>Sign out {account.name}</button>;
+      return source.replace("import App from '../../app/App.jsx';", `function App({ account, onLogout, signingOut, publicPreview }) {
+        const [draft, setDraft] = useState('');
+        if (publicPreview) return publicPreview;
+        return <><input aria-label="Unsaved fixture draft" value={draft} onInput={event => setDraft(event.target.value)} /><output aria-label="Draft mirror">{draft}</output>
+          <button disabled={signingOut} onClick={onLogout}>Sign out {account.name}</button></>;
       }`);
     },
   }] });
@@ -163,6 +166,60 @@ test('a delayed session refresh cannot restore the account after successful logo
     assert.match(view.container.textContent, /Your private meeting workspace/);
     assert.doesNotMatch(view.container.textContent, /Sign out Fixture A/);
   } finally { await view.close(); apiClient.configureSession(null); }
+});
+
+test('authenticated preview navigation preserves the active workspace draft', async () => {
+  window.history.replaceState({}, '', '/#/studio');
+  globalThis.fetch = async input => {
+    assert.equal(new URL(input, location.origin).pathname, '/api/auth/session');
+    return json(session);
+  };
+  const view = await mount(AuthGate);
+  try {
+    const field = view.container.querySelector('[aria-label="Unsaved fixture draft"]');
+    await React.act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(field, 'Keep this unsaved draft');
+      field.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    assert.equal(view.container.querySelector('[aria-label="Draft mirror"]').textContent, 'Keep this unsaved draft');
+    await React.act(async () => {
+      window.location.hash = '#/preview/overview';
+      await server.ssrLoadModule('/src/features/preview/PreviewWorkspace.jsx');
+      await new Promise(done => setTimeout(done, 25));
+    });
+    assert.ok(view.container.querySelector('[data-preview-workspace]'));
+    await React.act(async () => {
+      window.location.hash = '#/studio';
+      await new Promise(done => setTimeout(done, 25));
+    });
+    assert.equal(view.container.querySelector('[aria-label="Unsaved fixture draft"]').value, 'Keep this unsaved draft');
+  } finally { await view.close(); apiClient.configureSession(null); }
+});
+
+test('a fresh signed-in preview mounts no private app and logout removes a retained app', async () => {
+  window.history.replaceState({}, '', '/#/preview/overview');
+  let active = session;
+  globalThis.fetch = async input => {
+    assert.equal(new URL(input, location.origin).pathname, '/api/auth/session');
+    return json(active);
+  };
+  const view = await mount(AuthGate);
+  try {
+    await React.act(async () => { await server.ssrLoadModule('/src/features/preview/PreviewWorkspace.jsx'); });
+    assert.ok(view.container.querySelector('[data-preview-workspace]'));
+    assert.equal(view.container.querySelector('[aria-label="Unsaved fixture draft"]'), null);
+    await React.act(async () => { window.location.hash = '#/studio'; await new Promise(done => setTimeout(done, 25)); });
+    assert.ok(view.container.querySelector('[aria-label="Unsaved fixture draft"]'));
+    await React.act(async () => { window.location.hash = '#/preview/overview'; await new Promise(done => setTimeout(done, 25)); });
+    assert.ok(view.container.querySelector('[aria-label="Unsaved fixture draft"]').closest('[hidden]'));
+    active = { ...session, user: null, csrf_token: null };
+    await React.act(async () => window.dispatchEvent(new window.Event('focus')));
+    assert.equal(view.container.querySelector('[aria-label="Unsaved fixture draft"]'), null);
+    assert.ok(view.container.querySelector('[data-preview-workspace]'));
+  } finally {
+    await view.close(); apiClient.configureSession(null);
+    window.history.replaceState({}, '', '/#/studio');
+  }
 });
 
 test('logout with an expired session immediately rechecks anonymous state after client invalidation', async () => {
