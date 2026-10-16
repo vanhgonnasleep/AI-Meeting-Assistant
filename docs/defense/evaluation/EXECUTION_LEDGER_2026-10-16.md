@@ -26,3 +26,4 @@ Final: fixed interrupted subset NLP scoring and invisible unstarted variants —
 Final: fixed coupled preflight — test_runner_preflights_only_manifest_capabilities (ASR/NLP), test_asr_preflight_never_contacts_ollama, test_nlp_preflight_never_checks_whisper_cache RED→GREEN; suite 376/376.
 Final: fixed evidence newline conversion — test_evidence_checkout_does_not_change_checksum_bytes RED→GREEN; suite 376/376.
 Final: focused 50/50; full backend 376/376 including real model tests, one upstream deprecation. Frontend 125/125, lint/build and npm audit clean; pip check clean. No further code change after this suite.
+Integration: local main merge 68fa2a8. Post-merge full backend 376/376 in 62.04s; frontend 125/125, lint/build and npm audit clean. Main checkout nine hashes match; cache and frozen audio copied and verified before archiving. Independent STT-only/NLP-only preflight passed. Benchmark stash and unrelated worktree retained. No push.

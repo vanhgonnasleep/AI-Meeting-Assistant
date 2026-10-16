@@ -106,7 +106,7 @@ Audio paths resolve relative to the manifest. Text, IDs, paths and case counts h
 - [x] Prepare public pilot data, verify attribution/checksums and inspect the manifest. Run preflight and record actual hardware/cache/model status. Use explicit named-weight download permission only if required, then run the real pilot and retain raw artifacts.
 - [x] Generate the report with NLP rows unreviewed until the owner approves references and completes scorecards. Check actual numbers against per-row raw counts; open HTML offline and verify layout. Do not fabricate a score or a passing accuracy threshold if inference fails or quality is poor.
 - [x] Run the full appropriate backend suite, frontend tests/lint/build and dependency checks; obtain one independent whole-branch source review, fix validated findings, then verify final artifacts. Record any remaining human-label/deployment boundaries honestly.
-- [ ] Integrate locally into `main` under the existing authorization; no remote push. Preserve the benchmark stash, unrelated worktree, real OAuth session and account libraries. Archive only this feature's managed worktree once integration is verified.
+- [x] Integrate locally into `main` under the existing authorization; no remote push. Preserve the benchmark stash, unrelated worktree, real OAuth session and account libraries. Archive only this feature's managed worktree once integration is verified.
 
 
 ## Plan Self-Review

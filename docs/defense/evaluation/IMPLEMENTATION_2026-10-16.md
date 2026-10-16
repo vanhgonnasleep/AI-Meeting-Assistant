@@ -31,3 +31,5 @@ Chưa có gold NLP được người dùng duyệt hoặc phiếu chấm hoàn t
 Không push remote. Benchmark stash, worktree không liên quan và phiên đăng nhập thật được giữ nguyên; thực nghiệm dùng dữ liệu công khai/synthetic và storage tạm.
 
 Xác minh cuối: **376 backend pass** (50 evaluation), **125 frontend pass**, lint/build pass, npm audit 0, pip check sạch. Một upstream deprecation Starlette/AnyIO. [Ledger thực thi](EXECUTION_LEDGER_2026-10-16.md) lưu RED→GREEN, commit range và các quyết định.
+
+Tích hợp local: merge `68fa2a8`; kiểm lại trên main 376 backend/125 frontend, lint/build/audit pass. Log ở `%TEMP%/clarion-defense-main-backend.log` và `%TEMP%/clarion-defense-main-frontend.log`. Cả preflight STT riêng và NLP riêng đều chạy được. Raw run/audio/cache đã chuyển về workspace chính trước khi archive worktree.
