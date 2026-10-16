@@ -1,0 +1,7562 @@
+# Clarion — Evaluation 20261016T145301Z-b6f6da53e5
+
+Pilot tiếng đọc FLEURS (Google, CC-BY-4.0), không đánh giá diarization hay hội thoại nhiều người. CER bỏ khoảng trắng; whitespace-WER tính đơn vị phân cách bằng khoảng trắng, không phải từ vựng tiếng Việt. Unicode NFC, casefold, bỏ dấu câu; giữ dấu tiếng Việt và chữ số. RTF = tổng thời gian decode + transcription / tổng thời lượng audio; loại thời gian tải và nạp model, không có warm-up riêng nên có thể gồm chi phí inference lần đầu. Văn bản NLP là synthetic; chưa duyệt nhãn/chấm thủ công thì not_evaluated. Chấm một người không đo được độ đồng thuận liên giám khảo; owner/deadline denominator chỉ gồm TP có nhãn tương ứng. LLM có tính ngẫu nhiên, không cam kết bit-for-bit. Dòng lỗi luôn giữ trong coverage.
+
+```json
+
+{
+  "schema_version": 1,
+  "run_id": "20261016T145301Z-b6f6da53e5",
+  "status": "partial",
+  "metadata": {
+    "git": {
+      "revision": "cd8feba2b8ba58ae62772e82ea357af5836e2ee3",
+      "dirty": false
+    },
+    "device": "cpu",
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "openai-whisper": "20250625",
+      "torch": "2.14.0",
+      "numpy": "2.5.3",
+      "requests": "2.34.2"
+    },
+    "models": [
+      {
+        "name": "tiny",
+        "sha256": "65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9",
+        "bytes": 75572083
+      },
+      {
+        "name": "base",
+        "sha256": "ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e",
+        "bytes": 145262807
+      }
+    ],
+    "llm_models": [
+      {
+        "name": "llama3:latest",
+        "digest": "365c0bd3c000a25d28ddbf732fe1c6add414de7275464c4e4d1c3b5fcb5d8ad1"
+      }
+    ],
+    "storage": "temporary-isolated",
+    "cuda_available": false,
+    "gpu": null
+  },
+  "config": {
+    "models": [
+      "tiny",
+      "base"
+    ],
+    "llm_model": "llama3:latest",
+    "language": "vi",
+    "diarize": false,
+    "mmr_lambda": 0.65,
+    "mmr_ratio": 0.55,
+    "allow_model_download": false
+  },
+  "asr": {
+    "base": {
+      "attempted": 20,
+      "completed": 20,
+      "failed": 0,
+      "wer": {
+        "errors": 217,
+        "substitutions": 203,
+        "deletions": 5,
+        "insertions": 9,
+        "reference_units": 582,
+        "rate": 0.37285223367697595,
+        "scorable_rows": 20
+      },
+      "cer": {
+        "errors": 424,
+        "substitutions": 309,
+        "deletions": 67,
+        "insertions": 48,
+        "reference_units": 2007,
+        "rate": 0.2112605879422023,
+        "scorable_rows": 20
+      },
+      "rtf": 0.12532565261041334,
+      "audio_seconds": 239.04,
+      "model_load_seconds": 0.6062179000000469
+    },
+    "tiny": {
+      "attempted": 20,
+      "completed": 20,
+      "failed": 0,
+      "wer": {
+        "errors": 376,
+        "substitutions": 292,
+        "deletions": 64,
+        "insertions": 20,
+        "reference_units": 582,
+        "rate": 0.6460481099656358,
+        "scorable_rows": 20
+      },
+      "cer": {
+        "errors": 903,
+        "substitutions": 525,
+        "deletions": 301,
+        "insertions": 77,
+        "reference_units": 2007,
+        "rate": 0.4499252615844544,
+        "scorable_rows": 20
+      },
+      "rtf": 0.1598538880522038,
+      "audio_seconds": 239.04,
+      "model_load_seconds": 0.34774169999946025
+    }
+  },
+  "nlp": {
+    "mmr_off": {
+      "status": "not_evaluated",
+      "attempted": 6,
+      "reason": "All rows need successful generation, approved references and completed human review."
+    },
+    "mmr_on": {
+      "status": "not_evaluated",
+      "attempted": 6,
+      "reason": "All rows need successful generation, approved references and completed human review."
+    }
+  }
+}
+
+```
+
+## fleurs-vi-0000 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0000",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0000.audio",
+    "audio_sha256": "33318a8f837de6c2953248729f658292c31520b57aa36ee0fe55c234d55c4b54",
+    "reference_text": "văn hóa và bộ lạc cổ xưa đã bắt đầu giữ những con vật này để dễ lấy sữa tóc thịt và da",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 0,
+      "reference_sha256": "fac515f496e5dda38c63e22096707cfb52f07ebf640e01eb4fb50e5712e69f1a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0000",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 0,
+      "reference_sha256": "fac515f496e5dda38c63e22096707cfb52f07ebf640e01eb4fb50e5712e69f1a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 11,
+        "substitutions": 9,
+        "deletions": 2,
+        "insertions": 0,
+        "reference_units": 23,
+        "rate": 0.4782608695652174
+      },
+      "cer": {
+        "errors": 18,
+        "substitutions": 10,
+        "deletions": 8,
+        "insertions": 0,
+        "reference_units": 64,
+        "rate": 0.28125
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.34,
+      "inference_seconds": 0.9324338999995234,
+      "load_seconds": 0.34774169999946025,
+      "rtf": 0.08222521164016962
+    },
+    "output": {
+      "text": "Văn hóa, và bộ lại cố sư đã bắt đầu dữ những câu bật này. Để lấy sửa, tất, và dê.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 6.0,
+          "text": "Văn hóa, và bộ lại cố sư đã bắt đầu dữ những câu bật này.",
+          "tokens": [
+            50364,
+            691,
+            49214,
+            276,
+            812,
+            64,
+            11,
+            10274,
+            272,
+            8047,
+            23017,
+            269,
+            7863,
+            262,
+            4228,
+            17283,
+            272,
+            31454,
+            32573,
+            274,
+            12225,
+            20136,
+            19288,
+            84,
+            272,
+            25296,
+            12542,
+            13,
+            50664
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7609127125841506,
+          "compression_ratio": 0.975,
+          "no_speech_prob": 0.1379561722278595,
+          "timestamp": "[00:00 - 00:06]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 6.0,
+          "end": 10.0,
+          "text": "Để lấy sửa, tất, và dê.",
+          "tokens": [
+            50664,
+            13055,
+            9571,
+            287,
+            13417,
+            262,
+            27801,
+            64,
+            11,
+            256,
+            12436,
+            11,
+            10274,
+            274,
+            1307,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7609127125841506,
+          "compression_ratio": 0.975,
+          "no_speech_prob": 0.1379561722278595,
+          "timestamp": "[00:06 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0001 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0001",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0001.audio",
+    "audio_sha256": "3211626fb751053176762108ee6825501ddd4400aff42ce9633f83c71b07d1de",
+    "reference_text": "đối với springboks trận này đã giúp đội tuyển kết thúc chuỗi thua 5 trận liền",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 1,
+      "reference_sha256": "71e9506329c4a164dc3b701343d1d7558fdf668984054832b25625c4d54c8701",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0001",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 1,
+      "reference_sha256": "71e9506329c4a164dc3b701343d1d7558fdf668984054832b25625c4d54c8701",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 16,
+        "substitutions": 8,
+        "deletions": 8,
+        "insertions": 0,
+        "reference_units": 16,
+        "rate": 1.0
+      },
+      "cer": {
+        "errors": 48,
+        "substitutions": 21,
+        "deletions": 27,
+        "insertions": 0,
+        "reference_units": 62,
+        "rate": 0.7741935483870968
+      }
+    },
+    "timing": {
+      "audio_seconds": 7.26,
+      "inference_seconds": 3.5447404999995342,
+      "load_seconds": 0.0,
+      "rtf": 0.4882562672175667
+    },
+    "output": {
+      "text": "Đói ng aside vers a đồng situation Droneck",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.32,
+          "end": 4.58,
+          "text": "Đói ng aside vers a đồng situation",
+          "tokens": [
+            50380,
+            13055,
+            812,
+            72,
+            6415,
+            7359,
+            1774,
+            257,
+            2934,
+            35070,
+            2590,
+            50593
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -4.595584021674262,
+          "compression_ratio": 0.8392857142857143,
+          "no_speech_prob": 0.06588293612003326,
+          "timestamp": "[00:00 - 00:04]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 4.58,
+          "end": 7.2,
+          "text": "Droneck",
+          "tokens": [
+            50593,
+            2491,
+            546,
+            547,
+            50724
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -4.595584021674262,
+          "compression_ratio": 0.8392857142857143,
+          "no_speech_prob": 0.06588293612003326,
+          "timestamp": "[00:04 - 00:07]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0002 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0002",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0002.audio",
+    "audio_sha256": "43febdf828f97a7efc3a45180a99d76747d3c45bf9143fbf8bf62d7c0adedc26",
+    "reference_text": "nó cũng tấn công mọi thứ trong nước ngay cả khủng long khổng lồ như t rex cũng không phải là đối thủ với nó",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 2,
+      "reference_sha256": "9ce7c76fc54fcd44cc1a3f91d160a21a8f8aa05988e3d9688e4f70efbf6cb597",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0002",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 2,
+      "reference_sha256": "9ce7c76fc54fcd44cc1a3f91d160a21a8f8aa05988e3d9688e4f70efbf6cb597",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 11,
+        "substitutions": 10,
+        "deletions": 1,
+        "insertions": 0,
+        "reference_units": 25,
+        "rate": 0.44
+      },
+      "cer": {
+        "errors": 20,
+        "substitutions": 15,
+        "deletions": 3,
+        "insertions": 2,
+        "reference_units": 83,
+        "rate": 0.24096385542168675
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.02,
+      "inference_seconds": 0.7476148000005196,
+      "load_seconds": 0.0,
+      "rtf": 0.07461225548907381
+    },
+    "output": {
+      "text": "Nó cũng tân cầu ngoài thứ trong nước, ngay cả khổn lần khổn lần như tiết, cũng không phải là nó thổn với nó.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 9.0,
+          "text": "Nó cũng tân cầu ngoài thứ trong nước, ngay cả khổn lần khổn lần như tiết, cũng không phải là nó thổn với nó.",
+          "tokens": [
+            50364,
+            426,
+            812,
+            22747,
+            256,
+            9667,
+            269,
+            23582,
+            45843,
+            21971,
+            258,
+            13905,
+            18826,
+            30728,
+            11,
+            6415,
+            320,
+            22227,
+            7168,
+            20950,
+            77,
+            287,
+            18241,
+            7168,
+            20950,
+            77,
+            287,
+            18241,
+            16228,
+            8757,
+            13888,
+            11,
+            22747,
+            11415,
+            23394,
+            3684,
+            6604,
+            258,
+            20950,
+            77,
+            18916,
+            6604,
+            13,
+            50814
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9069770812988281,
+          "compression_ratio": 1.1171875,
+          "no_speech_prob": 0.3415706157684326,
+          "timestamp": "[00:00 - 00:09]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0003 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0003",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0003.audio",
+    "audio_sha256": "cca46c77040d86068a55feef4ef95b21289afba255b4a8db8b00d878545cf33f",
+    "reference_text": "số người có mặt quá lớn nên việc mọi người tới được nơi tổ chức lễ tang tại quảng trường thánh peter là không thể",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 3,
+      "reference_sha256": "42ee6e48e4cdfa46e38a7d4b433c93c5ce67db03c8f1a5145a667010d3650110",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0003",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 3,
+      "reference_sha256": "42ee6e48e4cdfa46e38a7d4b433c93c5ce67db03c8f1a5145a667010d3650110",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 10,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 25,
+        "rate": 0.4
+      },
+      "cer": {
+        "errors": 20,
+        "substitutions": 13,
+        "deletions": 4,
+        "insertions": 3,
+        "reference_units": 89,
+        "rate": 0.2247191011235955
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.16,
+      "inference_seconds": 0.8339856999991753,
+      "load_seconds": 0.0,
+      "rtf": 0.07472990143361785
+    },
+    "output": {
+      "text": "Sống người có mặt, quá lớn nâng vịt mỗi người. Tới được nơi tổ chức lấy tay, tại quán trường khán bí tơ là không thể.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 5.5,
+          "text": "Sống người có mặt, quá lớn nâng vịt mỗi người.",
+          "tokens": [
+            50364,
+            318,
+            21092,
+            15898,
+            6333,
+            275,
+            38248,
+            11,
+            38338,
+            47864,
+            77,
+            297,
+            3201,
+            872,
+            371,
+            11708,
+            83,
+            275,
+            49572,
+            15898,
+            13,
+            50639
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7508760848135319,
+          "compression_ratio": 1.1095890410958904,
+          "no_speech_prob": 0.1138894110918045,
+          "timestamp": "[00:00 - 00:05]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 5.5,
+          "end": 10.0,
+          "text": "Tới được nơi tổ chức lấy tay, tại quán trường khán bí tơ là không thể.",
+          "tokens": [
+            50639,
+            314,
+            12242,
+            15832,
+            297,
+            21537,
+            256,
+            20950,
+            417,
+            27138,
+            287,
+            13417,
+            39224,
+            11,
+            37773,
+            421,
+            7200,
+            504,
+            24280,
+            7168,
+            7200,
+            272,
+            870,
+            256,
+            9621,
+            3684,
+            11415,
+            24491,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7508760848135319,
+          "compression_ratio": 1.1095890410958904,
+          "no_speech_prob": 0.1138894110918045,
+          "timestamp": "[00:05 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0004 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0004",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0004.audio",
+    "audio_sha256": "37e2cb772dbdc7c4cc70aece3e508a3c56ff2cf7519f8e28d2b7e310d77fdeda",
+    "reference_text": "châu âu là lục địa tương đối nhỏ nhưng có nhiều quốc gia độc lập thông thường việc đi qua nhiều quốc gia đồng nghĩa với việc phải xin thị thực và xét hộ chiếu nhiều lần",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 4,
+      "reference_sha256": "0b642987e7a5045153e21cf17f28166dc4497ab0612cb89bfafd00c5a20c92c9",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0004",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 4,
+      "reference_sha256": "0b642987e7a5045153e21cf17f28166dc4497ab0612cb89bfafd00c5a20c92c9",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 13,
+        "substitutions": 12,
+        "deletions": 1,
+        "insertions": 0,
+        "reference_units": 37,
+        "rate": 0.35135135135135137
+      },
+      "cer": {
+        "errors": 27,
+        "substitutions": 21,
+        "deletions": 5,
+        "insertions": 1,
+        "reference_units": 132,
+        "rate": 0.20454545454545456
+      }
+    },
+    "timing": {
+      "audio_seconds": 14.88,
+      "inference_seconds": 0.9696213999995962,
+      "load_seconds": 0.0,
+      "rtf": 0.06516272849459652
+    },
+    "output": {
+      "text": "Chào là lục đẹt tương nói nhỏ nhưng có nhiều quốc gia độc lập. Thông thường, việc đi qua nhiều quốc gia nồng nghếm với việc phải sinh thị thức mà sẽ hỏng chứ như lần.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 5.6000000000000005,
+          "text": "Chào là lục đẹt tương nói nhỏ nhưng có nhiều quốc gia độc lập.",
+          "tokens": [
+            50364,
+            761,
+            20807,
+            3684,
+            287,
+            37664,
+            2934,
+            26965,
+            83,
+            256,
+            24605,
+            27508,
+            6245,
+            21920,
+            37504,
+            6333,
+            28272,
+            421,
+            24426,
+            39689,
+            29075,
+            66,
+            287,
+            35148,
+            13,
+            50644
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5767429814194188,
+          "compression_ratio": 1.2584269662921348,
+          "no_speech_prob": 0.1349845975637436,
+          "timestamp": "[00:00 - 00:05]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 5.6000000000000005,
+          "end": 13.6,
+          "text": "Thông thường, việc đi qua nhiều quốc gia nồng nghếm với việc phải sinh thị thức mà sẽ hỏng chứ như lần.",
+          "tokens": [
+            50644,
+            334,
+            8217,
+            258,
+            24280,
+            11,
+            38628,
+            13264,
+            24159,
+            28272,
+            421,
+            24426,
+            39689,
+            297,
+            35070,
+            29338,
+            6115,
+            76,
+            18916,
+            38628,
+            23394,
+            3343,
+            71,
+            258,
+            11708,
+            258,
+            27138,
+            13901,
+            17208,
+            276,
+            21920,
+            872,
+            417,
+            13905,
+            16228,
+            287,
+            18241,
+            13,
+            51044
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5767429814194188,
+          "compression_ratio": 1.2584269662921348,
+          "no_speech_prob": 0.1349845975637436,
+          "timestamp": "[00:05 - 00:13]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0005 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0005",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0005.audio",
+    "audio_sha256": "8ac66d54510d2481167b649134d4674708e9fc2b6aa3890287a98f5fa83db313",
+    "reference_text": "mọi danh từ kế bên từ sie dành cho bạn luôn bắt đầu bằng một chữ viết hoa ngay cả khi ở giữa câu",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 5,
+      "reference_sha256": "8954e4e30c085ab17701ef7516beb55b85aaf63cec404240800a2f154a57c946",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0005",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 5,
+      "reference_sha256": "8954e4e30c085ab17701ef7516beb55b85aaf63cec404240800a2f154a57c946",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 24,
+        "substitutions": 7,
+        "deletions": 17,
+        "insertions": 0,
+        "reference_units": 24,
+        "rate": 1.0
+      },
+      "cer": {
+        "errors": 63,
+        "substitutions": 17,
+        "deletions": 46,
+        "insertions": 0,
+        "reference_units": 73,
+        "rate": 0.863013698630137
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.02,
+      "inference_seconds": 4.085679600000731,
+      "load_seconds": 0.0,
+      "rtf": 0.40775245508989333
+    },
+    "output": {
+      "text": "Nailed đây, 1 saknight mà nhà milk",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 8.8,
+          "text": "Nailed đây, 1 saknight mà nhà milk",
+          "tokens": [
+            50364,
+            426,
+            24731,
+            20199,
+            11,
+            502,
+            23366,
+            6402,
+            13901,
+            35398,
+            5392,
+            50804
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -5.7746147742638225,
+          "compression_ratio": 0.8085106382978723,
+          "no_speech_prob": 0.05703554302453995,
+          "timestamp": "[00:00 - 00:08]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0006 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0006",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0006.audio",
+    "audio_sha256": "985195913a77e0889b14e85dd5628f12261d29d879ee272dd572da1a22855687",
+    "reference_text": "thông báo thông thường trong khu metro chỉ được phát bằng tiếng catalunya tuy nhiên với những sự cố bất ngờ thì thông báo sẽ được thực hiên qua hệ thống tự động bằng nhiều thứ tiếng gồm tiếng tây ban nha tiếng anh tiếng pháp tiếng ả rập và tiếng nhật",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 6,
+      "reference_sha256": "b33641be19f14e64a6621d0bcc577c65501377da31322aa3befa58b6e7258d48",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0006",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 6,
+      "reference_sha256": "b33641be19f14e64a6621d0bcc577c65501377da31322aa3befa58b6e7258d48",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 51,
+        "substitutions": 28,
+        "deletions": 23,
+        "insertions": 0,
+        "reference_units": 52,
+        "rate": 0.9807692307692307
+      },
+      "cer": {
+        "errors": 156,
+        "substitutions": 64,
+        "deletions": 92,
+        "insertions": 0,
+        "reference_units": 199,
+        "rate": 0.7839195979899497
+      }
+    },
+    "timing": {
+      "audio_seconds": 22.56,
+      "inference_seconds": 15.303191699998933,
+      "load_seconds": 0.0,
+      "rtf": 0.6783329654254847
+    },
+    "output": {
+      "text": "HômTH G stuk là c을 trúc 팬 nhớ sẽ điồng cỏa phía Yang Xuân uphold trên cận truma thôi...o khó tr hunt h Ricardo coi fally Dànhgiggling tìm",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 8.0,
+          "text": "HômTH G stuk là c을 trúc 팬 nhớ sẽ điồng cỏa phía",
+          "tokens": [
+            50364,
+            389,
+            25670,
+            9620,
+            460,
+            46042,
+            3684,
+            269,
+            1638,
+            504,
+            31585,
+            45480,
+            6245,
+            27260,
+            17208,
+            13264,
+            35070,
+            269,
+            21920,
+            64,
+            903,
+            2686,
+            50764
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -5.368600814068904,
+          "compression_ratio": 1.0384615384615385,
+          "no_speech_prob": 0.47114506363868713,
+          "timestamp": "[00:00 - 00:08]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 8.0,
+          "end": 12.22,
+          "text": "Yang Xuân uphold trên cận truma",
+          "tokens": [
+            50764,
+            11978,
+            23082,
+            9667,
+            34451,
+            33187,
+            269,
+            27410,
+            504,
+            5544,
+            50975
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -5.368600814068904,
+          "compression_ratio": 1.0384615384615385,
+          "no_speech_prob": 0.47114506363868713,
+          "timestamp": "[00:08 - 00:12]"
+        },
+        {
+          "id": 2,
+          "seek": 0,
+          "start": 12.38,
+          "end": 14.34,
+          "text": "thôi...",
+          "tokens": [
+            50983,
+            34772,
+            485,
+            51081
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -5.368600814068904,
+          "compression_ratio": 1.0384615384615385,
+          "no_speech_prob": 0.47114506363868713,
+          "timestamp": "[00:12 - 00:14]"
+        },
+        {
+          "id": 3,
+          "seek": 0,
+          "start": 14.34,
+          "end": 20.0,
+          "text": "o khó tr hunt h Ricardo coi fally",
+          "tokens": [
+            51081,
+            78,
+            7168,
+            812,
+            504,
+            12454,
+            276,
+            42634,
+            598,
+            72,
+            2100,
+            88,
+            51364
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -5.368600814068904,
+          "compression_ratio": 1.0384615384615385,
+          "no_speech_prob": 0.47114506363868713,
+          "timestamp": "[00:14 - 00:20]"
+        },
+        {
+          "id": 4,
+          "seek": 0,
+          "start": 20.240000000000002,
+          "end": 21.5,
+          "text": "Dànhgiggling tìm",
+          "tokens": [
+            51376,
+            413,
+            24449,
+            45856,
+            256,
+            4749,
+            76,
+            51439
+          ],
+          "temperature": 1.0,
+          "avg_logprob": -5.368600814068904,
+          "compression_ratio": 1.0384615384615385,
+          "no_speech_prob": 0.47114506363868713,
+          "timestamp": "[00:20 - 00:21]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0007 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0007",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0007.audio",
+    "audio_sha256": "c06fd5f367fb476ad23068ff7dda4c5151e028c62f3f5e364fd993503e669d07",
+    "reference_text": "các nguyên tố như canxi và kali được coi là kim loại dĩ nhiên cũng có các kim loại như vàng và bạc",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 7,
+      "reference_sha256": "f53010eabb256f86e0f684f3cca1a1d7f246004a40bf3b8e60cb4a257f7493cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0007",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 7,
+      "reference_sha256": "f53010eabb256f86e0f684f3cca1a1d7f246004a40bf3b8e60cb4a257f7493cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 16,
+        "substitutions": 13,
+        "deletions": 1,
+        "insertions": 2,
+        "reference_units": 23,
+        "rate": 0.6956521739130435
+      },
+      "cer": {
+        "errors": 35,
+        "substitutions": 23,
+        "deletions": 6,
+        "insertions": 6,
+        "reference_units": 76,
+        "rate": 0.4605263157894737
+      }
+    },
+    "timing": {
+      "audio_seconds": 8.4,
+      "inference_seconds": 0.7658722000014677,
+      "load_seconds": 0.0,
+      "rtf": 0.09117526190493663
+    },
+    "output": {
+      "text": "Các người tố như cần xây và cây lây được có lập kym lỗi, giả nhìn, cũng có kym lỗi như vang, ngoài bạc.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 7.0,
+          "text": "Các người tố như cần xây và cây lây được có lập kym lỗi, giả nhìn, cũng có kym lỗi như vang, ngoài bạc.",
+          "tokens": [
+            50364,
+            383,
+            21563,
+            15898,
+            256,
+            7863,
+            16228,
+            47580,
+            2031,
+            12108,
+            10274,
+            269,
+            12108,
+            287,
+            12108,
+            15832,
+            6333,
+            287,
+            35148,
+            350,
+            4199,
+            287,
+            49572,
+            11,
+            1735,
+            7398,
+            6245,
+            41320,
+            11,
+            22747,
+            6333,
+            350,
+            4199,
+            287,
+            49572,
+            16228,
+            371,
+            656,
+            11,
+            45843,
+            21971,
+            272,
+            5890,
+            66,
+            13,
+            50714
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9580797236016456,
+          "compression_ratio": 1.0625,
+          "no_speech_prob": 0.015922660008072853,
+          "timestamp": "[00:00 - 00:07]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0008 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0008",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0008.audio",
+    "audio_sha256": "d1dcf34dd0757b8de5f5d891d1b4e1c0306b21372d459d7eac6c186eeb956dde",
+    "reference_text": "hồ sơ theo vụ rò rỉ sẽ nhắc tới xung đột biên giới điều palestine muốn dựa trên đường biên giới trước cuộc chiến tranh trung đông 1967",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 8,
+      "reference_sha256": "5aee01b1a14d41d7c2249c97d3d35ece78e9ddc8d88ab22d9adbacb880d07c9d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0008",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 8,
+      "reference_sha256": "5aee01b1a14d41d7c2249c97d3d35ece78e9ddc8d88ab22d9adbacb880d07c9d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 32,
+        "substitutions": 24,
+        "deletions": 0,
+        "insertions": 8,
+        "reference_units": 28,
+        "rate": 1.1428571428571428
+      },
+      "cer": {
+        "errors": 81,
+        "substitutions": 51,
+        "deletions": 7,
+        "insertions": 23,
+        "reference_units": 107,
+        "rate": 0.7570093457943925
+      }
+    },
+    "timing": {
+      "audio_seconds": 13.74,
+      "inference_seconds": 1.0596882000008918,
+      "load_seconds": 0.0,
+      "rtf": 0.07712432314416971
+    },
+    "output": {
+      "text": "Họ sao theo dụng vào gái chẽ nhất thích trong lọc bên dài, đều ba lẹp thì nè Mún dở trên đường bên dài, chưa khổ chín chàn trung đồng một mình chết chăm sóc bãi",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 7.36,
+          "text": "Họ sao theo dụng vào gái chẽ nhất thích trong lọc bên dài, đều ba lẹp thì nè",
+          "tokens": [
+            50364,
+            389,
+            12935,
+            33108,
+            40594,
+            274,
+            17740,
+            872,
+            24995,
+            290,
+            28249,
+            417,
+            15740,
+            41081,
+            258,
+            30839,
+            18826,
+            287,
+            12935,
+            66,
+            43730,
+            274,
+            21971,
+            11,
+            2934,
+            17310,
+            4773,
+            287,
+            26965,
+            79,
+            17510,
+            297,
+            1462,
+            50732
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8773715427943638,
+          "compression_ratio": 1.1818181818181819,
+          "no_speech_prob": 0.14230437576770782,
+          "timestamp": "[00:00 - 00:07]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 7.36,
+          "end": 13.38,
+          "text": "Mún dở trên đường bên dài, chưa khổ chín chàn trung đồng một mình chết chăm sóc bãi",
+          "tokens": [
+            50732,
+            376,
+            9453,
+            274,
+            13755,
+            33187,
+            2934,
+            24280,
+            43730,
+            274,
+            21971,
+            11,
+            46575,
+            7168,
+            20950,
+            417,
+            10973,
+            417,
+            22476,
+            504,
+            1063,
+            2934,
+            35070,
+            15486,
+            14526,
+            417,
+            13888,
+            417,
+            21434,
+            6238,
+            66,
+            272,
+            1046,
+            72,
+            51033
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8773715427943638,
+          "compression_ratio": 1.1818181818181819,
+          "no_speech_prob": 0.14230437576770782,
+          "timestamp": "[00:07 - 00:13]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0009 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0009",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0009.audio",
+    "audio_sha256": "a7e0d97985f5e25b1ea2ccbbac32e65b1615ac330d5eaad61d4b0523495e0d2b",
+    "reference_text": "trung hoa cổ đại có một cách thức độc đáo để trình bày những niên đại khác nhau mỗi một giai đoạn của trung hoa hoặc mỗi một gia tộc từng nắm giữ quyền lực tương ứng với một triều đại khác nhau",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 9,
+      "reference_sha256": "2632f56d7a1864149fdb8db155b78b949f77d421d1337f9f39c7f6e1060f524c",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0009",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 9,
+      "reference_sha256": "2632f56d7a1864149fdb8db155b78b949f77d421d1337f9f39c7f6e1060f524c",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 32,
+        "substitutions": 32,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 43,
+        "rate": 0.7441860465116279
+      },
+      "cer": {
+        "errors": 81,
+        "substitutions": 64,
+        "deletions": 10,
+        "insertions": 7,
+        "reference_units": 151,
+        "rate": 0.5364238410596026
+      }
+    },
+    "timing": {
+      "audio_seconds": 16.38,
+      "inference_seconds": 1.2871200000008685,
+      "load_seconds": 0.0,
+      "rtf": 0.0785787545788076
+    },
+    "output": {
+      "text": "Chúng ta có đại có mọc Cất thất đọc đó Này trên bày những nguyên đại khác nhau Mó ngồi ở đây cũng có chung hòa Mó mọc giết học Từng ngắm nhớ của người nợ Từng nguyên mọi chuyện đại khác nhau",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 2.7800000000000002,
+          "text": "Chúng ta có đại có mọc",
+          "tokens": [
+            50364,
+            761,
+            16926,
+            1846,
+            6333,
+            2934,
+            12745,
+            6333,
+            275,
+            12935,
+            66,
+            50503
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9717146832010021,
+          "compression_ratio": 1.4098360655737705,
+          "no_speech_prob": 0.1181391254067421,
+          "timestamp": "[00:00 - 00:02]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 2.7800000000000002,
+          "end": 4.72,
+          "text": "Cất thất đọc đó",
+          "tokens": [
+            50503,
+            383,
+            12436,
+            258,
+            12436,
+            2934,
+            12935,
+            66,
+            17647,
+            50600
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9717146832010021,
+          "compression_ratio": 1.4098360655737705,
+          "no_speech_prob": 0.1181391254067421,
+          "timestamp": "[00:02 - 00:04]"
+        },
+        {
+          "id": 2,
+          "seek": 0,
+          "start": 4.72,
+          "end": 7.28,
+          "text": "Này trên bày những nguyên đại khác nhau",
+          "tokens": [
+            50600,
+            426,
+            9524,
+            33187,
+            272,
+            9524,
+            20136,
+            297,
+            39344,
+            5050,
+            2934,
+            12745,
+            43713,
+            6245,
+            1459,
+            50728
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9717146832010021,
+          "compression_ratio": 1.4098360655737705,
+          "no_speech_prob": 0.1181391254067421,
+          "timestamp": "[00:04 - 00:07]"
+        },
+        {
+          "id": 3,
+          "seek": 0,
+          "start": 7.28,
+          "end": 9.86,
+          "text": "Mó ngồi ở đây cũng có chung hòa",
+          "tokens": [
+            50728,
+            376,
+            812,
+            6415,
+            15695,
+            19272,
+            20199,
+            22747,
+            6333,
+            417,
+            1063,
+            276,
+            4293,
+            64,
+            50857
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9717146832010021,
+          "compression_ratio": 1.4098360655737705,
+          "no_speech_prob": 0.1181391254067421,
+          "timestamp": "[00:07 - 00:09]"
+        },
+        {
+          "id": 4,
+          "seek": 0,
+          "start": 9.86,
+          "end": 12.0,
+          "text": "Mó mọc giết học",
+          "tokens": [
+            50857,
+            376,
+            812,
+            275,
+            12935,
+            66,
+            1735,
+            13888,
+            46786,
+            50964
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9717146832010021,
+          "compression_ratio": 1.4098360655737705,
+          "no_speech_prob": 0.1181391254067421,
+          "timestamp": "[00:09 - 00:12]"
+        },
+        {
+          "id": 5,
+          "seek": 0,
+          "start": 12.0,
+          "end": 14.0,
+          "text": "Từng ngắm nhớ của người nợ",
+          "tokens": [
+            50964,
+            314,
+            39121,
+            6415,
+            41227,
+            6245,
+            27260,
+            11990,
+            15898,
+            297,
+            27836,
+            51064
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9717146832010021,
+          "compression_ratio": 1.4098360655737705,
+          "no_speech_prob": 0.1181391254067421,
+          "timestamp": "[00:12 - 00:14]"
+        },
+        {
+          "id": 6,
+          "seek": 0,
+          "start": 14.0,
+          "end": 16.0,
+          "text": "Từng nguyên mọi chuyện đại khác nhau",
+          "tokens": [
+            51064,
+            314,
+            39121,
+            297,
+            39344,
+            5050,
+            275,
+            34282,
+            35522,
+            19679,
+            2934,
+            12745,
+            43713,
+            6245,
+            1459,
+            51164
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9717146832010021,
+          "compression_ratio": 1.4098360655737705,
+          "no_speech_prob": 0.1181391254067421,
+          "timestamp": "[00:14 - 00:16]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0010 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0010",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0010.audio",
+    "audio_sha256": "f1fbdb4228de18fd1091283ad2249be453e2a0e41a076871504721652cf8d73f",
+    "reference_text": "blog là công cụ kích thích sự hợp tác và khuyến khích học sinh mở rộng việc học tập ra ngoài khuôn khổ lớp học truyền thống",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 10,
+      "reference_sha256": "bdc8e981731076e384311f37314bf36e17419f3dbc5e499b4c9f94fc5d4d335a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0010",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 10,
+      "reference_sha256": "bdc8e981731076e384311f37314bf36e17419f3dbc5e499b4c9f94fc5d4d335a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 17,
+        "substitutions": 16,
+        "deletions": 1,
+        "insertions": 0,
+        "reference_units": 27,
+        "rate": 0.6296296296296297
+      },
+      "cer": {
+        "errors": 38,
+        "substitutions": 24,
+        "deletions": 10,
+        "insertions": 4,
+        "reference_units": 97,
+        "rate": 0.3917525773195876
+      }
+    },
+    "timing": {
+      "audio_seconds": 9.3,
+      "inference_seconds": 0.8900346999998874,
+      "load_seconds": 0.0,
+      "rtf": 0.09570265591396637
+    },
+    "output": {
+      "text": "là cũng gửi kích tích chở hợp tác và khuyên kích hợp sinh, mà gần bị hợp tập dân ngoài khung khởi lấp học trình thống.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 5.5200000000000005,
+          "text": "là cũng gửi kích tích chở hợp tác và khuyên kích hợp sinh,",
+          "tokens": [
+            50364,
+            3684,
+            22747,
+            290,
+            27801,
+            72,
+            350,
+            30839,
+            256,
+            30839,
+            417,
+            13755,
+            276,
+            27836,
+            79,
+            7737,
+            66,
+            10274,
+            7168,
+            7493,
+            5050,
+            350,
+            30839,
+            276,
+            27836,
+            79,
+            3343,
+            71,
+            11,
+            50640
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7959511320469743,
+          "compression_ratio": 1.1755725190839694,
+          "no_speech_prob": 0.3093523681163788,
+          "timestamp": "[00:00 - 00:05]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 5.5200000000000005,
+          "end": 8.76,
+          "text": "mà gần bị hợp tập dân ngoài khung khởi lấp học trình thống.",
+          "tokens": [
+            50640,
+            13901,
+            290,
+            18241,
+            32113,
+            276,
+            27836,
+            79,
+            256,
+            35148,
+            274,
+            9667,
+            45843,
+            21971,
+            7168,
+            1063,
+            7168,
+            13755,
+            72,
+            287,
+            47176,
+            46786,
+            504,
+            10116,
+            258,
+            21092,
+            13,
+            50802
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7959511320469743,
+          "compression_ratio": 1.1755725190839694,
+          "no_speech_prob": 0.3093523681163788,
+          "timestamp": "[00:05 - 00:08]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0011 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0011",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0011.audio",
+    "audio_sha256": "440adfbc6123029252dd3d875af0ea39bdebe897544e3b11fd4dac3caa711b41",
+    "reference_text": "cụ thể người ta cho rằng một người có thể phát hiện ai đó đang nói dối bằng việc giải nghĩa chính xác từng biểu hiện rất nhỏ",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 11,
+      "reference_sha256": "89fd0c044bdd43fde1b28fd8b470a88bc4fc839d25ae1d4772c8be21d78bfd5e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0011",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 11,
+      "reference_sha256": "89fd0c044bdd43fde1b28fd8b470a88bc4fc839d25ae1d4772c8be21d78bfd5e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 14,
+        "substitutions": 14,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 28,
+        "rate": 0.5
+      },
+      "cer": {
+        "errors": 31,
+        "substitutions": 19,
+        "deletions": 7,
+        "insertions": 5,
+        "reference_units": 97,
+        "rate": 0.31958762886597936
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.02,
+      "inference_seconds": 0.8282177000000956,
+      "load_seconds": 0.0,
+      "rtf": 0.0826564570858379
+    },
+    "output": {
+      "text": "Cũng thái, người ta dấu gặng một người có thái phát hiện a đó đang nói dối, bàn dịch giới nghỉ chính sách từng bữ hệ gấp nhỏ.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 10.0,
+          "text": "Cũng thái, người ta dấu gặng một người có thái phát hiện a đó đang nói dối, bàn dịch giới nghỉ chính sách từng bữ hệ gấp nhỏ.",
+          "tokens": [
+            50364,
+            383,
+            129,
+            21077,
+            258,
+            28249,
+            11,
+            15898,
+            1846,
+            274,
+            44732,
+            290,
+            19118,
+            872,
+            15486,
+            15898,
+            6333,
+            258,
+            28249,
+            903,
+            7656,
+            48079,
+            257,
+            17647,
+            30723,
+            27508,
+            274,
+            24273,
+            11,
+            272,
+            22476,
+            274,
+            46829,
+            1735,
+            12242,
+            29338,
+            43325,
+            42178,
+            262,
+            39569,
+            26834,
+            872,
+            272,
+            12225,
+            276,
+            8471,
+            290,
+            47176,
+            6245,
+            21920,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8029051726719119,
+          "compression_ratio": 1.1418918918918919,
+          "no_speech_prob": 0.04265354201197624,
+          "timestamp": "[00:00 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0012 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0012",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0012.audio",
+    "audio_sha256": "c5e8882163f972be6313721e4fac968740caf80fb14b60cff1c0d547c67a194d",
+    "reference_text": "cái này gọi là độ ph của hóa chất bạn có thể tạo ra chất chỉ thị bằng nước ép bắp cải đỏ",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 12,
+      "reference_sha256": "ff02075edc61c4519dd77c4bfd4da75d8144a806a470cdb04adfd5f85765d84e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0012",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 12,
+      "reference_sha256": "ff02075edc61c4519dd77c4bfd4da75d8144a806a470cdb04adfd5f85765d84e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 13,
+        "substitutions": 12,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 23,
+        "rate": 0.5652173913043478
+      },
+      "cer": {
+        "errors": 22,
+        "substitutions": 14,
+        "deletions": 2,
+        "insertions": 6,
+        "reference_units": 66,
+        "rate": 0.3333333333333333
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.46,
+      "inference_seconds": 0.8015386999995826,
+      "load_seconds": 0.0,
+      "rtf": 0.06994229493888154
+    },
+    "output": {
+      "text": "Cái này gọi là đầu bây hấp của hóa chấp. Bàng có thể tạo ra chấp, chỉ thì bàng lực, e đấp cái đó.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 4.4,
+          "text": "Cái này gọi là đầu bây hấp của hóa chấp.",
+          "tokens": [
+            50364,
+            383,
+            28249,
+            12542,
+            290,
+            34282,
+            3684,
+            32573,
+            272,
+            12108,
+            276,
+            47176,
+            11990,
+            276,
+            812,
+            64,
+            417,
+            47176,
+            13,
+            50584
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8662075201670328,
+          "compression_ratio": 1.0725806451612903,
+          "no_speech_prob": 0.18685488402843475,
+          "timestamp": "[00:00 - 00:04]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 4.4,
+          "end": 10.4,
+          "text": "Bàng có thể tạo ra chấp, chỉ thì bàng lực, e đấp cái đó.",
+          "tokens": [
+            50584,
+            363,
+            1467,
+            872,
+            6333,
+            24491,
+            256,
+            43789,
+            3342,
+            417,
+            47176,
+            11,
+            33566,
+            17510,
+            272,
+            1467,
+            872,
+            287,
+            27951,
+            11,
+            308,
+            2934,
+            47176,
+            14830,
+            17647,
+            13,
+            50884
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8662075201670328,
+          "compression_ratio": 1.0725806451612903,
+          "no_speech_prob": 0.18685488402843475,
+          "timestamp": "[00:04 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0013 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0013",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0013.audio",
+    "audio_sha256": "42b6699e96d5daada1a45135ea5cee233e5a2ee04f66494cb2bab592a39b02c5",
+    "reference_text": "tìm kiếm khóa học về môi trường thù địch trên internet có thể sẽ cung cấp cho bạn địa chỉ của một công ty địa phương",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 13,
+      "reference_sha256": "5f0fdd2ebc92bb8182bfb4f58e0c9805432d47d72d078e8b7044800c88a24610",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0013",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 13,
+      "reference_sha256": "5f0fdd2ebc92bb8182bfb4f58e0c9805432d47d72d078e8b7044800c88a24610",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 15,
+        "substitutions": 13,
+        "deletions": 0,
+        "insertions": 2,
+        "reference_units": 26,
+        "rate": 0.5769230769230769
+      },
+      "cer": {
+        "errors": 31,
+        "substitutions": 24,
+        "deletions": 5,
+        "insertions": 2,
+        "reference_units": 91,
+        "rate": 0.34065934065934067
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.74,
+      "inference_seconds": 0.8477872000003117,
+      "load_seconds": 0.0,
+      "rtf": 0.07893735567973106
+    },
+    "output": {
+      "text": "Tìm game, qua học vài môi trường, tôi đật. Chân nãy tên át, có thể sẽ cùng cấp cho bản để trấy, có một công ty đy phương.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 4.1,
+          "text": "Tìm game, qua học vài môi trường, tôi đật.",
+          "tokens": [
+            50364,
+            314,
+            4749,
+            76,
+            1216,
+            11,
+            24159,
+            46786,
+            10274,
+            72,
+            275,
+            12213,
+            504,
+            24280,
+            11,
+            22336,
+            2934,
+            25296,
+            13,
+            50569
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9824248419867622,
+          "compression_ratio": 1.0460526315789473,
+          "no_speech_prob": 0.030926896259188652,
+          "timestamp": "[00:00 - 00:04]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 4.1,
+          "end": 10.4,
+          "text": "Chân nãy tên át, có thể sẽ cùng cấp cho bản để trấy, có một công ty đy phương.",
+          "tokens": [
+            50569,
+            761,
+            9667,
+            297,
+            49205,
+            256,
+            5050,
+            7352,
+            83,
+            11,
+            6333,
+            24491,
+            17208,
+            45701,
+            269,
+            47176,
+            1586,
+            272,
+            31926,
+            20081,
+            504,
+            13417,
+            11,
+            6333,
+            15486,
+            35451,
+            1104,
+            2934,
+            88,
+            903,
+            24605,
+            13,
+            50884
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9824248419867622,
+          "compression_ratio": 1.0460526315789473,
+          "no_speech_prob": 0.030926896259188652,
+          "timestamp": "[00:04 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0014 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0014",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0014.audio",
+    "audio_sha256": "5ef51e213d39fa50e2b91d00df374c8e2680c5ca633e7561f2bae04e4e0c35e3",
+    "reference_text": "bệnh viện này đã làm theo quy trình kiểm soát lây nhiễm bao gồm cách ly bệnh nhân với các bệnh nhân khác để ngăn ngừa lây nhiễm có thể có cho những người khác",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 14,
+      "reference_sha256": "5cffbc2b7b381c298912042539416b22a93386c13d212f7a4fed2b0d0563132a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0014",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 14,
+      "reference_sha256": "5cffbc2b7b381c298912042539416b22a93386c13d212f7a4fed2b0d0563132a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 22,
+        "substitutions": 15,
+        "deletions": 7,
+        "insertions": 0,
+        "reference_units": 35,
+        "rate": 0.6285714285714286
+      },
+      "cer": {
+        "errors": 59,
+        "substitutions": 27,
+        "deletions": 31,
+        "insertions": 1,
+        "reference_units": 124,
+        "rate": 0.47580645161290325
+      }
+    },
+    "timing": {
+      "audio_seconds": 13.86,
+      "inference_seconds": 0.79941239999971,
+      "load_seconds": 0.0,
+      "rtf": 0.05767766233764142
+    },
+    "output": {
+      "text": "Bình dĩnh này đã làm theo WJC, có lì bình dưng với các bình dưng khác để nghe nghe lấy nhóm có thể có chơi nhấn người khác.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 5.76,
+          "text": "Bình dĩnh này đã làm theo WJC,",
+          "tokens": [
+            50364,
+            363,
+            10116,
+            274,
+            28490,
+            5728,
+            12542,
+            17283,
+            22319,
+            40594,
+            343,
+            41,
+            34,
+            11,
+            50652
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9194187089508655,
+          "compression_ratio": 1.1470588235294117,
+          "no_speech_prob": 0.0780382752418518,
+          "timestamp": "[00:00 - 00:05]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 5.76,
+          "end": 13.200000000000001,
+          "text": "có lì bình dưng với các bình dưng khác để nghe nghe lấy nhóm có thể có chơi nhấn người khác.",
+          "tokens": [
+            50652,
+            6333,
+            287,
+            4749,
+            272,
+            10116,
+            274,
+            42509,
+            18916,
+            13250,
+            272,
+            10116,
+            274,
+            42509,
+            43713,
+            20081,
+            6415,
+            675,
+            6415,
+            675,
+            287,
+            13417,
+            6245,
+            23818,
+            6333,
+            24491,
+            6333,
+            417,
+            21537,
+            6245,
+            43975,
+            15898,
+            43713,
+            13,
+            51024
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.9194187089508655,
+          "compression_ratio": 1.1470588235294117,
+          "no_speech_prob": 0.0780382752418518,
+          "timestamp": "[00:05 - 00:13]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0015 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0015",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0015.audio",
+    "audio_sha256": "6a22d09400e524e283764c8894e7e08d2ef35ae95764d576889854bb57b03507",
+    "reference_text": "tuy nhiên sau khi thua gôn của đội trưởng ấn độ chỉ thực hiện được 36 lần chạy và thua 7 gôn trước khi kết thúc hiệp thi đấu",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 15,
+      "reference_sha256": "b86ca384c28d87ffc7f3c328f38177690a45351eb539b69a27817ad376af875b",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0015",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 15,
+      "reference_sha256": "b86ca384c28d87ffc7f3c328f38177690a45351eb539b69a27817ad376af875b",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 21,
+        "substitutions": 18,
+        "deletions": 0,
+        "insertions": 3,
+        "reference_units": 29,
+        "rate": 0.7241379310344828
+      },
+      "cer": {
+        "errors": 45,
+        "substitutions": 34,
+        "deletions": 2,
+        "insertions": 9,
+        "reference_units": 96,
+        "rate": 0.46875
+      }
+    },
+    "timing": {
+      "audio_seconds": 12.3,
+      "inference_seconds": 0.945965900000374,
+      "load_seconds": 0.0,
+      "rtf": 0.07690779674799787
+    },
+    "output": {
+      "text": "Tuy nhiên sau khi tôi luôn của đổi ở trưởng, án đó chỉ thật khuyện được mám bị sáo lần trải, dạ thô bãi luôn, chứ khi cất thúc hẹp thì đó.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 4.72,
+          "text": "Tuy nhiên sau khi tôi luôn của đổi ở trưởng,",
+          "tokens": [
+            50364,
+            314,
+            7493,
+            20575,
+            5050,
+            17828,
+            23526,
+            22336,
+            35690,
+            11990,
+            2934,
+            38704,
+            19272,
+            504,
+            49301,
+            11,
+            50600
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8433002233505249,
+          "compression_ratio": 1.154320987654321,
+          "no_speech_prob": 0.03636392578482628,
+          "timestamp": "[00:00 - 00:04]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 4.72,
+          "end": 8.08,
+          "text": "án đó chỉ thật khuyện được mám bị sáo lần trải,",
+          "tokens": [
+            50600,
+            7352,
+            77,
+            17647,
+            33566,
+            258,
+            25296,
+            7168,
+            7493,
+            19679,
+            15832,
+            12228,
+            76,
+            32113,
+            262,
+            45202,
+            287,
+            18241,
+            504,
+            18166,
+            11,
+            50768
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8433002233505249,
+          "compression_ratio": 1.154320987654321,
+          "no_speech_prob": 0.03636392578482628,
+          "timestamp": "[00:04 - 00:08]"
+        },
+        {
+          "id": 2,
+          "seek": 0,
+          "start": 8.08,
+          "end": 11.44,
+          "text": "dạ thô bãi luôn, chứ khi cất thúc hẹp thì đó.",
+          "tokens": [
+            50768,
+            274,
+            5890,
+            258,
+            2851,
+            272,
+            1046,
+            72,
+            35690,
+            11,
+            417,
+            13905,
+            23526,
+            269,
+            12436,
+            258,
+            31585,
+            276,
+            26965,
+            79,
+            17510,
+            17647,
+            13,
+            50936
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8433002233505249,
+          "compression_ratio": 1.154320987654321,
+          "no_speech_prob": 0.03636392578482628,
+          "timestamp": "[00:08 - 00:11]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0016 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0016",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0016.audio",
+    "audio_sha256": "ac4c65f0c644b46f0ccac83f525113b6ae4007fea169c24b05c2e891cbcce5f1",
+    "reference_text": "ông gọi những tin đồn này là cuộc tán gẫu về chính trị và sự điên rồ",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 16,
+      "reference_sha256": "549927772fb4d771d114451d57023e1dff1304d39f68bded31c44acda1ee4b2d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0016",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 16,
+      "reference_sha256": "549927772fb4d771d114451d57023e1dff1304d39f68bded31c44acda1ee4b2d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 8,
+        "substitutions": 8,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 17,
+        "rate": 0.47058823529411764
+      },
+      "cer": {
+        "errors": 16,
+        "substitutions": 9,
+        "deletions": 3,
+        "insertions": 4,
+        "reference_units": 52,
+        "rate": 0.3076923076923077
+      }
+    },
+    "timing": {
+      "audio_seconds": 6.6,
+      "inference_seconds": 0.5269604999994044,
+      "load_seconds": 0.0,
+      "rtf": 0.07984249999990976
+    },
+    "output": {
+      "text": "Em gọi những tinh đồng này là cô tán gạo về chính trị và sửi đứng rồi",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 6.0,
+          "text": "Em gọi những tinh đồng này là cô tán gạo về chính trị và sửi đứng rồi",
+          "tokens": [
+            50364,
+            3968,
+            290,
+            34282,
+            20136,
+            256,
+            10085,
+            2934,
+            35070,
+            12542,
+            3684,
+            35167,
+            256,
+            7200,
+            290,
+            43789,
+            25652,
+            42178,
+            504,
+            11708,
+            10274,
+            262,
+            27801,
+            72,
+            2934,
+            44555,
+            19908,
+            50664
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8215278757029566,
+          "compression_ratio": 0.9693877551020408,
+          "no_speech_prob": 0.00681908056139946,
+          "timestamp": "[00:00 - 00:06]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0017 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0017",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0017.audio",
+    "audio_sha256": "c4462ef6fbf46f2fdec9552d6bb9027b24c76f637b66f21e55aa4c795ec1a1a2",
+    "reference_text": "cuomo 53 tuổi bắt đầu đảm nhiệm chức vụ thống đốc từ đầu năm nay tháng trước ông đã ký dự luật hợp pháp hóa hôn nhân đồng giới",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 17,
+      "reference_sha256": "e226b019e41831f1664544617c105adeaf3f83af8f5ecd11af7a792900b8c668",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0017",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 17,
+      "reference_sha256": "e226b019e41831f1664544617c105adeaf3f83af8f5ecd11af7a792900b8c668",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 9,
+        "substitutions": 8,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 29,
+        "rate": 0.3103448275862069
+      },
+      "cer": {
+        "errors": 20,
+        "substitutions": 19,
+        "deletions": 1,
+        "insertions": 0,
+        "reference_units": 98,
+        "rate": 0.20408163265306123
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.52,
+      "inference_seconds": 0.9754146999985096,
+      "load_seconds": 0.0,
+      "rtf": 0.08467141493042618
+    },
+    "output": {
+      "text": "Cô mò, năm 2018, bắt đầu đảm nhiệm chức 1 thống đốc. Từ đầu năm nay, tháng trước ông đã ký dự lực khọt pháp hóa hôm nhân đồng dưới.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 4.9,
+          "text": "Cô mò, năm 2018, bắt đầu đảm nhiệm chức 1 thống đốc.",
+          "tokens": [
+            50364,
+            383,
+            2851,
+            275,
+            4293,
+            11,
+            38098,
+            6096,
+            11,
+            272,
+            31454,
+            32573,
+            2934,
+            7398,
+            76,
+            20575,
+            8471,
+            76,
+            417,
+            27138,
+            502,
+            258,
+            21092,
+            2934,
+            24426,
+            13,
+            50609
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6086187958717346,
+          "compression_ratio": 1.124223602484472,
+          "no_speech_prob": 0.09656832367181778,
+          "timestamp": "[00:00 - 00:04]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 4.9,
+          "end": 10.4,
+          "text": "Từ đầu năm nay, tháng trước ông đã ký dự lực khọt pháp hóa hôm nhân đồng dưới.",
+          "tokens": [
+            50609,
+            314,
+            16242,
+            32573,
+            38098,
+            34227,
+            11,
+            258,
+            30344,
+            44860,
+            34835,
+            17283,
+            350,
+            11822,
+            274,
+            14522,
+            287,
+            27951,
+            7168,
+            12935,
+            83,
+            903,
+            15059,
+            276,
+            812,
+            64,
+            276,
+            25670,
+            47931,
+            2934,
+            35070,
+            274,
+            5829,
+            8971,
+            13,
+            50884
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6086187958717346,
+          "compression_ratio": 1.124223602484472,
+          "no_speech_prob": 0.09656832367181778,
+          "timestamp": "[00:04 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0018 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0018",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0018.audio",
+    "audio_sha256": "b9e5bede8bba81e1a1a4561d2cd89113bf49f855f9ce9011e0b5431d41723bc6",
+    "reference_text": "giáo sư pamela ferguson của trường đại học dundee ghi nhận rằng có lẽ các nhà báo thực sự đang đi trên một con đường nguy hiểm khi công khai những hình ảnh v.v. của các nghi phạm",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 18,
+      "reference_sha256": "61aa8014249687ca4989ac59bd7a37d5ff9b23369fa7a6521d258c5367d2f596",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0018",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 18,
+      "reference_sha256": "61aa8014249687ca4989ac59bd7a37d5ff9b23369fa7a6521d258c5367d2f596",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 21,
+        "substitutions": 16,
+        "deletions": 3,
+        "insertions": 2,
+        "reference_units": 39,
+        "rate": 0.5384615384615384
+      },
+      "cer": {
+        "errors": 54,
+        "substitutions": 30,
+        "deletions": 23,
+        "insertions": 1,
+        "reference_units": 139,
+        "rate": 0.38848920863309355
+      }
+    },
+    "timing": {
+      "audio_seconds": 15.3,
+      "inference_seconds": 1.037330600000132,
+      "load_seconds": 0.0,
+      "rtf": 0.06779938562092366
+    },
+    "output": {
+      "text": "Giáo sư 8.5 hơi gồm dùng đại học đôn đi, nhưng nhận đang có lẽ các nhà báo thật sử đêm đi trên một con đường huy hiệm. khi công kai những hành án của các vẻ.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 10.0,
+          "text": "Giáo sư 8.5 hơi gồm dùng đại học đôn đi, nhưng nhận đang có lẽ các nhà báo thật sử đêm đi trên một con đường huy hiệm.",
+          "tokens": [
+            50364,
+            15334,
+            45202,
+            262,
+            4228,
+            1649,
+            13,
+            20,
+            276,
+            21537,
+            290,
+            11057,
+            76,
+            274,
+            27065,
+            2934,
+            12745,
+            46786,
+            2934,
+            17140,
+            13264,
+            11,
+            37504,
+            6245,
+            27410,
+            30723,
+            6333,
+            287,
+            15740,
+            13250,
+            35398,
+            272,
+            45202,
+            258,
+            25296,
+            262,
+            27801,
+            2934,
+            13213,
+            13264,
+            33187,
+            15486,
+            416,
+            2934,
+            24280,
+            2137,
+            88,
+            4879,
+            8471,
+            76,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8936116868171139,
+          "compression_ratio": 1.1761363636363635,
+          "no_speech_prob": 0.1894693225622177,
+          "timestamp": "[00:00 - 00:10]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 10.0,
+          "end": 14.0,
+          "text": "khi công kai những hành án của các vẻ.",
+          "tokens": [
+            50864,
+            23526,
+            35451,
+            350,
+            1301,
+            20136,
+            276,
+            24449,
+            7352,
+            77,
+            11990,
+            13250,
+            371,
+            40956,
+            13,
+            51064
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.8936116868171139,
+          "compression_ratio": 1.1761363636363635,
+          "no_speech_prob": 0.1894693225622177,
+          "timestamp": "[00:10 - 00:14]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0019 / tiny — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0019",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0019.audio",
+    "audio_sha256": "8a301488f56114107e0c4b66d294a789ad409989c4b6c5e886a735eda052ecce",
+    "reference_text": "cuối cùng có nhiều loài mèo nhỏ gồm cả mèo nuôi trong nhà ăn những con mồi nhỏ có số lượng lớn như côn trùng các loài gặm nhấm thằn lằn và chim",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 19,
+      "reference_sha256": "a4f1eaed6cd2dcc766e9c60071ceefdfaf9c7e886a044b2cd4327ef6ca75c3cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0019",
+    "kind": "asr",
+    "variant": "tiny",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 19,
+      "reference_sha256": "a4f1eaed6cd2dcc766e9c60071ceefdfaf9c7e886a044b2cd4327ef6ca75c3cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 20,
+        "substitutions": 20,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 33,
+        "rate": 0.6060606060606061
+      },
+      "cer": {
+        "errors": 38,
+        "substitutions": 26,
+        "deletions": 9,
+        "insertions": 3,
+        "reference_units": 111,
+        "rate": 0.34234234234234234
+      }
+    },
+    "timing": {
+      "audio_seconds": 12.18,
+      "inference_seconds": 1.0288629999995464,
+      "load_seconds": 0.0,
+      "rtf": 0.08447151067319758
+    },
+    "output": {
+      "text": "Cứ cùng, có nhiều lời mèo nhỏ, gầm cá mèo nối chăm nhẹ, anh nhớ con mọi nhỏ, có xưa lần lớn như công chồng, các là gầm nhắm, thằng lần và chiêm.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 9.1,
+          "text": "Cứ cùng, có nhiều lời mèo nhỏ, gầm cá mèo nối chăm nhẹ, anh nhớ con mọi nhỏ, có xưa lần lớn như công chồng,",
+          "tokens": [
+            50364,
+            383,
+            13905,
+            45701,
+            11,
+            6333,
+            28272,
+            287,
+            21024,
+            275,
+            1462,
+            78,
+            6245,
+            21920,
+            11,
+            290,
+            11161,
+            76,
+            6476,
+            275,
+            1462,
+            78,
+            297,
+            24273,
+            417,
+            21434,
+            6245,
+            26965,
+            11,
+            18931,
+            6245,
+            27260,
+            416,
+            275,
+            34282,
+            6245,
+            21920,
+            11,
+            6333,
+            2031,
+            27060,
+            287,
+            18241,
+            47864,
+            77,
+            16228,
+            35451,
+            417,
+            35070,
+            11,
+            50819
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7156504494803292,
+          "compression_ratio": 1.2307692307692308,
+          "no_speech_prob": 0.09285833686590195,
+          "timestamp": "[00:00 - 00:09]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 9.1,
+          "end": 11.74,
+          "text": "các là gầm nhắm, thằng lần và chiêm.",
+          "tokens": [
+            50819,
+            13250,
+            3684,
+            290,
+            11161,
+            76,
+            6245,
+            41227,
+            11,
+            258,
+            27215,
+            287,
+            18241,
+            10274,
+            13228,
+            13213,
+            13,
+            50951
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7156504494803292,
+          "compression_ratio": 1.2307692307692308,
+          "no_speech_prob": 0.09285833686590195,
+          "timestamp": "[00:09 - 00:11]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0000 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0000",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0000.audio",
+    "audio_sha256": "33318a8f837de6c2953248729f658292c31520b57aa36ee0fe55c234d55c4b54",
+    "reference_text": "văn hóa và bộ lạc cổ xưa đã bắt đầu giữ những con vật này để dễ lấy sữa tóc thịt và da",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 0,
+      "reference_sha256": "fac515f496e5dda38c63e22096707cfb52f07ebf640e01eb4fb50e5712e69f1a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0000",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 0,
+      "reference_sha256": "fac515f496e5dda38c63e22096707cfb52f07ebf640e01eb4fb50e5712e69f1a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 4,
+        "substitutions": 4,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 23,
+        "rate": 0.17391304347826086
+      },
+      "cer": {
+        "errors": 6,
+        "substitutions": 4,
+        "deletions": 1,
+        "insertions": 1,
+        "reference_units": 64,
+        "rate": 0.09375
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.34,
+      "inference_seconds": 1.2523094999996829,
+      "load_seconds": 0.6062179000000469,
+      "rtf": 0.11043293650790854
+    },
+    "output": {
+      "text": "Văn hóa và bộ lạc cổ sưa đã bắt đầu dữ những công bật này để dễ lấy sữa tóc, thịt và da.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 11.0,
+          "text": "Văn hóa và bộ lạc cổ sưa đã bắt đầu dữ những công bật này để dễ lấy sữa tóc, thịt và da.",
+          "tokens": [
+            50364,
+            691,
+            49214,
+            276,
+            812,
+            64,
+            10274,
+            272,
+            8047,
+            287,
+            5890,
+            66,
+            9613,
+            243,
+            262,
+            27060,
+            17283,
+            272,
+            31454,
+            32573,
+            274,
+            12225,
+            20136,
+            35451,
+            272,
+            25296,
+            12542,
+            20081,
+            274,
+            36664,
+            287,
+            13417,
+            262,
+            26606,
+            256,
+            40993,
+            11,
+            258,
+            11708,
+            83,
+            10274,
+            1120,
+            13,
+            50914
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.38868136935763886,
+          "compression_ratio": 1.008,
+          "no_speech_prob": 0.09792256355285645,
+          "timestamp": "[00:00 - 00:11]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0001 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0001",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0001.audio",
+    "audio_sha256": "3211626fb751053176762108ee6825501ddd4400aff42ce9633f83c71b07d1de",
+    "reference_text": "đối với springboks trận này đã giúp đội tuyển kết thúc chuỗi thua 5 trận liền",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 1,
+      "reference_sha256": "71e9506329c4a164dc3b701343d1d7558fdf668984054832b25625c4d54c8701",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0001",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 1,
+      "reference_sha256": "71e9506329c4a164dc3b701343d1d7558fdf668984054832b25625c4d54c8701",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 12,
+        "substitutions": 11,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 16,
+        "rate": 0.75
+      },
+      "cer": {
+        "errors": 24,
+        "substitutions": 21,
+        "deletions": 3,
+        "insertions": 0,
+        "reference_units": 62,
+        "rate": 0.3870967741935484
+      }
+    },
+    "timing": {
+      "audio_seconds": 7.26,
+      "inference_seconds": 1.0972303999988071,
+      "load_seconds": 0.0,
+      "rtf": 0.15113366391168143
+    },
+    "output": {
+      "text": "Nói mới Spring Book, trần này đã giúp đời tiến các thúc chúy thúa 5 chẳng lì.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 7.0,
+          "text": "Nói mới Spring Book, trần này đã giúp đời tiến các thúc chúy thúa 5 chẳng lì.",
+          "tokens": [
+            50364,
+            426,
+            812,
+            72,
+            37328,
+            14013,
+            9476,
+            11,
+            504,
+            18241,
+            12542,
+            17283,
+            1735,
+            44492,
+            2934,
+            21024,
+            8757,
+            16240,
+            13250,
+            258,
+            31585,
+            417,
+            2481,
+            88,
+            258,
+            2481,
+            64,
+            1025,
+            417,
+            1775,
+            111,
+            872,
+            287,
+            4749,
+            13,
+            50714
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7397115552747572,
+          "compression_ratio": 0.9158878504672897,
+          "no_speech_prob": 0.3937792181968689,
+          "timestamp": "[00:00 - 00:07]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0002 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0002",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0002.audio",
+    "audio_sha256": "43febdf828f97a7efc3a45180a99d76747d3c45bf9143fbf8bf62d7c0adedc26",
+    "reference_text": "nó cũng tấn công mọi thứ trong nước ngay cả khủng long khổng lồ như t rex cũng không phải là đối thủ với nó",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 2,
+      "reference_sha256": "9ce7c76fc54fcd44cc1a3f91d160a21a8f8aa05988e3d9688e4f70efbf6cb597",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0002",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 2,
+      "reference_sha256": "9ce7c76fc54fcd44cc1a3f91d160a21a8f8aa05988e3d9688e4f70efbf6cb597",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 4,
+        "substitutions": 3,
+        "deletions": 1,
+        "insertions": 0,
+        "reference_units": 25,
+        "rate": 0.16
+      },
+      "cer": {
+        "errors": 5,
+        "substitutions": 4,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 83,
+        "rate": 0.060240963855421686
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.02,
+      "inference_seconds": 1.1584691000007297,
+      "load_seconds": 0.0,
+      "rtf": 0.11561567864278739
+    },
+    "output": {
+      "text": "Nó cũng tấn công mọi thứ trong nước, ngày cả khủng lòng khổng lồ như Tivet cũng không phải là đối thủ với nó.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 9.0,
+          "text": "Nó cũng tấn công mọi thứ trong nước, ngày cả khủng lòng khổng lồ như Tivet cũng không phải là đối thủ với nó.",
+          "tokens": [
+            50364,
+            426,
+            812,
+            22747,
+            256,
+            43975,
+            35451,
+            275,
+            34282,
+            47269,
+            18826,
+            30728,
+            11,
+            34481,
+            22227,
+            7168,
+            28903,
+            872,
+            287,
+            36782,
+            7168,
+            20950,
+            872,
+            287,
+            11057,
+            16228,
+            314,
+            592,
+            302,
+            22747,
+            11415,
+            23394,
+            3684,
+            2934,
+            24273,
+            258,
+            28903,
+            18916,
+            6604,
+            13,
+            50814
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.4991026832943871,
+          "compression_ratio": 1.0820895522388059,
+          "no_speech_prob": 0.34940269589424133,
+          "timestamp": "[00:00 - 00:09]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0003 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0003",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0003.audio",
+    "audio_sha256": "cca46c77040d86068a55feef4ef95b21289afba255b4a8db8b00d878545cf33f",
+    "reference_text": "số người có mặt quá lớn nên việc mọi người tới được nơi tổ chức lễ tang tại quảng trường thánh peter là không thể",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 3,
+      "reference_sha256": "42ee6e48e4cdfa46e38a7d4b433c93c5ce67db03c8f1a5145a667010d3650110",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0003",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 3,
+      "reference_sha256": "42ee6e48e4cdfa46e38a7d4b433c93c5ce67db03c8f1a5145a667010d3650110",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 3,
+        "substitutions": 3,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 25,
+        "rate": 0.12
+      },
+      "cer": {
+        "errors": 8,
+        "substitutions": 4,
+        "deletions": 1,
+        "insertions": 3,
+        "reference_units": 89,
+        "rate": 0.0898876404494382
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.16,
+      "inference_seconds": 1.1474547999987408,
+      "load_seconds": 0.0,
+      "rtf": 0.10281853046583699
+    },
+    "output": {
+      "text": "Xong người có mặt quá lớn nên việc mọi người tới được nơi tổ chức lễ tan tại Quảng Trường Thánh Bitter là không thể.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 10.0,
+          "text": "Xong người có mặt quá lớn nên việc mọi người tới được nơi tổ chức lễ tan tại Quảng Trường Thánh Bitter là không thể.",
+          "tokens": [
+            50364,
+            1783,
+            556,
+            15898,
+            6333,
+            275,
+            38248,
+            38338,
+            47864,
+            77,
+            40606,
+            38628,
+            275,
+            34282,
+            15898,
+            47679,
+            15832,
+            297,
+            21537,
+            256,
+            20950,
+            417,
+            27138,
+            287,
+            36664,
+            7603,
+            37773,
+            2326,
+            45815,
+            1765,
+            24280,
+            334,
+            33434,
+            363,
+            3904,
+            3684,
+            11415,
+            24491,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.4398245462557165,
+          "compression_ratio": 1.089655172413793,
+          "no_speech_prob": 0.10054030269384384,
+          "timestamp": "[00:00 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0004 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0004",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0004.audio",
+    "audio_sha256": "37e2cb772dbdc7c4cc70aece3e508a3c56ff2cf7519f8e28d2b7e310d77fdeda",
+    "reference_text": "châu âu là lục địa tương đối nhỏ nhưng có nhiều quốc gia độc lập thông thường việc đi qua nhiều quốc gia đồng nghĩa với việc phải xin thị thực và xét hộ chiếu nhiều lần",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 4,
+      "reference_sha256": "0b642987e7a5045153e21cf17f28166dc4497ab0612cb89bfafd00c5a20c92c9",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0004",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 4,
+      "reference_sha256": "0b642987e7a5045153e21cf17f28166dc4497ab0612cb89bfafd00c5a20c92c9",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 10,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 37,
+        "rate": 0.2702702702702703
+      },
+      "cer": {
+        "errors": 18,
+        "substitutions": 12,
+        "deletions": 4,
+        "insertions": 2,
+        "reference_units": 132,
+        "rate": 0.13636363636363635
+      }
+    },
+    "timing": {
+      "audio_seconds": 14.88,
+      "inference_seconds": 1.7148340999992797,
+      "load_seconds": 0.0,
+      "rtf": 0.11524422715048922
+    },
+    "output": {
+      "text": "Cho ó là lục địa tương nói nhỏ, nhưng có nhiều quốc gia đục lập. Thông thường, việc đi qua nhiều quốc gia đồng nghỉa với việc phải xinh thị thức, và sách, họ chứ nhiều lần.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 5.0,
+          "text": "Cho ó là lục địa tương nói nhỏ, nhưng có nhiều quốc gia đục lập.",
+          "tokens": [
+            50364,
+            12366,
+            11857,
+            3684,
+            287,
+            37664,
+            42063,
+            64,
+            256,
+            24605,
+            27508,
+            6245,
+            21920,
+            11,
+            37504,
+            6333,
+            28272,
+            421,
+            24426,
+            39689,
+            2934,
+            37664,
+            287,
+            35148,
+            13,
+            50614
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.41081135514853656,
+          "compression_ratio": 1.297752808988764,
+          "no_speech_prob": 0.07845336198806763,
+          "timestamp": "[00:00 - 00:05]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 5.0,
+          "end": 11.0,
+          "text": "Thông thường, việc đi qua nhiều quốc gia đồng nghỉa với việc phải xinh thị thức,",
+          "tokens": [
+            50614,
+            334,
+            8217,
+            258,
+            24280,
+            11,
+            38628,
+            13264,
+            24159,
+            28272,
+            421,
+            24426,
+            39689,
+            2934,
+            35070,
+            29338,
+            43325,
+            64,
+            18916,
+            38628,
+            23394,
+            2031,
+            10085,
+            258,
+            11708,
+            258,
+            27138,
+            11,
+            50914
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.41081135514853656,
+          "compression_ratio": 1.297752808988764,
+          "no_speech_prob": 0.07845336198806763,
+          "timestamp": "[00:05 - 00:11]"
+        },
+        {
+          "id": 2,
+          "seek": 0,
+          "start": 11.0,
+          "end": 14.0,
+          "text": "và sách, họ chứ nhiều lần.",
+          "tokens": [
+            50914,
+            10274,
+            262,
+            39569,
+            11,
+            27700,
+            417,
+            13905,
+            28272,
+            287,
+            18241,
+            13,
+            51064
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.41081135514853656,
+          "compression_ratio": 1.297752808988764,
+          "no_speech_prob": 0.07845336198806763,
+          "timestamp": "[00:11 - 00:14]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0005 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0005",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0005.audio",
+    "audio_sha256": "8ac66d54510d2481167b649134d4674708e9fc2b6aa3890287a98f5fa83db313",
+    "reference_text": "mọi danh từ kế bên từ sie dành cho bạn luôn bắt đầu bằng một chữ viết hoa ngay cả khi ở giữa câu",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 5,
+      "reference_sha256": "8954e4e30c085ab17701ef7516beb55b85aaf63cec404240800a2f154a57c946",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0005",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 5,
+      "reference_sha256": "8954e4e30c085ab17701ef7516beb55b85aaf63cec404240800a2f154a57c946",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 15,
+        "substitutions": 15,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 24,
+        "rate": 0.625
+      },
+      "cer": {
+        "errors": 32,
+        "substitutions": 26,
+        "deletions": 2,
+        "insertions": 4,
+        "reference_units": 73,
+        "rate": 0.4383561643835616
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.02,
+      "inference_seconds": 1.4422295999993366,
+      "load_seconds": 0.0,
+      "rtf": 0.14393508982029307
+    },
+    "output": {
+      "text": "Mỗi dân tự, cơ bân từ xì, nhìn chơi bạn luôn mất đầu bằng một chiếu biết qua ngay khá thị. Ở dưới câu.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 8.0,
+          "text": "Mỗi dân tự, cơ bân từ xì, nhìn chơi bạn luôn mất đầu bằng một chiếu biết qua ngay khá thị.",
+          "tokens": [
+            50364,
+            376,
+            49572,
+            274,
+            9667,
+            256,
+            14522,
+            11,
+            269,
+            9621,
+            272,
+            9667,
+            26834,
+            2031,
+            4749,
+            11,
+            6245,
+            41320,
+            417,
+            21537,
+            14647,
+            35690,
+            275,
+            12436,
+            32573,
+            272,
+            27215,
+            15486,
+            13228,
+            30568,
+            28432,
+            24159,
+            6415,
+            320,
+            7168,
+            842,
+            258,
+            11708,
+            13,
+            50764
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6586734547334558,
+          "compression_ratio": 1.0220588235294117,
+          "no_speech_prob": 0.1926131397485733,
+          "timestamp": "[00:00 - 00:08]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 8.0,
+          "end": 10.0,
+          "text": "Ở dưới câu.",
+          "tokens": [
+            50764,
+            40132,
+            252,
+            274,
+            5829,
+            8971,
+            19288,
+            84,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6586734547334558,
+          "compression_ratio": 1.0220588235294117,
+          "no_speech_prob": 0.1926131397485733,
+          "timestamp": "[00:08 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0006 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0006",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0006.audio",
+    "audio_sha256": "985195913a77e0889b14e85dd5628f12261d29d879ee272dd572da1a22855687",
+    "reference_text": "thông báo thông thường trong khu metro chỉ được phát bằng tiếng catalunya tuy nhiên với những sự cố bất ngờ thì thông báo sẽ được thực hiên qua hệ thống tự động bằng nhiều thứ tiếng gồm tiếng tây ban nha tiếng anh tiếng pháp tiếng ả rập và tiếng nhật",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 6,
+      "reference_sha256": "b33641be19f14e64a6621d0bcc577c65501377da31322aa3befa58b6e7258d48",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0006",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 6,
+      "reference_sha256": "b33641be19f14e64a6621d0bcc577c65501377da31322aa3befa58b6e7258d48",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 18,
+        "substitutions": 16,
+        "deletions": 1,
+        "insertions": 1,
+        "reference_units": 52,
+        "rate": 0.34615384615384615
+      },
+      "cer": {
+        "errors": 36,
+        "substitutions": 31,
+        "deletions": 1,
+        "insertions": 4,
+        "reference_units": 199,
+        "rate": 0.18090452261306533
+      }
+    },
+    "timing": {
+      "audio_seconds": 22.56,
+      "inference_seconds": 2.398490599998695,
+      "load_seconds": 0.0,
+      "rtf": 0.10631607269497761
+    },
+    "output": {
+      "text": "Thông báo thông thường trong Phu Mê Trô chỉ được phát bằng tiếng Catalonia Tinh Nhiên, với những sự tổ bắt gần, thì thông báo sẽ được Hình khiến qua hệ thống, tự động, thời nhiều trứ tiếng gần, tiếng Tay Băng Nha, tiếng Anh, tiếng Pháp, tiếng Arach và tiếng Dật",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 7.0,
+          "text": "Thông báo thông thường trong Phu Mê Trô chỉ được phát bằng tiếng Catalonia",
+          "tokens": [
+            50364,
+            334,
+            8217,
+            272,
+            45202,
+            258,
+            8217,
+            258,
+            24280,
+            18826,
+            2623,
+            84,
+            376,
+            1307,
+            1765,
+            2851,
+            33566,
+            15832,
+            903,
+            7656,
+            272,
+            27215,
+            34923,
+            872,
+            24994,
+            16999,
+            50714
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5942899630619929,
+          "compression_ratio": 1.4243697478991597,
+          "no_speech_prob": 0.59378582239151,
+          "timestamp": "[00:00 - 00:07]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 7.0,
+          "end": 12.0,
+          "text": "Tinh Nhiên, với những sự tổ bắt gần, thì thông báo sẽ được",
+          "tokens": [
+            50714,
+            314,
+            10085,
+            426,
+            4954,
+            5050,
+            11,
+            18916,
+            20136,
+            33602,
+            256,
+            20950,
+            272,
+            31454,
+            290,
+            18241,
+            11,
+            17510,
+            258,
+            8217,
+            272,
+            45202,
+            17208,
+            15832,
+            50964
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5942899630619929,
+          "compression_ratio": 1.4243697478991597,
+          "no_speech_prob": 0.59378582239151,
+          "timestamp": "[00:07 - 00:12]"
+        },
+        {
+          "id": 2,
+          "seek": 0,
+          "start": 12.0,
+          "end": 22.0,
+          "text": "Hình khiến qua hệ thống, tự động, thời nhiều trứ tiếng gần, tiếng Tay Băng Nha, tiếng Anh, tiếng Pháp, tiếng Arach và tiếng Dật",
+          "tokens": [
+            50964,
+            389,
+            10116,
+            23526,
+            16240,
+            24159,
+            276,
+            8471,
+            258,
+            21092,
+            11,
+            256,
+            14522,
+            46880,
+            11,
+            49506,
+            28272,
+            504,
+            13905,
+            34923,
+            872,
+            290,
+            18241,
+            11,
+            34923,
+            872,
+            10132,
+            363,
+            34705,
+            426,
+            1641,
+            11,
+            34923,
+            872,
+            23574,
+            11,
+            34923,
+            872,
+            2623,
+            15059,
+            11,
+            34923,
+            872,
+            1587,
+            608,
+            10274,
+            34923,
+            872,
+            413,
+            25296,
+            51464
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5942899630619929,
+          "compression_ratio": 1.4243697478991597,
+          "no_speech_prob": 0.59378582239151,
+          "timestamp": "[00:12 - 00:22]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0007 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0007",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0007.audio",
+    "audio_sha256": "c06fd5f367fb476ad23068ff7dda4c5151e028c62f3f5e364fd993503e669d07",
+    "reference_text": "các nguyên tố như canxi và kali được coi là kim loại dĩ nhiên cũng có các kim loại như vàng và bạc",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 7,
+      "reference_sha256": "f53010eabb256f86e0f684f3cca1a1d7f246004a40bf3b8e60cb4a257f7493cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0007",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 7,
+      "reference_sha256": "f53010eabb256f86e0f684f3cca1a1d7f246004a40bf3b8e60cb4a257f7493cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 8,
+        "substitutions": 7,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 23,
+        "rate": 0.34782608695652173
+      },
+      "cer": {
+        "errors": 11,
+        "substitutions": 6,
+        "deletions": 2,
+        "insertions": 3,
+        "reference_units": 76,
+        "rate": 0.14473684210526316
+      }
+    },
+    "timing": {
+      "audio_seconds": 8.4,
+      "inference_seconds": 1.3003122999998595,
+      "load_seconds": 0.0,
+      "rtf": 0.1547990833333166
+    },
+    "output": {
+      "text": "Các nguyên tố như Can See và Cali được coi là kiếm lỗi, dĩ nhiên, cũng có các kiếm lỗi như vang và bạc.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 8.0,
+          "text": "Các nguyên tố như Can See và Cali được coi là kiếm lỗi, dĩ nhiên, cũng có các kiếm lỗi như vang và bạc.",
+          "tokens": [
+            50364,
+            383,
+            21563,
+            297,
+            39344,
+            5050,
+            256,
+            7863,
+            16228,
+            1664,
+            3008,
+            10274,
+            3511,
+            72,
+            15832,
+            598,
+            72,
+            3684,
+            6315,
+            6115,
+            76,
+            287,
+            49572,
+            11,
+            274,
+            28490,
+            20575,
+            5050,
+            11,
+            22747,
+            6333,
+            13250,
+            6315,
+            6115,
+            76,
+            287,
+            49572,
+            16228,
+            371,
+            656,
+            10274,
+            272,
+            5890,
+            66,
+            13,
+            50764
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.41485019440346577,
+          "compression_ratio": 1.065040650406504,
+          "no_speech_prob": 0.04868164658546448,
+          "timestamp": "[00:00 - 00:08]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0008 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0008",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0008.audio",
+    "audio_sha256": "d1dcf34dd0757b8de5f5d891d1b4e1c0306b21372d459d7eac6c186eeb956dde",
+    "reference_text": "hồ sơ theo vụ rò rỉ sẽ nhắc tới xung đột biên giới điều palestine muốn dựa trên đường biên giới trước cuộc chiến tranh trung đông 1967",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 8,
+      "reference_sha256": "5aee01b1a14d41d7c2249c97d3d35ece78e9ddc8d88ab22d9adbacb880d07c9d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0008",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 8,
+      "reference_sha256": "5aee01b1a14d41d7c2249c97d3d35ece78e9ddc8d88ab22d9adbacb880d07c9d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 23,
+        "substitutions": 21,
+        "deletions": 0,
+        "insertions": 2,
+        "reference_units": 28,
+        "rate": 0.8214285714285714
+      },
+      "cer": {
+        "errors": 50,
+        "substitutions": 33,
+        "deletions": 12,
+        "insertions": 5,
+        "reference_units": 107,
+        "rate": 0.4672897196261682
+      }
+    },
+    "timing": {
+      "audio_seconds": 13.74,
+      "inference_seconds": 1.5780314000003273,
+      "load_seconds": 0.0,
+      "rtf": 0.11484944687047506
+    },
+    "output": {
+      "text": "Ấu sao theo dù gọi gãy, sẽ nhắc tới trung độc bên giấy, đều, ba laft, tiné, mũ nhổi trên đường bên giấy, chứ của 9 chân trung đồng 1197.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 13.74,
+          "text": "Ấu sao theo dù gọi gãy, sẽ nhắc tới trung độc bên giấy, đều, ba laft, tiné, mũ nhổi trên đường bên giấy, chứ của 9 chân trung đồng 1197.",
+          "tokens": [
+            50364,
+            220,
+            1775,
+            97,
+            84,
+            33108,
+            40594,
+            274,
+            5035,
+            290,
+            34282,
+            290,
+            49205,
+            11,
+            17208,
+            6245,
+            30838,
+            47679,
+            504,
+            1063,
+            29075,
+            66,
+            43730,
+            1735,
+            13417,
+            11,
+            2934,
+            17310,
+            11,
+            4773,
+            635,
+            844,
+            11,
+            15935,
+            526,
+            11,
+            275,
+            129,
+            102,
+            6245,
+            38704,
+            33187,
+            2934,
+            24280,
+            43730,
+            1735,
+            13417,
+            11,
+            417,
+            13905,
+            11990,
+            1722,
+            417,
+            9667,
+            504,
+            1063,
+            2934,
+            35070,
+            502,
+            3405,
+            22,
+            13,
+            51064
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.7752755880355835,
+          "compression_ratio": 1.1419354838709677,
+          "no_speech_prob": 0.36432185769081116,
+          "timestamp": "[00:00 - 00:13]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0009 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0009",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0009.audio",
+    "audio_sha256": "a7e0d97985f5e25b1ea2ccbbac32e65b1615ac330d5eaad61d4b0523495e0d2b",
+    "reference_text": "trung hoa cổ đại có một cách thức độc đáo để trình bày những niên đại khác nhau mỗi một giai đoạn của trung hoa hoặc mỗi một gia tộc từng nắm giữ quyền lực tương ứng với một triều đại khác nhau",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 9,
+      "reference_sha256": "2632f56d7a1864149fdb8db155b78b949f77d421d1337f9f39c7f6e1060f524c",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0009",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 9,
+      "reference_sha256": "2632f56d7a1864149fdb8db155b78b949f77d421d1337f9f39c7f6e1060f524c",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 22,
+        "substitutions": 21,
+        "deletions": 1,
+        "insertions": 0,
+        "reference_units": 43,
+        "rate": 0.5116279069767442
+      },
+      "cer": {
+        "errors": 50,
+        "substitutions": 42,
+        "deletions": 8,
+        "insertions": 0,
+        "reference_units": 151,
+        "rate": 0.33112582781456956
+      }
+    },
+    "timing": {
+      "audio_seconds": 16.38,
+      "inference_seconds": 2.43529049999961,
+      "load_seconds": 0.0,
+      "rtf": 0.1486746336996099
+    },
+    "output": {
+      "text": "Chúng hòa có đại, có mọc, cất thức đọc đáo, để trên bày những linh đại khác nhau. Mỏ ngôi gia đẹn cửa chúng hoa, mỏa mọc, gia đọc, từng nắm giữ, huyền lực, tương ứng, tương mời vừa đại khác nhau.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 4.78,
+          "text": "Chúng hòa có đại, có mọc, cất thức đọc đáo,",
+          "tokens": [
+            50364,
+            761,
+            16926,
+            276,
+            4293,
+            64,
+            6333,
+            2934,
+            12745,
+            11,
+            6333,
+            275,
+            12935,
+            66,
+            11,
+            269,
+            12436,
+            258,
+            27138,
+            2934,
+            12935,
+            66,
+            2934,
+            45202,
+            11,
+            50603
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.637672497675969,
+          "compression_ratio": 1.3894736842105264,
+          "no_speech_prob": 0.6332681179046631,
+          "timestamp": "[00:00 - 00:04]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 4.78,
+          "end": 7.18,
+          "text": "để trên bày những linh đại khác nhau.",
+          "tokens": [
+            50603,
+            20081,
+            33187,
+            272,
+            9524,
+            20136,
+            287,
+            10085,
+            2934,
+            12745,
+            43713,
+            6245,
+            1459,
+            13,
+            50723
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.637672497675969,
+          "compression_ratio": 1.3894736842105264,
+          "no_speech_prob": 0.6332681179046631,
+          "timestamp": "[00:04 - 00:07]"
+        },
+        {
+          "id": 2,
+          "seek": 0,
+          "start": 7.18,
+          "end": 11.78,
+          "text": "Mỏ ngôi gia đẹn cửa chúng hoa, mỏa mọc, gia đọc,",
+          "tokens": [
+            50723,
+            376,
+            21920,
+            6415,
+            12213,
+            39689,
+            2934,
+            26965,
+            77,
+            9613,
+            255,
+            64,
+            417,
+            16926,
+            1106,
+            64,
+            11,
+            275,
+            21920,
+            64,
+            275,
+            12935,
+            66,
+            11,
+            39689,
+            2934,
+            12935,
+            66,
+            11,
+            50953
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.637672497675969,
+          "compression_ratio": 1.3894736842105264,
+          "no_speech_prob": 0.6332681179046631,
+          "timestamp": "[00:07 - 00:11]"
+        },
+        {
+          "id": 3,
+          "seek": 0,
+          "start": 11.78,
+          "end": 16.12,
+          "text": "từng nắm giữ, huyền lực, tương ứng, tương mời vừa đại khác nhau.",
+          "tokens": [
+            50953,
+            26834,
+            872,
+            297,
+            41227,
+            1735,
+            12225,
+            11,
+            2137,
+            88,
+            26871,
+            287,
+            27951,
+            11,
+            256,
+            24605,
+            220,
+            44555,
+            11,
+            256,
+            24605,
+            275,
+            21024,
+            371,
+            47279,
+            2934,
+            12745,
+            43713,
+            6245,
+            1459,
+            13,
+            51170
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.637672497675969,
+          "compression_ratio": 1.3894736842105264,
+          "no_speech_prob": 0.6332681179046631,
+          "timestamp": "[00:11 - 00:16]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0010 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0010",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0010.audio",
+    "audio_sha256": "f1fbdb4228de18fd1091283ad2249be453e2a0e41a076871504721652cf8d73f",
+    "reference_text": "blog là công cụ kích thích sự hợp tác và khuyến khích học sinh mở rộng việc học tập ra ngoài khuôn khổ lớp học truyền thống",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 10,
+      "reference_sha256": "bdc8e981731076e384311f37314bf36e17419f3dbc5e499b4c9f94fc5d4d335a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0010",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 10,
+      "reference_sha256": "bdc8e981731076e384311f37314bf36e17419f3dbc5e499b4c9f94fc5d4d335a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 10,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 27,
+        "rate": 0.37037037037037035
+      },
+      "cer": {
+        "errors": 21,
+        "substitutions": 13,
+        "deletions": 6,
+        "insertions": 2,
+        "reference_units": 97,
+        "rate": 0.21649484536082475
+      }
+    },
+    "timing": {
+      "audio_seconds": 9.3,
+      "inference_seconds": 1.369869899999685,
+      "load_seconds": 0.0,
+      "rtf": 0.14729783870964352
+    },
+    "output": {
+      "text": "Lo là công cụ kích thích, trở hợp tác và khuyến kích, học sinh, mấy gong về học tập ra ngoài không có lấp học chuyên thống.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 9.0,
+          "text": "Lo là công cụ kích thích, trở hợp tác và khuyến kích, học sinh, mấy gong về học tập ra ngoài không có lấp học chuyên thống.",
+          "tokens": [
+            50364,
+            6130,
+            3684,
+            35451,
+            9613,
+            98,
+            350,
+            30839,
+            258,
+            30839,
+            11,
+            504,
+            13755,
+            276,
+            27836,
+            79,
+            7737,
+            66,
+            10274,
+            7168,
+            7493,
+            16240,
+            350,
+            30839,
+            11,
+            46786,
+            3343,
+            71,
+            11,
+            275,
+            13417,
+            290,
+            556,
+            25652,
+            46786,
+            256,
+            35148,
+            3342,
+            45843,
+            21971,
+            11415,
+            6333,
+            287,
+            47176,
+            46786,
+            35522,
+            5050,
+            258,
+            21092,
+            13,
+            50814
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5392001592195951,
+          "compression_ratio": 1.144927536231884,
+          "no_speech_prob": 0.2258836179971695,
+          "timestamp": "[00:00 - 00:09]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0011 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0011",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0011.audio",
+    "audio_sha256": "440adfbc6123029252dd3d875af0ea39bdebe897544e3b11fd4dac3caa711b41",
+    "reference_text": "cụ thể người ta cho rằng một người có thể phát hiện ai đó đang nói dối bằng việc giải nghĩa chính xác từng biểu hiện rất nhỏ",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 11,
+      "reference_sha256": "89fd0c044bdd43fde1b28fd8b470a88bc4fc839d25ae1d4772c8be21d78bfd5e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0011",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 11,
+      "reference_sha256": "89fd0c044bdd43fde1b28fd8b470a88bc4fc839d25ae1d4772c8be21d78bfd5e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 9,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 28,
+        "rate": 0.32142857142857145
+      },
+      "cer": {
+        "errors": 23,
+        "substitutions": 15,
+        "deletions": 5,
+        "insertions": 3,
+        "reference_units": 97,
+        "rate": 0.23711340206185566
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.02,
+      "inference_seconds": 1.3012934000016685,
+      "load_seconds": 0.0,
+      "rtf": 0.1298696007985697
+    },
+    "output": {
+      "text": "Cũ Thẩy, người ta cho gần, một người có thể phát hiện ai đó đang nói giới, bằng việc dễ nghị chính sách từng bữa hiện các nhỏ.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 10.0,
+          "text": "Cũ Thẩy, người ta cho gần, một người có thể phát hiện ai đó đang nói giới, bằng việc dễ nghị chính sách từng bữa hiện các nhỏ.",
+          "tokens": [
+            50364,
+            383,
+            129,
+            102,
+            334,
+            35068,
+            88,
+            11,
+            15898,
+            1846,
+            1586,
+            290,
+            18241,
+            11,
+            15486,
+            15898,
+            6333,
+            24491,
+            903,
+            7656,
+            48079,
+            9783,
+            17647,
+            30723,
+            27508,
+            1735,
+            12242,
+            11,
+            272,
+            27215,
+            38628,
+            274,
+            36664,
+            29338,
+            11708,
+            42178,
+            262,
+            39569,
+            26834,
+            872,
+            272,
+            26606,
+            48079,
+            13250,
+            6245,
+            21920,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5283021342997648,
+          "compression_ratio": 1.1258278145695364,
+          "no_speech_prob": 0.25984564423561096,
+          "timestamp": "[00:00 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0012 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0012",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0012.audio",
+    "audio_sha256": "c5e8882163f972be6313721e4fac968740caf80fb14b60cff1c0d547c67a194d",
+    "reference_text": "cái này gọi là độ ph của hóa chất bạn có thể tạo ra chất chỉ thị bằng nước ép bắp cải đỏ",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 12,
+      "reference_sha256": "ff02075edc61c4519dd77c4bfd4da75d8144a806a470cdb04adfd5f85765d84e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0012",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 12,
+      "reference_sha256": "ff02075edc61c4519dd77c4bfd4da75d8144a806a470cdb04adfd5f85765d84e",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 9,
+        "substitutions": 8,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 23,
+        "rate": 0.391304347826087
+      },
+      "cer": {
+        "errors": 17,
+        "substitutions": 9,
+        "deletions": 3,
+        "insertions": 5,
+        "reference_units": 66,
+        "rate": 0.25757575757575757
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.46,
+      "inference_seconds": 1.39554969999881,
+      "load_seconds": 0.0,
+      "rtf": 0.12177571553218236
+    },
+    "output": {
+      "text": "Cái này gọi là đồ bên hết của hóa chất Bạn có thể tạo ra chấp, sĩ, thị, bằng nước, s, lắp, kể đỏa",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 4.0,
+          "text": "Cái này gọi là đồ bên hết của hóa chất",
+          "tokens": [
+            50364,
+            383,
+            28249,
+            12542,
+            290,
+            34282,
+            3684,
+            2934,
+            11057,
+            43730,
+            44414,
+            11990,
+            276,
+            812,
+            64,
+            417,
+            12436,
+            50564
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6484116040743314,
+          "compression_ratio": 1.0300751879699248,
+          "no_speech_prob": 0.18941904604434967,
+          "timestamp": "[00:00 - 00:04]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 4.0,
+          "end": 10.0,
+          "text": "Bạn có thể tạo ra chấp, sĩ, thị, bằng nước, s, lắp, kể đỏa",
+          "tokens": [
+            50564,
+            363,
+            12937,
+            6333,
+            24491,
+            256,
+            43789,
+            3342,
+            417,
+            47176,
+            11,
+            262,
+            28490,
+            11,
+            258,
+            11708,
+            11,
+            272,
+            27215,
+            30728,
+            11,
+            262,
+            11,
+            287,
+            12195,
+            79,
+            11,
+            350,
+            9571,
+            2934,
+            21920,
+            64,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6484116040743314,
+          "compression_ratio": 1.0300751879699248,
+          "no_speech_prob": 0.18941904604434967,
+          "timestamp": "[00:04 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0013 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0013",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0013.audio",
+    "audio_sha256": "42b6699e96d5daada1a45135ea5cee233e5a2ee04f66494cb2bab592a39b02c5",
+    "reference_text": "tìm kiếm khóa học về môi trường thù địch trên internet có thể sẽ cung cấp cho bạn địa chỉ của một công ty địa phương",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 13,
+      "reference_sha256": "5f0fdd2ebc92bb8182bfb4f58e0c9805432d47d72d078e8b7044800c88a24610",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0013",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 13,
+      "reference_sha256": "5f0fdd2ebc92bb8182bfb4f58e0c9805432d47d72d078e8b7044800c88a24610",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 10,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 26,
+        "rate": 0.38461538461538464
+      },
+      "cer": {
+        "errors": 19,
+        "substitutions": 13,
+        "deletions": 6,
+        "insertions": 0,
+        "reference_units": 91,
+        "rate": 0.2087912087912088
+      }
+    },
+    "timing": {
+      "audio_seconds": 10.74,
+      "inference_seconds": 1.1531434999997145,
+      "load_seconds": 0.0,
+      "rtf": 0.10736904096831607
+    },
+    "output": {
+      "text": "Tìm kiếm, qua học về mỗi trường, thu được, trên internet có thể sẽ cùng cấp cho bạn để chữ có 1 công ty để phương.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 10.0,
+          "text": "Tìm kiếm, qua học về mỗi trường, thu được, trên internet có thể sẽ cùng cấp cho bạn để chữ có 1 công ty để phương.",
+          "tokens": [
+            50364,
+            314,
+            4749,
+            76,
+            6315,
+            6115,
+            76,
+            11,
+            24159,
+            46786,
+            25652,
+            275,
+            49572,
+            504,
+            24280,
+            11,
+            40295,
+            15832,
+            11,
+            33187,
+            4705,
+            6333,
+            24491,
+            17208,
+            45701,
+            269,
+            47176,
+            1586,
+            14647,
+            20081,
+            417,
+            12225,
+            6333,
+            502,
+            35451,
+            1104,
+            20081,
+            903,
+            24605,
+            13,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5859855924333844,
+          "compression_ratio": 1.047945205479452,
+          "no_speech_prob": 0.150987908244133,
+          "timestamp": "[00:00 - 00:10]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0014 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0014",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0014.audio",
+    "audio_sha256": "5ef51e213d39fa50e2b91d00df374c8e2680c5ca633e7561f2bae04e4e0c35e3",
+    "reference_text": "bệnh viện này đã làm theo quy trình kiểm soát lây nhiễm bao gồm cách ly bệnh nhân với các bệnh nhân khác để ngăn ngừa lây nhiễm có thể có cho những người khác",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 14,
+      "reference_sha256": "5cffbc2b7b381c298912042539416b22a93386c13d212f7a4fed2b0d0563132a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0014",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 14,
+      "reference_sha256": "5cffbc2b7b381c298912042539416b22a93386c13d212f7a4fed2b0d0563132a",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 8,
+        "substitutions": 8,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 35,
+        "rate": 0.22857142857142856
+      },
+      "cer": {
+        "errors": 10,
+        "substitutions": 8,
+        "deletions": 1,
+        "insertions": 1,
+        "reference_units": 124,
+        "rate": 0.08064516129032258
+      }
+    },
+    "timing": {
+      "audio_seconds": 13.86,
+      "inference_seconds": 1.5449767999998585,
+      "load_seconds": 0.0,
+      "rtf": 0.11147018759017738
+    },
+    "output": {
+      "text": "Bình diễn này đã làm theo quý trình kiểm soát lây nhiễm bao gồm Cách lý bình nhân với cách bình nhân khác để ngăn ngờ lây nhiễm có thể có cho những người khác",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 5.0,
+          "text": "Bình diễn này đã làm theo quý trình kiểm soát lây nhiễm bao gồm",
+          "tokens": [
+            50364,
+            363,
+            10116,
+            1026,
+            36664,
+            77,
+            12542,
+            17283,
+            22319,
+            40594,
+            421,
+            11822,
+            504,
+            10116,
+            6315,
+            47119,
+            370,
+            7656,
+            287,
+            12108,
+            20575,
+            36664,
+            76,
+            45296,
+            290,
+            11057,
+            76,
+            50614
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.3670481712587418,
+          "compression_ratio": 1.3076923076923077,
+          "no_speech_prob": 0.2677762806415558,
+          "timestamp": "[00:00 - 00:05]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 5.0,
+          "end": 13.0,
+          "text": "Cách lý bình nhân với cách bình nhân khác để ngăn ngờ lây nhiễm có thể có cho những người khác",
+          "tokens": [
+            50614,
+            383,
+            39569,
+            287,
+            11822,
+            272,
+            10116,
+            47931,
+            18916,
+            269,
+            39569,
+            272,
+            10116,
+            47931,
+            43713,
+            20081,
+            6415,
+            49214,
+            6415,
+            21270,
+            287,
+            12108,
+            20575,
+            36664,
+            76,
+            6333,
+            24491,
+            6333,
+            1586,
+            20136,
+            15898,
+            43713,
+            51014
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.3670481712587418,
+          "compression_ratio": 1.3076923076923077,
+          "no_speech_prob": 0.2677762806415558,
+          "timestamp": "[00:05 - 00:13]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0015 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0015",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0015.audio",
+    "audio_sha256": "6a22d09400e524e283764c8894e7e08d2ef35ae95764d576889854bb57b03507",
+    "reference_text": "tuy nhiên sau khi thua gôn của đội trưởng ấn độ chỉ thực hiện được 36 lần chạy và thua 7 gôn trước khi kết thúc hiệp thi đấu",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 15,
+      "reference_sha256": "b86ca384c28d87ffc7f3c328f38177690a45351eb539b69a27817ad376af875b",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0015",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 15,
+      "reference_sha256": "b86ca384c28d87ffc7f3c328f38177690a45351eb539b69a27817ad376af875b",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 13,
+        "substitutions": 12,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 29,
+        "rate": 0.4482758620689655
+      },
+      "cer": {
+        "errors": 23,
+        "substitutions": 15,
+        "deletions": 3,
+        "insertions": 5,
+        "reference_units": 96,
+        "rate": 0.23958333333333334
+      }
+    },
+    "timing": {
+      "audio_seconds": 12.3,
+      "inference_seconds": 1.5676805000002787,
+      "load_seconds": 0.0,
+      "rtf": 0.12745369918701452
+    },
+    "output": {
+      "text": "Tuy nhiên sau khi Thu Rông của đổi ở Chướng, Ản Độ chỉ thực hiện được 36 lần trại nhà Thu Bảy Gôn, trước khi cất thuốc hệ thi đấu.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 12.0,
+          "text": "Tuy nhiên sau khi Thu Rông của đổi ở Chướng, Ản Độ chỉ thực hiện được 36 lần trại nhà Thu Bảy Gôn, trước khi cất thuốc hệ thi đấu.",
+          "tokens": [
+            50364,
+            314,
+            7493,
+            20575,
+            5050,
+            17828,
+            23526,
+            334,
+            84,
+            497,
+            8217,
+            11990,
+            2934,
+            38704,
+            19272,
+            761,
+            17059,
+            872,
+            11,
+            220,
+            1775,
+            95,
+            77,
+            13055,
+            8047,
+            33566,
+            50183,
+            48079,
+            15832,
+            8652,
+            287,
+            18241,
+            504,
+            12745,
+            35398,
+            334,
+            84,
+            363,
+            7398,
+            88,
+            460,
+            17140,
+            11,
+            44860,
+            23526,
+            269,
+            12436,
+            40295,
+            24426,
+            276,
+            8471,
+            30994,
+            2934,
+            44732,
+            13,
+            50964
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6427683913916872,
+          "compression_ratio": 1.0925925925925926,
+          "no_speech_prob": 0.15836231410503387,
+          "timestamp": "[00:00 - 00:12]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0016 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0016",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0016.audio",
+    "audio_sha256": "ac4c65f0c644b46f0ccac83f525113b6ae4007fea169c24b05c2e891cbcce5f1",
+    "reference_text": "ông gọi những tin đồn này là cuộc tán gẫu về chính trị và sự điên rồ",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 16,
+      "reference_sha256": "549927772fb4d771d114451d57023e1dff1304d39f68bded31c44acda1ee4b2d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0016",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 16,
+      "reference_sha256": "549927772fb4d771d114451d57023e1dff1304d39f68bded31c44acda1ee4b2d",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 7,
+        "substitutions": 7,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 17,
+        "rate": 0.4117647058823529
+      },
+      "cer": {
+        "errors": 12,
+        "substitutions": 7,
+        "deletions": 1,
+        "insertions": 4,
+        "reference_units": 52,
+        "rate": 0.23076923076923078
+      }
+    },
+    "timing": {
+      "audio_seconds": 6.6,
+      "inference_seconds": 0.9816921999990882,
+      "load_seconds": 0.0,
+      "rtf": 0.14874124242410428
+    },
+    "output": {
+      "text": "Em gọi những tính đồng này là cuộc tán gấu về chính trị và sử đuên rộng.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 6.0,
+          "text": "Em gọi những tính đồng này là cuộc tán gấu về chính trị và sử đuên rộng.",
+          "tokens": [
+            50364,
+            3968,
+            290,
+            34282,
+            20136,
+            256,
+            26994,
+            2934,
+            35070,
+            12542,
+            3684,
+            50138,
+            256,
+            7200,
+            290,
+            44732,
+            25652,
+            42178,
+            504,
+            11708,
+            10274,
+            262,
+            27801,
+            2934,
+            84,
+            5050,
+            367,
+            8047,
+            872,
+            13,
+            50664
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.6156913042068481,
+          "compression_ratio": 0.9519230769230769,
+          "no_speech_prob": 0.25951093435287476,
+          "timestamp": "[00:00 - 00:06]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0017 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0017",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0017.audio",
+    "audio_sha256": "c4462ef6fbf46f2fdec9552d6bb9027b24c76f637b66f21e55aa4c795ec1a1a2",
+    "reference_text": "cuomo 53 tuổi bắt đầu đảm nhiệm chức vụ thống đốc từ đầu năm nay tháng trước ông đã ký dự luật hợp pháp hóa hôn nhân đồng giới",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 17,
+      "reference_sha256": "e226b019e41831f1664544617c105adeaf3f83af8f5ecd11af7a792900b8c668",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0017",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 17,
+      "reference_sha256": "e226b019e41831f1664544617c105adeaf3f83af8f5ecd11af7a792900b8c668",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 9,
+        "substitutions": 8,
+        "deletions": 0,
+        "insertions": 1,
+        "reference_units": 29,
+        "rate": 0.3103448275862069
+      },
+      "cer": {
+        "errors": 19,
+        "substitutions": 15,
+        "deletions": 2,
+        "insertions": 2,
+        "reference_units": 98,
+        "rate": 0.19387755102040816
+      }
+    },
+    "timing": {
+      "audio_seconds": 11.52,
+      "inference_seconds": 1.6387716999997792,
+      "load_seconds": 0.0,
+      "rtf": 0.14225448784720307
+    },
+    "output": {
+      "text": "Cú Mô, 53 tối, bắt đầu đảm nhiệm chức mộng thống đốc. Từ đầu năm nay, tháng trước, ông đã ký dự lực khab pháp hoá hôm nhân đồng dưới.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 5.0,
+          "text": "Cú Mô, 53 tối, bắt đầu đảm nhiệm chức mộng thống đốc.",
+          "tokens": [
+            50364,
+            383,
+            2481,
+            376,
+            2851,
+            11,
+            21860,
+            256,
+            24273,
+            11,
+            272,
+            31454,
+            32573,
+            2934,
+            7398,
+            76,
+            20575,
+            8471,
+            76,
+            417,
+            27138,
+            275,
+            8047,
+            872,
+            258,
+            21092,
+            2934,
+            24426,
+            13,
+            50614
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.4829776937311346,
+          "compression_ratio": 1.1288343558282208,
+          "no_speech_prob": 0.21363693475723267,
+          "timestamp": "[00:00 - 00:05]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 5.0,
+          "end": 11.0,
+          "text": "Từ đầu năm nay, tháng trước, ông đã ký dự lực khab pháp hoá hôm nhân đồng dưới.",
+          "tokens": [
+            50614,
+            314,
+            16242,
+            32573,
+            38098,
+            34227,
+            11,
+            258,
+            30344,
+            44860,
+            11,
+            34835,
+            17283,
+            350,
+            11822,
+            274,
+            14522,
+            287,
+            27951,
+            7168,
+            455,
+            903,
+            15059,
+            1106,
+            842,
+            276,
+            25670,
+            47931,
+            2934,
+            35070,
+            274,
+            5829,
+            8971,
+            13,
+            50914
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.4829776937311346,
+          "compression_ratio": 1.1288343558282208,
+          "no_speech_prob": 0.21363693475723267,
+          "timestamp": "[00:05 - 00:11]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0018 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0018",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0018.audio",
+    "audio_sha256": "b9e5bede8bba81e1a1a4561d2cd89113bf49f855f9ce9011e0b5431d41723bc6",
+    "reference_text": "giáo sư pamela ferguson của trường đại học dundee ghi nhận rằng có lẽ các nhà báo thực sự đang đi trên một con đường nguy hiểm khi công khai những hình ảnh v.v. của các nghi phạm",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 18,
+      "reference_sha256": "61aa8014249687ca4989ac59bd7a37d5ff9b23369fa7a6521d258c5367d2f596",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0018",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 18,
+      "reference_sha256": "61aa8014249687ca4989ac59bd7a37d5ff9b23369fa7a6521d258c5367d2f596",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 8,
+        "substitutions": 5,
+        "deletions": 2,
+        "insertions": 1,
+        "reference_units": 39,
+        "rate": 0.20512820512820512
+      },
+      "cer": {
+        "errors": 15,
+        "substitutions": 11,
+        "deletions": 4,
+        "insertions": 0,
+        "reference_units": 139,
+        "rate": 0.1079136690647482
+      }
+    },
+    "timing": {
+      "audio_seconds": 15.3,
+      "inference_seconds": 1.8375880000003235,
+      "load_seconds": 0.0,
+      "rtf": 0.12010379084969434
+    },
+    "output": {
+      "text": "Giáo sư Pamela Fagusan của trường đại học đơn đi, ghi nhận rằng có lẽ các nhà báo thực sự đơn đi trên một con đường nguy hiểm khi công khai những hành nẳng của các nghi phạm.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 10.0,
+          "text": "Giáo sư Pamela Fagusan của trường đại học đơn đi, ghi nhận rằng có lẽ các nhà báo thực sự đơn đi trên một con đường nguy hiểm",
+          "tokens": [
+            50364,
+            15334,
+            45202,
+            262,
+            4228,
+            23532,
+            4053,
+            479,
+            559,
+            301,
+            282,
+            11990,
+            504,
+            24280,
+            2934,
+            12745,
+            46786,
+            2934,
+            23513,
+            13264,
+            11,
+            290,
+            4954,
+            6245,
+            27410,
+            45019,
+            6333,
+            287,
+            15740,
+            13250,
+            35398,
+            272,
+            45202,
+            50183,
+            33602,
+            2934,
+            23513,
+            13264,
+            33187,
+            15486,
+            416,
+            2934,
+            24280,
+            297,
+            39344,
+            4879,
+            47119,
+            50864
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5944721387780231,
+          "compression_ratio": 1.2417582417582418,
+          "no_speech_prob": 0.5707765221595764,
+          "timestamp": "[00:00 - 00:10]"
+        },
+        {
+          "id": 1,
+          "seek": 0,
+          "start": 10.0,
+          "end": 14.0,
+          "text": "khi công khai những hành nẳng của các nghi phạm.",
+          "tokens": [
+            50864,
+            23526,
+            35451,
+            7168,
+            1301,
+            20136,
+            276,
+            24449,
+            297,
+            1775,
+            111,
+            872,
+            11990,
+            13250,
+            46889,
+            903,
+            5890,
+            76,
+            13,
+            51064
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.5944721387780231,
+          "compression_ratio": 1.2417582417582418,
+          "no_speech_prob": 0.5707765221595764,
+          "timestamp": "[00:10 - 00:14]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## fleurs-vi-0019 / base — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "fleurs-vi-0019",
+    "kind": "asr",
+    "split": "test",
+    "audio_path": "inputs/fleurs-vi-0019.audio",
+    "audio_sha256": "8a301488f56114107e0c4b66d294a789ad409989c4b6c5e886a735eda052ecce",
+    "reference_text": "cuối cùng có nhiều loài mèo nhỏ gồm cả mèo nuôi trong nhà ăn những con mồi nhỏ có số lượng lớn như côn trùng các loài gặm nhấm thằn lằn và chim",
+    "reference_approved": false,
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 19,
+      "reference_sha256": "a4f1eaed6cd2dcc766e9c60071ceefdfaf9c7e886a044b2cd4327ef6ca75c3cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "reference_tasks": null,
+    "reference_facts": null
+  },
+  "result": {
+    "case_id": "fleurs-vi-0019",
+    "kind": "asr",
+    "variant": "base",
+    "status": "ok",
+    "provenance": {
+      "source_url": "https://huggingface.co/datasets/google/fleurs",
+      "license": "CC-BY-4.0",
+      "dataset": "google/fleurs",
+      "config": "vi_vn",
+      "split": "test",
+      "row_index": 19,
+      "reference_sha256": "a4f1eaed6cd2dcc766e9c60071ceefdfaf9c7e886a044b2cd4327ef6ca75c3cf",
+      "parquet_url": "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/vi_vn/test/0000.parquet",
+      "parquet_sha256": "65325be18bef84bb97b5bad1145958ae752919bb0b6696e7cfa8409ef5c46c77"
+    },
+    "warnings": [],
+    "scores": {
+      "wer": {
+        "errors": 15,
+        "substitutions": 15,
+        "deletions": 0,
+        "insertions": 0,
+        "reference_units": 33,
+        "rate": 0.45454545454545453
+      },
+      "cer": {
+        "errors": 25,
+        "substitutions": 20,
+        "deletions": 2,
+        "insertions": 3,
+        "reference_units": 111,
+        "rate": 0.22522522522522523
+      }
+    },
+    "timing": {
+      "audio_seconds": 12.18,
+      "inference_seconds": 1.642625999998927,
+      "load_seconds": 0.0,
+      "rtf": 0.13486256157626658
+    },
+    "output": {
+      "text": "Cũng cùng, có nhiều loại mèo nhỏ, dầm cả mèo nối chăm nhẹ, anh những con mọi nhỏ có sứ lượng lớn như công trùng, các loại gấm nhắm, thành lần và chim.",
+      "segments": [
+        {
+          "id": 0,
+          "seek": 0,
+          "start": 0.0,
+          "end": 12.0,
+          "text": "Cũng cùng, có nhiều loại mèo nhỏ, dầm cả mèo nối chăm nhẹ, anh những con mọi nhỏ có sứ lượng lớn như công trùng, các loại gấm nhắm, thành lần và chim.",
+          "tokens": [
+            50364,
+            383,
+            129,
+            21077,
+            45701,
+            11,
+            6333,
+            28272,
+            450,
+            12745,
+            275,
+            1462,
+            78,
+            6245,
+            21920,
+            11,
+            274,
+            11161,
+            76,
+            22227,
+            275,
+            1462,
+            78,
+            297,
+            24273,
+            417,
+            21434,
+            6245,
+            26965,
+            11,
+            18931,
+            20136,
+            416,
+            275,
+            34282,
+            6245,
+            21920,
+            6333,
+            262,
+            13905,
+            287,
+            47001,
+            47864,
+            77,
+            16228,
+            35451,
+            504,
+            27065,
+            11,
+            13250,
+            450,
+            12745,
+            290,
+            6785,
+            76,
+            6245,
+            41227,
+            11,
+            39953,
+            287,
+            18241,
+            10274,
+            18375,
+            13,
+            50964
+          ],
+          "temperature": 0.0,
+          "avg_logprob": -0.49174782724091504,
+          "compression_ratio": 1.2452830188679245,
+          "no_speech_prob": 0.3049827814102173,
+          "timestamp": "[00:00 - 00:12]"
+        }
+      ]
+    },
+    "device": "cpu"
+  }
+}
+
+```
+
+## vi-clear / mmr_off — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-clear",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Tôi sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20. Minh: Đồng ý, bản báo cáo cần có số lỗi còn mở. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Gửi báo cáo kiểm thử",
+        "assignee": "Lan",
+        "deadline_iso": "2026-10-20",
+        "evidence": "Tôi sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Báo cáo cần có số lỗi còn mở.",
+        "evidence": "Lan: Tôi sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20. Minh: Đồng ý, bản báo cáo cần có số lỗi còn mở."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-clear",
+    "kind": "nlp_text",
+    "variant": "mmr_off",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 19.865704000001642
+    },
+    "mmr": {
+      "applied": false,
+      "reason": "disabled",
+      "lambda_param": 0.65,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Lan sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20.\n• Báo cáo cần có số lượng lỗi còn mở.\n• Mục tiêu của buổi họp là làm rõ trạng thái hiện tại của dự án.\n• Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n• Cần phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Phần thảo luận chung không tạo thêm cam kết thực hiện công việc.\n• Các con số và tên người cần được ghi lại chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Send testing report",
+          "assignee": "Lan",
+          "deadline": "2026-10-20",
+          "deadline_iso": "2026-10-20",
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Send testing report\", \"assignee\": \"Lan\", \"deadline\": \"2026-10-20\", \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 19.865704000001642,
+      "transcript": "Lan: Tôi sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20. Minh: Đồng ý, bản báo cáo cần có số lỗi còn mở. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-clear / mmr_on — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-clear",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Tôi sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20. Minh: Đồng ý, bản báo cáo cần có số lỗi còn mở. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Gửi báo cáo kiểm thử",
+        "assignee": "Lan",
+        "deadline_iso": "2026-10-20",
+        "evidence": "Tôi sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Báo cáo cần có số lỗi còn mở.",
+        "evidence": "Lan: Tôi sẽ gửi báo cáo kiểm thử trước ngày 2026-10-20. Minh: Đồng ý, bản báo cáo cần có số lỗi còn mở."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-clear",
+    "kind": "nlp_text",
+    "variant": "mmr_on",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 15.099869799998487
+    },
+    "mmr": {
+      "applied": true,
+      "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
+      "lambda_param": 0.65,
+      "lambda_diversity": 0.65,
+      "original_words": 113,
+      "filtered_words": 76,
+      "reduction_percent": 32.7,
+      "sentences_kept": 5,
+      "total_sentences": 7,
+      "compression_ratio": 0.67,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Buổi trao đổi có mục tiêu làm rõ trạng thái hiện tại của dự án.\n• Yêu cầu thông tin trong bản ghi phản ánh đúng quyết định cuối cùng của nhóm.\n• Cần phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Cần ghi lại các con số và tên người chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Review and finalize project status",
+          "assignee": "Lan and Minh",
+          "deadline": null,
+          "deadline_iso": null,
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Review and finalize project status\", \"assignee\": \"Lan and Minh\", \"deadline\": null, \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 15.099869799998487,
+      "transcript": "Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n\nMinh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n\nLan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n\nLan: Các con số và tên người cần được ghi lại chính xác.\n\nMinh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-cancel / mmr_off — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-cancel",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Minh: Ban đầu định chuyển dữ liệu vào ngày 2026-10-21. Lan: Hủy kế hoạch đó, không chuyển dữ liệu trong đợt này. Minh: Đã thống nhất hủy. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Kế hoạch chuyển dữ liệu đã bị hủy.",
+        "evidence": "Minh: Ban đầu định chuyển dữ liệu vào ngày 2026-10-21. Lan: Hủy kế hoạch đó, không chuyển dữ liệu trong đợt này. Minh: Đã thống nhất hủy."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-cancel",
+    "kind": "nlp_text",
+    "variant": "mmr_off",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 16.786980999999287
+    },
+    "mmr": {
+      "applied": false,
+      "reason": "disabled",
+      "lambda_param": 0.65,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Ban đầu định chuyển dữ liệu vào ngày 2026-10-21, nhưng kế hoạch đã được hủy bỏ.\n• Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n• Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n• Cần phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Phần thảo luận chung không tạo thêm cam kết thực hiện công việc.\n• Các con số và tên người cần được ghi lại chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Reconcile proposal with agreed-upon outcome",
+          "assignee": "Unassigned",
+          "deadline": null,
+          "deadline_iso": null,
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\n\n\n    \"task\": \"Reconcile proposal with agreed-upon outcome\", \n    \"assignee\": \"Unassigned\", \n    \"deadline\": null, \n    \"status\": \"pending\" \n}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 16.786980999999287,
+      "transcript": "Minh: Ban đầu định chuyển dữ liệu vào ngày 2026-10-21. Lan: Hủy kế hoạch đó, không chuyển dữ liệu trong đợt này. Minh: Đã thống nhất hủy. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-cancel / mmr_on — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-cancel",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Minh: Ban đầu định chuyển dữ liệu vào ngày 2026-10-21. Lan: Hủy kế hoạch đó, không chuyển dữ liệu trong đợt này. Minh: Đã thống nhất hủy. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Kế hoạch chuyển dữ liệu đã bị hủy.",
+        "evidence": "Minh: Ban đầu định chuyển dữ liệu vào ngày 2026-10-21. Lan: Hủy kế hoạch đó, không chuyển dữ liệu trong đợt này. Minh: Đã thống nhất hủy."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-cancel",
+    "kind": "nlp_text",
+    "variant": "mmr_on",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 15.192337499998757
+    },
+    "mmr": {
+      "applied": true,
+      "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
+      "lambda_param": 0.65,
+      "lambda_diversity": 0.65,
+      "original_words": 117,
+      "filtered_words": 71,
+      "reduction_percent": 39.3,
+      "sentences_kept": 5,
+      "total_sentences": 8,
+      "compression_ratio": 0.61,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Ban đầu, Minh định chuyển dữ liệu vào ngày 2026-10-21, nhưng Lan hủy kế hoạch đó và quyết định không chuyển dữ liệu trong đợt này.\n• Minh thống nhất hủy kế hoạch.\n• Mục tiêu của buổi họp là làm rõ trạng thái hiện tại của dự án.\n• Lan yêu cầu ghi lại các con số và tên người cần được ghi lại chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Verify project status",
+          "assignee": "Unassigned",
+          "deadline": null,
+          "deadline_iso": null,
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Verify project status\", \"assignee\": \"Unassigned\", \"deadline\": null, \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 15.192337499998757,
+      "transcript": "Minh: Ban đầu định chuyển dữ liệu vào ngày 2026-10-21. Lan: Hủy kế hoạch đó, không chuyển dữ liệu trong đợt này.\n\nMinh: Đã thống nhất hủy.\n\nLan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n\nLan: Các con số và tên người cần được ghi lại chính xác.\n\nMinh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-no_tasks / mmr_off — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-no_tasks",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Hôm nay chỉ chia sẻ kết quả. Hệ thống xử lý được 30 bản ghi. Minh: Chúng ta chưa giao thêm công việc nào. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Hệ thống xử lý được 30 bản ghi.",
+        "evidence": "Lan: Hôm nay chỉ chia sẻ kết quả. Hệ thống xử lý được 30 bản ghi. Minh: Chúng ta chưa giao thêm công việc nào."
+      },
+      {
+        "id": "f2",
+        "text": "Chưa giao thêm công việc.",
+        "evidence": "Lan: Hôm nay chỉ chia sẻ kết quả. Hệ thống xử lý được 30 bản ghi. Minh: Chúng ta chưa giao thêm công việc nào."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-no_tasks",
+    "kind": "nlp_text",
+    "variant": "mmr_off",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 15.18782629999987
+    },
+    "mmr": {
+      "applied": false,
+      "reason": "disabled",
+      "lambda_param": 0.65,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Buổi họp hôm nay chỉ tập trung chia sẻ kết quả, không giao thêm công việc nào.\n• Mục tiêu của buổi họp là làm rõ trạng thái hiện tại của dự án.\n• Cần phản ánh đúng quyết định cuối cùng của nhóm trong thông tin bản ghi.\n• Cần phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Phần thảo luận chung không tạo thêm cam kết thực hiện công việc.\n• Cần ghi lại các con số và tên người chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Finalize project status report",
+          "assignee": "Unassigned",
+          "deadline": null,
+          "deadline_iso": null,
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Finalize project status report\", \"assignee\": \"Unassigned\", \"deadline\": null, \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 15.18782629999987,
+      "transcript": "Lan: Hôm nay chỉ chia sẻ kết quả. Hệ thống xử lý được 30 bản ghi. Minh: Chúng ta chưa giao thêm công việc nào. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-no_tasks / mmr_on — partial
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-no_tasks",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Hôm nay chỉ chia sẻ kết quả. Hệ thống xử lý được 30 bản ghi. Minh: Chúng ta chưa giao thêm công việc nào. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Hệ thống xử lý được 30 bản ghi.",
+        "evidence": "Lan: Hôm nay chỉ chia sẻ kết quả. Hệ thống xử lý được 30 bản ghi. Minh: Chúng ta chưa giao thêm công việc nào."
+      },
+      {
+        "id": "f2",
+        "text": "Chưa giao thêm công việc.",
+        "evidence": "Lan: Hôm nay chỉ chia sẻ kết quả. Hệ thống xử lý được 30 bản ghi. Minh: Chúng ta chưa giao thêm công việc nào."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-no_tasks",
+    "kind": "nlp_text",
+    "variant": "mmr_on",
+    "status": "partial",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [
+      "action_items_heuristic"
+    ],
+    "timing": {
+      "inference_seconds": 13.959365400000024
+    },
+    "mmr": {
+      "applied": true,
+      "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
+      "lambda_param": 0.65,
+      "lambda_diversity": 0.65,
+      "original_words": 115,
+      "filtered_words": 52,
+      "reduction_percent": 54.8,
+      "sentences_kept": 5,
+      "total_sentences": 9,
+      "compression_ratio": 0.45,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Hôm nay, Lan chia sẻ kết quả và thông báo rằng hệ thống xử lý đã được 30 bản ghi.\n• Minh thông báo rằng chưa giao thêm công việc nào.\n• Lan nhấn mạnh rằng các con số và tên người cần được ghi lại chính xác.\n• Minh thông báo rằng buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [],
+      "generation": {
+        "source": "heuristic",
+        "reason": "empty_or_invalid_output",
+        "raw_output": "{}"
+      },
+      "warnings": [
+        "action_items_heuristic"
+      ],
+      "status": "partial",
+      "inference_seconds": 13.959365400000024,
+      "transcript": "Lan: Hôm nay chỉ chia sẻ kết quả.\n\nHệ thống xử lý được 30 bản ghi.\n\nMinh: Chúng ta chưa giao thêm công việc nào.\n\nLan: Các con số và tên người cần được ghi lại chính xác.\n\nMinh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-reassign / mmr_off — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-reassign",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Ban đầu Nam phụ trách tài liệu. Nam: Tôi không nhận phần này nữa. Minh: Tôi nhận viết tài liệu triển khai, hạn ngày 2026-10-22. Lan: Chốt Minh phụ trách. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Viết tài liệu triển khai",
+        "assignee": "Minh",
+        "deadline_iso": "2026-10-22",
+        "evidence": "Tôi nhận viết tài liệu triển khai, hạn ngày 2026-10-22."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Minh thay Nam phụ trách tài liệu.",
+        "evidence": "Lan: Ban đầu Nam phụ trách tài liệu. Nam: Tôi không nhận phần này nữa. Minh: Tôi nhận viết tài liệu triển khai, hạn ngày 2026-10-22. Lan: Chốt Minh phụ trách."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-reassign",
+    "kind": "nlp_text",
+    "variant": "mmr_off",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 15.973100700000941
+    },
+    "mmr": {
+      "applied": false,
+      "reason": "disabled",
+      "lambda_param": 0.65,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Nam ban đầu phụ trách tài liệu, nhưng sau đó không nhận phần này nữa.\n• Minh nhận viết tài liệu triển khai, hạn ngày 2026-10-22, và được Lan chốt phụ trách.\n• Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n• Minh nhấn mạnh thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n• Lan và Minh phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Minh lưu ý rằng phần thảo luận chung không tạo thêm cam kết thực hiện công việc.\n• Lan yêu cầu các con số và tên người cần được ghi lại chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Write document on project status",
+          "assignee": "Minh",
+          "deadline": "2026-10-22",
+          "deadline_iso": "2026-10-22",
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Write document on project status\", \"assignee\": \"Minh\", \"deadline\": \"2026-10-22\", \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 15.973100700000941,
+      "transcript": "Lan: Ban đầu Nam phụ trách tài liệu. Nam: Tôi không nhận phần này nữa. Minh: Tôi nhận viết tài liệu triển khai, hạn ngày 2026-10-22. Lan: Chốt Minh phụ trách. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-reassign / mmr_on — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-reassign",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Ban đầu Nam phụ trách tài liệu. Nam: Tôi không nhận phần này nữa. Minh: Tôi nhận viết tài liệu triển khai, hạn ngày 2026-10-22. Lan: Chốt Minh phụ trách. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Viết tài liệu triển khai",
+        "assignee": "Minh",
+        "deadline_iso": "2026-10-22",
+        "evidence": "Tôi nhận viết tài liệu triển khai, hạn ngày 2026-10-22."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Minh thay Nam phụ trách tài liệu.",
+        "evidence": "Lan: Ban đầu Nam phụ trách tài liệu. Nam: Tôi không nhận phần này nữa. Minh: Tôi nhận viết tài liệu triển khai, hạn ngày 2026-10-22. Lan: Chốt Minh phụ trách."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-reassign",
+    "kind": "nlp_text",
+    "variant": "mmr_on",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 14.267142100001365
+    },
+    "mmr": {
+      "applied": true,
+      "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
+      "lambda_param": 0.65,
+      "lambda_diversity": 0.65,
+      "original_words": 121,
+      "filtered_words": 59,
+      "reduction_percent": 51.2,
+      "sentences_kept": 5,
+      "total_sentences": 9,
+      "compression_ratio": 0.49,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Ban đầu Nam được giao trách nhiệm về tài liệu.\n• Nam từ chối nhận phần này nữa.\n• Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n• Lan yêu cầu các con số và tên người cần được ghi lại chính xác.\n• Minh thông báo buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Update project status",
+          "assignee": "Nam",
+          "deadline": null,
+          "deadline_iso": null,
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Update project status\", \"assignee\": \"Nam\", \"deadline\": null, \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 14.267142100001365,
+      "transcript": "Lan: Ban đầu Nam phụ trách tài liệu.\n\nNam: Tôi không nhận phần này nữa.\n\nLan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n\nLan: Các con số và tên người cần được ghi lại chính xác.\n\nMinh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-deadline / mmr_off — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-deadline",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Hạn nộp bản thiết kế là ngày 2026-10-23. Minh: Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Hoàn tất và nộp bản thiết kế",
+        "assignee": "Minh",
+        "deadline_iso": "2026-10-23",
+        "evidence": "Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Hạn nộp bản thiết kế là ngày 2026-10-23.",
+        "evidence": "Lan: Hạn nộp bản thiết kế là ngày 2026-10-23. Minh: Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-deadline",
+    "kind": "nlp_text",
+    "variant": "mmr_off",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 15.438028000000486
+    },
+    "mmr": {
+      "applied": false,
+      "reason": "disabled",
+      "lambda_param": 0.65,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Hạn nộp bản thiết kế là ngày 2026-10-23.\n• Minh cam kết hoàn tất bản thiết kế và nộp đúng ngày đó.\n• Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n• Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n• Cần phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Phần thảo luận chung không tạo thêm cam kết thực hiện công việc.\n• Các con số và tên người cần được ghi lại chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Finalize project design by 2026-10-23",
+          "assignee": "Minh",
+          "deadline": "2026-10-23",
+          "deadline_iso": "2026-10-23",
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Finalize project design by 2026-10-23\", \"assignee\": \"Minh\", \"deadline\": \"2026-10-23\", \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 15.438028000000486,
+      "transcript": "Lan: Hạn nộp bản thiết kế là ngày 2026-10-23. Minh: Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-deadline / mmr_on — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-deadline",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Hạn nộp bản thiết kế là ngày 2026-10-23. Minh: Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Hoàn tất và nộp bản thiết kế",
+        "assignee": "Minh",
+        "deadline_iso": "2026-10-23",
+        "evidence": "Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Hạn nộp bản thiết kế là ngày 2026-10-23.",
+        "evidence": "Lan: Hạn nộp bản thiết kế là ngày 2026-10-23. Minh: Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-deadline",
+    "kind": "nlp_text",
+    "variant": "mmr_on",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 15.075613000000885
+    },
+    "mmr": {
+      "applied": true,
+      "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
+      "lambda_param": 0.65,
+      "lambda_diversity": 0.65,
+      "original_words": 112,
+      "filtered_words": 82,
+      "reduction_percent": 26.8,
+      "sentences_kept": 5,
+      "total_sentences": 7,
+      "compression_ratio": 0.73,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Hạn nộp bản thiết kế là ngày 2026-10-23.\n• Minh cam kết hoàn tất bản thiết kế và nộp đúng ngày đó.\n• Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n• Minh nhấn mạnh rằng thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n• Lan yêu cầu các con số và tên người cần được ghi lại chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Complete and submit design by 2026-10-23",
+          "assignee": "Minh",
+          "deadline": "2026-10-23",
+          "deadline_iso": "2026-10-23",
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Complete and submit design by 2026-10-23\", \"assignee\": \"Minh\", \"deadline\": \"2026-10-23\", \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 15.075613000000885,
+      "transcript": "Lan: Hạn nộp bản thiết kế là ngày 2026-10-23. Minh: Tôi sẽ hoàn tất bản thiết kế và nộp đúng ngày đó.\n\nLan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n\nMinh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n\nLan: Các con số và tên người cần được ghi lại chính xác.\n\nMinh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-mixed / mmr_off — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-mixed",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Please review the API contract. Minh: I will review the API contract by 2026-10-24. Lan: Sau đó chúng ta mới xem xét release, chưa chốt ngày release. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Review API contract",
+        "assignee": "Minh",
+        "deadline_iso": "2026-10-24",
+        "evidence": "I will review the API contract by 2026-10-24."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Chưa chốt ngày release.",
+        "evidence": "Lan: Please review the API contract. Minh: I will review the API contract by 2026-10-24. Lan: Sau đó chúng ta mới xem xét release, chưa chốt ngày release."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-mixed",
+    "kind": "nlp_text",
+    "variant": "mmr_off",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 16.416038199999093
+    },
+    "mmr": {
+      "applied": false,
+      "reason": "disabled",
+      "lambda_param": 0.65,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Minh cam kết sẽ xem xét hợp đồng API đến ngày 2026-10-24.\n• Lan lưu ý rằng sau khi xem xét hợp đồng, nhóm mới có thể xem xét việc phát hành, chưa có ngày phát hành được ấn định.\n• Mục tiêu của cuộc họp là làm rõ trạng thái hiện tại của dự án.\n• Minh nhấn mạnh rằng thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm.\n• Lan lưu ý rằng cần phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Minh khẳng định rằng phần thảo luận chung không tạo thêm cam kết thực hiện công việc.\n• Lan lưu ý rằng các con số và tên người cần được ghi lại chính xác.\n• Minh khẳng định rằng cuộc họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Review API contract",
+          "assignee": "Minh",
+          "deadline": "2026-10-24",
+          "deadline_iso": "2026-10-24",
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Review API contract\", \"assignee\": \"Minh\", \"deadline\": \"2026-10-24\", \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 16.416038199999093,
+      "transcript": "Lan: Please review the API contract. Minh: I will review the API contract by 2026-10-24. Lan: Sau đó chúng ta mới xem xét release, chưa chốt ngày release. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```
+
+## vi-mixed / mmr_on — ok
+
+```json
+
+{
+  "input": {
+    "schema_version": 1,
+    "case_id": "vi-mixed",
+    "kind": "nlp_text",
+    "split": "test",
+    "transcript": "Lan: Please review the API contract. Minh: I will review the API contract by 2026-10-24. Lan: Sau đó chúng ta mới xem xét release, chưa chốt ngày release. Lan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án. Minh: Thông tin trong bản ghi cần phản ánh đúng quyết định cuối cùng của nhóm. Lan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất. Minh: Phần thảo luận chung không tạo thêm cam kết thực hiện công việc. Lan: Các con số và tên người cần được ghi lại chính xác. Minh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+    "reference_approved": false,
+    "reference_tasks": [
+      {
+        "id": "t1",
+        "task": "Review API contract",
+        "assignee": "Minh",
+        "deadline_iso": "2026-10-24",
+        "evidence": "I will review the API contract by 2026-10-24."
+      }
+    ],
+    "reference_facts": [
+      {
+        "id": "f1",
+        "text": "Chưa chốt ngày release.",
+        "evidence": "Lan: Please review the API contract. Minh: I will review the API contract by 2026-10-24. Lan: Sau đó chúng ta mới xem xét release, chưa chốt ngày release."
+      }
+    ],
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    }
+  },
+  "result": {
+    "case_id": "vi-mixed",
+    "kind": "nlp_text",
+    "variant": "mmr_on",
+    "status": "ok",
+    "provenance": {
+      "source_url": "evaluation/fixtures/vi_text_cases.jsonl",
+      "license": "project-authored",
+      "dataset": "authored-synthetic"
+    },
+    "warnings": [],
+    "timing": {
+      "inference_seconds": 13.704845099999147
+    },
+    "mmr": {
+      "applied": true,
+      "algorithm": "Maximal Marginal Relevance (MMR) + TF-IDF Cosine Centroid",
+      "lambda_param": 0.65,
+      "lambda_diversity": 0.65,
+      "original_words": 118,
+      "filtered_words": 66,
+      "reduction_percent": 44.1,
+      "sentences_kept": 5,
+      "total_sentences": 8,
+      "compression_ratio": 0.56,
+      "target_ratio": 0.55
+    },
+    "output": {
+      "summary": "Tóm tắt:\n\n• Buổi trao đổi có mục tiêu làm rõ trạng thái hiện tại của dự án.\n• Lan yêu cầu phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n• Cần ghi lại các con số và tên người chính xác.\n• Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu.",
+      "summary_source": "llm",
+      "action_items": [
+        {
+          "task": "Review API contract",
+          "assignee": "Unassigned",
+          "deadline": null,
+          "deadline_iso": null,
+          "status": "pending"
+        }
+      ],
+      "generation": {
+        "source": "llm",
+        "reason": null,
+        "raw_output": "{\"task\": \"Review API contract\", \"assignee\": \"Unassigned\", \"deadline\": null, \"status\": \"pending\"}"
+      },
+      "warnings": [],
+      "status": "ok",
+      "inference_seconds": 13.704845099999147,
+      "transcript": "Lan: Please review the API contract.\n\nLan: Mục tiêu của buổi trao đổi là làm rõ trạng thái hiện tại của dự án.\n\nLan: Chúng ta phân biệt đề xuất ban đầu với nội dung đã được thống nhất.\n\nLan: Các con số và tên người cần được ghi lại chính xác.\n\nMinh: Buổi họp kết thúc sau khi các ý kiến đã được đối chiếu."
+    }
+  }
+}
+
+```

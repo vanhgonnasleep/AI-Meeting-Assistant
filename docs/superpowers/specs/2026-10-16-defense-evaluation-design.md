@@ -1,6 +1,6 @@
 # Gói A — Bộ thực nghiệm phục vụ bảo vệ Clarion
 
-Trạng thái: thiết kế để người dùng duyệt; chưa triển khai bộ thực nghiệm mới.
+Trạng thái: người dùng đã duyệt; bộ thực nghiệm đã triển khai. Xem docs/defense/evaluation/2026-10-16-pilot/README.md để đọc số liệu thực và giới hạn.
 
 ## Mục tiêu đã thống nhất
 

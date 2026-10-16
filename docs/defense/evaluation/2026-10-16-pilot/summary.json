@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "run_id": "20261016T145301Z-b6f6da53e5",
+  "status": "partial",
+  "metadata": {
+    "git": {
+      "revision": "cd8feba2b8ba58ae62772e82ea357af5836e2ee3",
+      "dirty": false
+    },
+    "device": "cpu",
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "openai-whisper": "20250625",
+      "torch": "2.14.0",
+      "numpy": "2.5.3",
+      "requests": "2.34.2"
+    },
+    "models": [
+      {
+        "name": "tiny",
+        "sha256": "65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9",
+        "bytes": 75572083
+      },
+      {
+        "name": "base",
+        "sha256": "ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e",
+        "bytes": 145262807
+      }
+    ],
+    "llm_models": [
+      {
+        "name": "llama3:latest",
+        "digest": "365c0bd3c000a25d28ddbf732fe1c6add414de7275464c4e4d1c3b5fcb5d8ad1"
+      }
+    ],
+    "storage": "temporary-isolated",
+    "cuda_available": false,
+    "gpu": null
+  },
+  "config": {
+    "models": [
+      "tiny",
+      "base"
+    ],
+    "llm_model": "llama3:latest",
+    "language": "vi",
+    "diarize": false,
+    "mmr_lambda": 0.65,
+    "mmr_ratio": 0.55,
+    "allow_model_download": false
+  },
+  "asr": {
+    "base": {
+      "attempted": 20,
+      "completed": 20,
+      "failed": 0,
+      "wer": {
+        "errors": 217,
+        "substitutions": 203,
+        "deletions": 5,
+        "insertions": 9,
+        "reference_units": 582,
+        "rate": 0.37285223367697595,
+        "scorable_rows": 20
+      },
+      "cer": {
+        "errors": 424,
+        "substitutions": 309,
+        "deletions": 67,
+        "insertions": 48,
+        "reference_units": 2007,
+        "rate": 0.2112605879422023,
+        "scorable_rows": 20
+      },
+      "rtf": 0.12532565261041334,
+      "audio_seconds": 239.04,
+      "model_load_seconds": 0.6062179000000469
+    },
+    "tiny": {
+      "attempted": 20,
+      "completed": 20,
+      "failed": 0,
+      "wer": {
+        "errors": 376,
+        "substitutions": 292,
+        "deletions": 64,
+        "insertions": 20,
+        "reference_units": 582,
+        "rate": 0.6460481099656358,
+        "scorable_rows": 20
+      },
+      "cer": {
+        "errors": 903,
+        "substitutions": 525,
+        "deletions": 301,
+        "insertions": 77,
+        "reference_units": 2007,
+        "rate": 0.4499252615844544,
+        "scorable_rows": 20
+      },
+      "rtf": 0.1598538880522038,
+      "audio_seconds": 239.04,
+      "model_load_seconds": 0.34774169999946025
+    }
+  },
+  "nlp": {
+    "mmr_off": {
+      "status": "not_evaluated",
+      "attempted": 6,
+      "reason": "All rows need successful generation, approved references and completed human review."
+    },
+    "mmr_on": {
+      "status": "not_evaluated",
+      "attempted": 6,
+      "reason": "All rows need successful generation, approved references and completed human review."
+    }
+  }
+}

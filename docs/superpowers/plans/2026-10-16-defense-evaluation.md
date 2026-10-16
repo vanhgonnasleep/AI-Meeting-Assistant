@@ -101,12 +101,13 @@ Audio paths resolve relative to the manifest. Text, IDs, paths and case counts h
 
 **CLI:** `prepare-fleurs --output .evaluation-data/fleurs-vi --limit 20`; `preflight --models tiny base --llm-model llama3:latest`; `run --manifest <asr.jsonl> --manifest evaluation/fixtures/vi_text_cases.jsonl --models tiny base --llm-model llama3:latest --output .evaluation-runs [--allow-model-download]`; `report <run-dir> [--review-csv <path>]`.
 
-- [ ] Write failing subprocess CLI tests for help, malformed manifests, explicit offline failure and injected tiny fixture run producing all report formats without real models/network. Confirm nonzero exits for missing data/model preparation and truthful partial-run summaries.
-- [ ] Implement command routing, documentation and explicit input/output paths; preserve `npm run benchmark` behavior. Run CLI tests and the evaluation test group.
-- [ ] Prepare public pilot data, verify attribution/checksums and inspect the manifest. Run preflight and record actual hardware/cache/model status. Use explicit named-weight download permission only if required, then run the real pilot and retain raw artifacts.
-- [ ] Generate the report with NLP rows unreviewed until the owner approves references and completes scorecards. Check actual numbers against per-row raw counts; open HTML offline and verify layout. Do not fabricate a score or a passing accuracy threshold if inference fails or quality is poor.
+- [x] Write failing subprocess CLI tests for help, malformed manifests, explicit offline failure and injected tiny fixture run producing all report formats without real models/network. Confirm nonzero exits for missing data/model preparation and truthful partial-run summaries.
+- [x] Implement command routing, documentation and explicit input/output paths; preserve `npm run benchmark` behavior. Run CLI tests and the evaluation test group.
+- [x] Prepare public pilot data, verify attribution/checksums and inspect the manifest. Run preflight and record actual hardware/cache/model status. Use explicit named-weight download permission only if required, then run the real pilot and retain raw artifacts.
+- [x] Generate the report with NLP rows unreviewed until the owner approves references and completes scorecards. Check actual numbers against per-row raw counts; open HTML offline and verify layout. Do not fabricate a score or a passing accuracy threshold if inference fails or quality is poor.
 - [ ] Run the full appropriate backend suite, frontend tests/lint/build and dependency checks; obtain one independent whole-branch source review, fix validated findings, then verify final artifacts. Record any remaining human-label/deployment boundaries honestly.
 - [ ] Integrate locally into `main` under the existing authorization; no remote push. Preserve the benchmark stash, unrelated worktree, real OAuth session and account libraries. Archive only this feature's managed worktree once integration is verified.
+
 
 ## Plan Self-Review
 
