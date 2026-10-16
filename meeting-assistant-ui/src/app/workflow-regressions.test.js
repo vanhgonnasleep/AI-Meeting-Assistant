@@ -1,0 +1,217 @@
+import { after, before, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+import { createServer } from 'vite';
+
+let server, dom, React, createRoot, App, AuthGate, Library, apiClient;
+const session = { mode: 'private', user: { id: 'fixture-a', name: 'Fixture A' }, csrf_token: 'fixture-csrf', providers: { google: true } };
+const meeting = { id: 14, filename: 'Fixture.wav', revision: 7, raw_transcript: 'Review the fixture.',
+  executive_summary: 'Fixture summary', segments: [], insights: {}, chat_history: [],
+  action_items: [{ task: 'Review fixture task', status: 'pending', assignee: 'Fixture owner' }] };
+const json = (data, status = 200, account = 'fixture-a') => new Response(JSON.stringify(data), {
+  status, headers: { 'Content-Type': 'application/json', 'X-Clarion-Account': account },
+});
+const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
+const click = async element => { assert.ok(element, 'Expected an actionable DOM element'); await React.act(async () => element.click()); };
+
+before(async () => {
+  dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://fixture.invalid/#/studio', pretendToBeVisual: true });
+  for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'Element', 'Node', 'location', 'requestAnimationFrame', 'cancelAnimationFrame']) {
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true,
+      value: typeof dom.window[key] === 'function' && key.includes('AnimationFrame') ? dom.window[key].bind(dom.window) : dom.window[key] });
+  }
+  window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  React = await import('react');
+  ({ createRoot } = await import('react-dom/client'));
+  server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom', plugins: [{
+    name: 'auth-boundary-fixture',
+    enforce: 'pre',
+    transform(source, id) {
+      if (!id.replaceAll('\\', '/').endsWith('/features/auth/AuthGate.jsx')) return;
+      return source.replace("import App from '../../app/App.jsx';", `function App({ account, onLogout, signingOut }) {
+        return <button disabled={signingOut} onClick={onLogout}>Sign out {account.name}</button>;
+      }`);
+    },
+  }] });
+  ({ default: App } = await server.ssrLoadModule('/src/app/App.jsx'));
+  ({ default: AuthGate } = await server.ssrLoadModule('/src/features/auth/AuthGate.jsx'));
+  ({ default: Library } = await server.ssrLoadModule('/src/features/meetings/MeetingLibrary.jsx'));
+  ({ apiClient } = await server.ssrLoadModule('/src/features/auth/api-client.js'));
+});
+after(async () => { await server?.close(); dom?.window.close(); });
+
+async function mount(Component, props = {}) {
+  const container = document.createElement('div'); document.body.append(container);
+  const root = createRoot(container);
+  await React.act(async () => root.render(React.createElement(Component, props)));
+  return { container, async close() { await React.act(async () => root.unmount()); container.remove(); } };
+}
+
+async function openFixtureMeeting(fetchTask) {
+  apiClient.configureSession(null);
+  globalThis.fetch = async (input, options = {}) => {
+    const path = new URL(input, location.origin).pathname;
+    if (path.endsWith('/tasks/0')) return fetchTask(options);
+    if (path === '/api/health') return json({ ollama_online: true });
+    if (path === '/api/meetings/14') return json({ meeting });
+    if (path === '/api/meetings') return json({ meetings: [meeting], total: 1 });
+    throw new Error(`Unexpected fixture request ${path}`);
+  };
+  const view = await mount(App);
+  await React.act(async () => { await new Promise(done => setTimeout(done, 300)); });
+  await click(view.container.querySelector('button[title="Fixture.wav"]'));
+  // Flush the lazy document import without a running HTTP server.
+  await React.act(async () => { await server.ssrLoadModule('/src/features/meetings/DocumentWorkspace.jsx'); });
+  return view;
+}
+
+test('the real JSON export button downloads the current meeting and task statuses', async () => {
+  const view = await openFixtureMeeting();
+  const blobs = [];
+  const previousCreate = URL.createObjectURL;
+  const previousRevoke = URL.revokeObjectURL;
+  const previousClick = window.HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = blob => { blobs.push(blob); return 'blob:fixture'; };
+  URL.revokeObjectURL = () => {};
+  window.HTMLAnchorElement.prototype.click = function () {};
+  const preventError = event => event.preventDefault();
+  window.addEventListener('error', preventError);
+  try {
+    await click(view.container.querySelector('[aria-label="Export JSON file"]'));
+    assert.equal(blobs.length, 1, 'Export should create one downloadable file');
+    const exported = JSON.parse(await blobs[0].text());
+    assert.equal(exported.meeting_id, 14);
+    assert.equal(exported.transcript, 'Review the fixture.');
+    assert.deepEqual(exported.action_items, [{ task: 'Review fixture task', status: 'pending', assignee: 'Fixture owner', deadline: '' }]);
+  } finally {
+    window.removeEventListener('error', preventError);
+    URL.createObjectURL = previousCreate; URL.revokeObjectURL = previousRevoke;
+    window.HTMLAnchorElement.prototype.click = previousClick;
+    await view.close();
+  }
+});
+
+test('library project options come from the account API and reload after returning to the library', async () => {
+  let projects = [{ id: 9, name: 'Fixture project A' }];
+  let account = 'fixture-a';
+  let selectedFilters;
+  globalThis.fetch = async input => {
+    assert.equal(new URL(input, location.origin).pathname, '/api/projects');
+    return json({ projects }, 200, account);
+  };
+  apiClient.configureSession(session);
+  const props = { apiBase: 'http://localhost:8002', meetings: [], total: 0, query: '', canOpen: true,
+    onFiltersChange: filters => { selectedFilters = filters; } };
+  let view = await mount(Library, props);
+  try {
+    assert.deepEqual([...view.container.querySelector('[aria-label="Filter by project"]').options].map(option => option.text), ['All projects', 'Fixture project A']);
+    await React.act(async () => {
+      const select = view.container.querySelector('[aria-label="Filter by project"]');
+      select.value = 'Fixture project A';
+      select.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
+    assert.equal(selectedFilters.project, 'Fixture project A');
+    await view.close();
+    account = 'fixture-b';
+    apiClient.configureSession({ ...session, user: { id: account } });
+    projects = [{ id: 10, name: 'Fixture project B' }];
+    view = await mount(Library, props);
+    assert.deepEqual([...view.container.querySelector('[aria-label="Filter by project"]').options].map(option => option.text), ['All projects', 'Fixture project B']);
+    projects = [...projects, { id: 11, name: 'Newly assigned project' }];
+    await React.act(async () => window.dispatchEvent(new window.Event('focus')));
+    assert.deepEqual([...view.container.querySelector('[aria-label="Filter by project"]').options].map(option => option.text), ['All projects', 'Fixture project B', 'Newly assigned project']);
+  } finally { await view.close(); apiClient.configureSession(null); }
+});
+
+test('a project response from an unmounted account cannot replace the next account options', async () => {
+  const oldProjects = deferred();
+  let firstRequest = true;
+  globalThis.fetch = async () => {
+    if (firstRequest) { firstRequest = false; return oldProjects.promise; }
+    return json({ projects: [{ id: 2, name: 'Account B project' }] }, 200, 'fixture-b');
+  };
+  const props = { apiBase: 'http://localhost:8002', meetings: [], total: 0, query: '', canOpen: true };
+  apiClient.configureSession(session);
+  let view = await mount(Library, props);
+  await view.close();
+  apiClient.configureSession({ ...session, user: { id: 'fixture-b' } });
+  view = await mount(Library, props);
+  try {
+    await React.act(async () => oldProjects.resolve(json({ projects: [{ id: 1, name: 'Private account A project' }] })));
+    assert.deepEqual([...view.container.querySelector('[aria-label="Filter by project"]').options].map(option => option.text), ['All projects', 'Account B project']);
+    assert.doesNotMatch(view.container.textContent, /Private account A project/);
+  } finally { await view.close(); apiClient.configureSession(null); }
+});
+
+test('a delayed session refresh cannot restore the account after successful logout', async () => {
+  const pendingRefresh = deferred(), pendingLogout = deferred();
+  let checks = 0;
+  globalThis.fetch = async input => {
+    const path = new URL(input, location.origin).pathname;
+    if (path.endsWith('/session')) return ++checks === 1 ? json(session) : pendingRefresh.promise;
+    if (path.endsWith('/logout')) return pendingLogout.promise;
+    throw new Error(`Unexpected fixture request ${path}`);
+  };
+  const view = await mount(AuthGate);
+  try {
+    await click([...view.container.querySelectorAll('button')].find(button => button.textContent === 'Sign out Fixture A'));
+    await React.act(async () => window.dispatchEvent(new window.Event('focus')));
+    await React.act(async () => pendingLogout.resolve(json({ ok: true })));
+    assert.match(view.container.textContent, /Your private meeting workspace/);
+    await React.act(async () => pendingRefresh.resolve(json(session)));
+    assert.match(view.container.textContent, /Your private meeting workspace/);
+    assert.doesNotMatch(view.container.textContent, /Sign out Fixture A/);
+  } finally { await view.close(); apiClient.configureSession(null); }
+});
+
+test('logout with an expired session immediately rechecks anonymous state after client invalidation', async () => {
+  let checks = 0;
+  globalThis.fetch = async input => {
+    const path = new URL(input, location.origin).pathname;
+    if (path.endsWith('/session')) return json(++checks === 1 ? session : { ...session, user: null, csrf_token: null });
+    if (path.endsWith('/logout')) return json({ detail: 'Sign in again' }, 401);
+    throw new Error(`Unexpected fixture request ${path}`);
+  };
+  const view = await mount(AuthGate);
+  try {
+    await click([...view.container.querySelectorAll('button')].find(button => button.textContent === 'Sign out Fixture A'));
+    assert.equal(checks, 2, 'Invalidation during logout must schedule another session check');
+    assert.match(view.container.textContent, /Continue with Google/);
+    assert.doesNotMatch(view.container.textContent, /Checking your session/);
+  } finally { await view.close(); apiClient.configureSession(null); }
+});
+
+test('task changes send the displayed revision and keep a stale checkbox unchanged on conflict', async t => {
+  t.mock.method(console, 'error', () => {});
+  let submitted;
+  const view = await openFixtureMeeting(async options => {
+    submitted = JSON.parse(options.body);
+    return json({ detail: 'This meeting changed elsewhere. Reload the latest record.' }, 409);
+  });
+  try {
+    const task = [...view.container.querySelectorAll('button[aria-pressed]')].find(button => button.textContent.includes('Review fixture task'));
+    await click(task);
+    assert.deepEqual(submitted, { status: 'completed', expected_revision: 7 });
+    assert.equal(task.getAttribute('aria-pressed'), 'false');
+    assert.match(view.container.textContent, /changed elsewhere/);
+  } finally { await view.close(); }
+});
+
+test('successful task changes consume the returned meeting and use its new revision for the next change', async () => {
+  const submitted = [];
+  const view = await openFixtureMeeting(async options => {
+    const body = JSON.parse(options.body);
+    submitted.push(body);
+    return json({ meeting: { ...meeting, revision: 7 + submitted.length,
+      action_items: [{ ...meeting.action_items[0], status: body.status }] } });
+  });
+  const taskButton = () => [...view.container.querySelectorAll('button[aria-pressed]')].find(button => button.textContent.includes('Review fixture task'));
+  try {
+    await click(taskButton());
+    assert.equal(taskButton().getAttribute('aria-pressed'), 'true');
+    await click(taskButton());
+    assert.equal(taskButton().getAttribute('aria-pressed'), 'false');
+    assert.deepEqual(submitted, [{ status: 'completed', expected_revision: 7 }, { status: 'pending', expected_revision: 8 }]);
+  } finally { await view.close(); }
+});

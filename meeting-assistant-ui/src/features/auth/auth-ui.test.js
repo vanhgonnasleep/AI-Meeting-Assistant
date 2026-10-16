@@ -4,7 +4,7 @@ import { createServer } from 'vite';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' });
 after(() => server.close());
 const { default: SignIn } = await server.ssrLoadModule('/src/features/auth/SignIn.jsx');
 const { default: AuthGate } = await server.ssrLoadModule('/src/features/auth/AuthGate.jsx');

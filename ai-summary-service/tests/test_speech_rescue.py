@@ -36,7 +36,7 @@ def test_deadline_boundaries_and_sprint_context():
 def test_iso_deadline_survives_storage_and_task_status():
     mid = crud.create_meeting(filename='dates.wav', action_items=[{'task': 'Ship', 'deadline': '2026-12-31'}])
     assert crud.get_meeting(mid).action_items[0].deadline_iso == '2026-12-31'
-    crud.update_action_item_status(mid, 0, 'done')
+    crud.update_action_item_status(mid, 0, 'done', expected_revision=0)
     assert crud.get_meeting(mid).action_items[0].deadline_iso == '2026-12-31'
 
 

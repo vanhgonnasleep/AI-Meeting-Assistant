@@ -101,7 +101,7 @@ def test_summary_task_and_insight_changes_require_separate_review():
 
 @pytest.mark.parametrize("write", [
     lambda mid: crud.update_meeting(mid, executive_summary="Changed"),
-    lambda mid: crud.update_action_item_status(mid, 0, "done"),
+    lambda mid: crud.update_action_item_status(mid, 0, "done", expected_revision=1),
     lambda mid: crud.edit_meeting_speaker(mid, "Alice", "Bob"),
 ])
 def test_existing_writers_invalidate_open_editor(write):
@@ -285,7 +285,7 @@ def test_concurrent_edit_during_generation_is_rejected():
         future = executor.submit(client.post, f"/api/meetings/{mid}/regenerate-summary", json={"expected_revision": 0})
         try:
             assert started.wait(5)
-            crud.update_action_item_status(mid, 0, "completed")
+            crud.update_action_item_status(mid, 0, "completed", expected_revision=0)
         finally:
             release.set()
         assert future.result().status_code == 409

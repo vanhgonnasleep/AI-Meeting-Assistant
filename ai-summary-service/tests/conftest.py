@@ -4,16 +4,43 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+import dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "ai-summary-service"))
 
-import database.db as db
+# A developer's saved .env must never configure collection-time middleware,
+# contact real providers, or select their database during regression tests.
+# Individual tests can still override these explicit defaults with monkeypatch.
+_test_environment = pytest.MonkeyPatch()
+for name, value in {
+    'CLARION_ALLOWED_HOSTS': 'localhost,127.0.0.1,[::1],testserver,test',
+    'CORS_ORIGINS': 'http://localhost:5173,http://127.0.0.1:5173',
+    'CLARION_AUTH_MODE': 'local',
+    'CLARION_PUBLIC_URL': 'http://localhost:8002',
+    'CLARION_FRONTEND_URL': 'http://localhost:5173',
+    'GOOGLE_CLIENT_ID': '', 'GOOGLE_CLIENT_SECRET': '',
+    'GITHUB_CLIENT_ID': '', 'GITHUB_CLIENT_SECRET': '',
+    'MAX_UPLOAD_MB': '256', 'MAX_AUDIO_DURATION_SECONDS': '10800',
+    'AUDIO_CHUNK_SECONDS': '300',
+}.items():
+    _test_environment.setenv(name, value)
+_test_environment.delenv('OLLAMA_BASE_URL', raising=False)
+_test_environment.setattr(dotenv, 'load_dotenv', lambda *args, **kwargs: False)
 
 # crud initializes the schema at import time, before fixtures run.
 _collection_database = TemporaryDirectory(prefix="meeting-tests-")
+_test_environment.setenv('CLARION_DB_PATH', str(Path(_collection_database.name) / 'collection.db'))
+_test_environment.setenv('CLARION_DATA_DIR', str(Path(_collection_database.name) / 'private-data'))
+
+import database.db as db
+
 db.DB_PATH = Path(_collection_database.name) / "collection.db"
+
+
+def pytest_unconfigure(config):
+    _test_environment.undo()
 
 
 @pytest.fixture(autouse=True)

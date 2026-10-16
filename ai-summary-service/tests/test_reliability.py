@@ -176,7 +176,7 @@ def test_cleared_chat_is_not_restored_by_inflight_answer(monkeypatch):
             assert client.delete(f"/api/meetings/{mid}/chat").status_code == 200
         finally:
             release.set()
-        assert pending.result().status_code == 200
+        assert pending.result().status_code == 409
     assert crud.get_chat_history(mid) == []
 
 

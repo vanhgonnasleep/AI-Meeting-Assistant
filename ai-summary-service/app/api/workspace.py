@@ -94,7 +94,7 @@ class ReviewRequest(BaseModel):
     review_status: Literal["draft", "reviewed"]
     raw_transcript: str | None = Field(None, max_length=1_000_000, strict=True)
     executive_summary: str | None = Field(None, max_length=50_000, strict=True)
-    segments: list[SourceEntry] | None = Field(None, max_length=10_000)
+    segments: list[SourceEntry] | None = Field(None, max_length=20_000)
     action_items: list[EditableTask] | None = Field(None, max_length=10_000)
     insights: EditableInsights | None = None
 

@@ -226,7 +226,7 @@ def test_meeting_task_status_patch_endpoint():
             {"task": "Run tests", "assignee": "Dev", "status": "pending"}
         ]
     )
-    res = client.patch(f"/api/meetings/{mid}/tasks/0", json={"status": "completed"})
+    res = client.patch(f"/api/meetings/{mid}/tasks/0", json={"status": "completed", "expected_revision": 0})
     assert res.status_code == 200
     assert res.json()["status"] == "completed"
 
@@ -235,8 +235,8 @@ def test_meeting_task_status_patch_endpoint():
     assert record.action_items[1].status == "pending"
 
 
-def test_concurrent_task_status_updates_preserve_both_changes():
-    """Concurrent task updates must not overwrite each other's action-item changes."""
+def test_concurrent_task_status_updates_reject_stale_revision():
+    """Only one writer may consume a revision; the other must reload before retrying."""
     import database.crud as crud
 
     meeting_id = crud.create_meeting(
@@ -250,17 +250,24 @@ def test_concurrent_task_status_updates_preserve_both_changes():
 
     def update_task(index, status):
         barrier.wait()
-        return crud.update_action_item_status(meeting_id, index, status)
+        try:
+            return crud.update_action_item_status(meeting_id, index, status, expected_revision=0)
+        except crud.MeetingRevisionConflict:
+            return False
 
     try:
         with ThreadPoolExecutor(max_workers=2) as executor:
             first = executor.submit(update_task, 0, "completed")
             second = executor.submit(update_task, 1, "in_progress")
-            assert first.result(timeout=5) is True
-            assert second.result(timeout=5) is True
+            outcomes = [first.result(timeout=5), second.result(timeout=5)]
+            assert sorted(outcomes) == [False, True]
 
         record = crud.get_meeting(meeting_id)
-        assert [item.status for item in record.action_items] == ["completed", "in_progress"]
+        assert record.revision == 1
+        assert [item.status for item in record.action_items] in (["completed", "pending"], ["pending", "in_progress"])
+        retry_index = outcomes.index(False)
+        assert crud.update_action_item_status(meeting_id, retry_index, ["completed", "in_progress"][retry_index], expected_revision=1)
+        assert [item.status for item in crud.get_meeting(meeting_id).action_items] == ["completed", "in_progress"]
     finally:
         crud.delete_meeting(meeting_id)
 
@@ -274,7 +281,7 @@ def test_meeting_task_status_invalid_value():
         executive_summary="Summary.",
         action_items=[{"task": "Test task", "assignee": "Alice", "status": "pending"}]
     )
-    res = client.patch(f"/api/meetings/{mid}/tasks/0", json={"status": "invalid_status_xyz"})
+    res = client.patch(f"/api/meetings/{mid}/tasks/0", json={"status": "invalid_status_xyz", "expected_revision": 0})
     assert res.status_code == 422
 
 
