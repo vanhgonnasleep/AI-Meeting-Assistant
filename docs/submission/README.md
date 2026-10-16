@@ -40,7 +40,7 @@ Do **not** submit your populated `.env`, account databases, private recordings, 
 | Evaluation runner and synthetic fixtures | `scripts/evaluation/`, `scripts/evaluate_pipeline.py`, `evaluation/` |
 | Measured pilot evidence | `docs/defense/evaluation/2026-10-16-pilot/` |
 
-See the complete [source map](../source-layout.md), [release handoff](HANDOFF.md) and [error recovery notes](../ui/error-recovery/README.md).
+See the complete [source map](../source-layout.md), [release handoff](HANDOFF.md), [backend audit](../backend/final-audit.md) and [error recovery notes](../ui/error-recovery/README.md).
 
 ## Run the extracted code
 

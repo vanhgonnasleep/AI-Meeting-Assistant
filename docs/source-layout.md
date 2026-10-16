@@ -8,9 +8,9 @@ ai-summary-service/
   app/
     main.py                     FastAPI composition and orchestration
     api/                        saved-session and task/project/review routes
-      schemas/                  chat, meeting and workspace request contracts
+      schemas/                  chat, meeting, bounded IDs and workspace request contracts
     auth/                       configuration, providers, sessions, middleware, routes
-    core/                       request budgets and runtime configuration
+    core/                       request budgets, storage error boundary and runtime configuration
     pipeline/                   transcription, audio preparation, MMR, chat, insights, actions
       summarization.py          bounded direct/map-reduce algorithm with injected generation
     fixtures/                   explicit demonstration content
