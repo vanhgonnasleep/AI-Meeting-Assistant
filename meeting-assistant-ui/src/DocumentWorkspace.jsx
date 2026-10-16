@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from 'react';
+import { useState } from 'react';
+import LazyPanel from './LazyPanel.jsx';
 import { 
   FileText, 
   Sparkles, 
@@ -33,7 +34,7 @@ import { formatUploadLimits } from './upload.js';
 import ConnectorsModal from './ConnectorsModal.jsx';
 import { GitHubMark, GmailMark } from './BrandMarks.jsx';
 
-const PresentationDeck = lazy(() => import('./PresentationDeck.jsx'));
+const loadPresentationDeck = () => import('./PresentationDeck.jsx');
 
 const SPEAKER_BADGE_STYLES = [
   'bg-blue-500/15 text-blue-700 border-blue-500/30',
@@ -1230,11 +1231,11 @@ export default function DocumentWorkspace({
 
       {/* VIEW MODE 3: ZEN SLIDE DECK PRESENTATION (FULLSCREEN OVERLAY) */}
       {viewMode === 'zen' && (
-        <Suspense fallback={<div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4">
+        <LazyPanel load={loadPresentationDeck} name="the presentation" onClose={() => setViewMode('studio')} errorClassName="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4 p-6" fallback={<div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4">
           <p role="status" className="text-sm text-slate-600">Loading presentation…</p>
           <button type="button" onClick={() => setViewMode('studio')} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700">Close presentation</button>
         </div>}>
-        <PresentationDeck
+        {PresentationDeck => <PresentationDeck
           meetingData={{
             title: file?.name || meetingTitle || (isDemoResult ? 'Q3 Product & Budget Review' : 'Executive Meeting Document'),
             date: metaInfo?.hardware ? metaInfo.hardware.split('•')[1]?.trim() : new Date().toISOString().split('T')[0],
@@ -1248,8 +1249,8 @@ export default function DocumentWorkspace({
           completedTasks={new Set(Object.entries(completedTasks).filter(([, v]) => Boolean(v)).map(([k]) => { const n = Number(k); return Number.isFinite(n) ? n : k; }))}
           onToggleTask={onToggleTask}
           onExit={() => setViewMode('studio')}
-        />
-        </Suspense>
+        />}
+        </LazyPanel>
       )}
 
       {/* Connectors Hub Modal Sheet */}

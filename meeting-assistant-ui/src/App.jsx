@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
+import LazyPanel from './LazyPanel.jsx';
 import { useDropzone } from 'react-dropzone';
 import { 
   normalizeCitation, 
@@ -47,8 +48,9 @@ import {
 } from 'lucide-react';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
-const DocumentWorkspace = lazy(() => import('./DocumentWorkspace.jsx'));
-const Overview = lazy(() => import('./Overview.jsx'));
+const loadDocumentWorkspace = () => import('./DocumentWorkspace.jsx');
+const loadOverview = () => import('./Overview.jsx');
+const workspaceLoading = <p role="status" className="p-6 text-sm text-slate-600">Loading workspace…</p>;
 
 const getDefaultChatGreeting = (currResult) => {
   if (!currResult) return [];
@@ -1138,16 +1140,17 @@ ${result.transcript || ""}
 
         {/* Dynamic Page Content */}
         <main className="workspace-main flex-1 p-4 md:p-8 pb-32 overflow-y-auto">
-          <Suspense fallback={<p role="status" className="p-6 text-sm text-slate-600">Loading workspace…</p>}>
           {page === 'overview' ? (
-            <Overview
+            <LazyPanel key="overview" load={loadOverview} name="the dashboard" fallback={workspaceLoading}>
+            {Overview => <Overview
               apiBase={API_BASE}
               refreshKey={currentMeetingId}
               onOpen={handleLoadPastMeeting}
               canOpen={canOpenMeeting}
               onNewMeeting={handleNewMeeting}
               processing={isProcessing}
-            />
+            />}
+            </LazyPanel>
           ) : page === 'meetings' ? (
             <MeetingLibrary
               meetings={meetingsHistory}
@@ -1184,7 +1187,8 @@ ${result.transcript || ""}
             />
           ) : (
             /* Default: Document Workspace */
-            <DocumentWorkspace
+            <LazyPanel key="studio" load={loadDocumentWorkspace} name="the workspace" fallback={workspaceLoading}>
+            {DocumentWorkspace => <DocumentWorkspace
               result={result}
               isProcessing={isProcessing}
               elapsedTime={elapsedTime}
@@ -1243,9 +1247,9 @@ ${result.transcript || ""}
               handleReset={handleReset}
               handleDemoSample={handleDemoSample}
               onStopWaiting={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }}
-            />
+            />}
+            </LazyPanel>
           )}
-          </Suspense>
         </main>
 
         {/* 3. FLOATING FROSTED-GLASS COMMAND CENTER DOCK */}
