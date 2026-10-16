@@ -282,11 +282,11 @@ export default function CommandCenter({
             onClick={startRecording}
             disabled={isBusy || isChatLoading || recordingStatus === 'starting'}
             aria-label={recordingStatus === 'starting' ? 'Requesting microphone access' : 'Start recording live audio'}
-            className="p-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs group"
+            className="p-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs group"
             title="Record live audio from microphone"
           >
             {recordingStatus === 'starting' ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Mic className="w-4 h-4 group-hover:text-indigo-700 transition-colors" />}
+              : <Mic className="w-4 h-4 group-hover:text-[#5867ce] transition-colors" />}
           </button>
         ) : (
           /* Fluid Pulse / Wave Animation for "AI is Listening/Recording" state */
@@ -364,7 +364,7 @@ export default function CommandCenter({
           onClick={() => handleSend()}
           disabled={!chatInput.trim() || isChatLoading || isRecording || isBusy || !isMeetingLoaded}
           aria-label="Send question to AI"
-          className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all shrink-0 cursor-pointer shadow-xs shadow-indigo-600/30"
+          className="p-2.5 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-95 disabled:opacity-40 disabled:hover:bg-[#303c63] text-white transition-all shrink-0 cursor-pointer shadow-xs"
           title="Send query"
         >
           {isChatLoading ? (

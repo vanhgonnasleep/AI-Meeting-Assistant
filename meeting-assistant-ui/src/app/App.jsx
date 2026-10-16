@@ -44,7 +44,8 @@ import {
   PanelLeftClose, 
   Zap, 
   Play,
-  Sparkles
+  Sparkles,
+  Compass
 } from 'lucide-react';
 
 const loadDocumentWorkspace = () => import('../features/meetings/DocumentWorkspace.jsx');
@@ -1075,7 +1076,7 @@ ${result.transcript || ""}
               className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-medium transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
               title="View Outside Product Tour & Landing Page"
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-700" />
+              <Compass className="w-3.5 h-3.5 text-[#6370ce]" />
               <span className="hidden sm:inline">Product Tour</span>
             </button>
 
@@ -1084,9 +1085,9 @@ ${result.transcript || ""}
                 type="button"
                 onClick={handleProcessAudio}
                 disabled={Boolean(uploadError) || isProcessing || isContentSaving}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-95 disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
               >
-                <Zap className="w-3.5 h-3.5" />
+                <Play className="w-3.5 h-3.5 fill-white" />
                 <span>Start Processing</span>
               </button>
             )}

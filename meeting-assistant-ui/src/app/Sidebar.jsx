@@ -18,6 +18,7 @@ import { appPageHref } from './navigation.js';
 import { groupMeetingsByDate } from '../features/meetings/history.js';
 import { formatMeetingDuration } from './navigation.js';
 import { useMobileViewport } from '../shared/hooks/mobile-viewport.js';
+import { ClarionMark, ClarionWordmark } from '../shared/ui/BrandMarks.jsx';
 
 /**
  * Staff-level Collapsible Sidebar Component
@@ -171,24 +172,23 @@ export default function Sidebar({
     >
       {/* Brand & Collapse Header */}
       <div className="h-16 px-4 flex items-center justify-between border-b border-slate-200/80 shrink-0">
-        {!isCollapsed && (
+        {!isCollapsed ? (
           <button
             type="button"
             onClick={() => onNavigate('landing')}
             className="flex items-center gap-2.5 overflow-hidden text-left hover:opacity-85 transition-opacity cursor-pointer group"
             title="Go to Product Tour & Landing Page"
           >
-            <div className="w-8 h-8 rounded-xl bg-linear-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-xs shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="font-semibold text-xs tracking-tight text-slate-900 block truncate group-hover:text-indigo-700">
-                Clarion
-              </span>
-              <span className="text-[10px] text-slate-600 font-mono block">
-                Private Intelligence
-              </span>
-            </div>
+            <ClarionWordmark markSize={18} textSize="text-[17px]" showTagline={true} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onNavigate('landing')}
+            className="w-8 h-8 rounded-[10px] bg-[#6370ce] shadow-[inset_0_1px_0_#9eabed] flex items-center justify-center text-white shrink-0 hover:opacity-90 transition-opacity cursor-pointer mx-auto"
+            title="Go to Product Tour & Landing Page"
+          >
+            <ClarionMark size={18} />
           </button>
         )}
 
@@ -197,7 +197,7 @@ export default function Sidebar({
           onClick={onToggleCollapse}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className={`p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-slate-200 transition-all active:scale-95 cursor-pointer ${
-            isCollapsed ? 'mx-auto' : ''
+            isCollapsed ? 'hidden' : ''
           }`}
           title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
         >
@@ -212,7 +212,7 @@ export default function Sidebar({
           onClick={onNewMeeting}
           disabled={!canStartNew}
           aria-label="Start new meeting"
-          className={`w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-indigo-600 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer ${
+          className={`w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-[#303c63] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer ${
             isCollapsed ? 'p-2.5' : ''
           }`}
           title="Start a new meeting"

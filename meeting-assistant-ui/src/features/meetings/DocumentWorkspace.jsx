@@ -271,31 +271,31 @@ export default function DocumentWorkspace({
         </div>
 
         {/* Configuration Bar */}
-        <div className="flex flex-wrap items-center gap-2.5 p-3 rounded-2xl bg-white/60 backdrop-blur-xl border border-slate-200 text-xs">
+        <div className="flex flex-wrap items-center gap-2.5 p-3 rounded-2xl bg-white/70 backdrop-blur-xl border border-slate-200/90 text-xs shadow-2xs">
           {/* Model Switcher */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/80 border border-slate-300/60 shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/80 border border-slate-200 text-slate-800">
+            <span className="text-[#6370ce] font-semibold text-xs tracking-tight">AI Model:</span>
             <select
               aria-label="Processing model"
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
               className="bg-transparent text-slate-800 text-xs focus:outline-hidden cursor-pointer font-medium"
             >
-              <option value="auto" className="bg-white text-slate-800">🤖 Auto (Adaptive)</option>
-              <option value="llama3" className="bg-white text-slate-800">🚀 Llama 3 (8B - GPU)</option>
-              <option value="llama3.2:3b" className="bg-white text-slate-800">⚡ Llama 3.2 (3B - Fast CPU)</option>
-              <option value="llama3.2:1b" className="bg-white text-slate-800">🪶 Llama 3.2 (1B - Light)</option>
-              <option value="instant_demo" className="bg-white text-slate-800">🎯 Instant Demo (Zero Compute)</option>
+              <option value="auto" className="bg-white text-slate-800">Auto (Adaptive)</option>
+              <option value="llama3" className="bg-white text-slate-800">Llama 3 (8B · GPU)</option>
+              <option value="llama3.2:3b" className="bg-white text-slate-800">Llama 3.2 (3B · Fast CPU)</option>
+              <option value="llama3.2:1b" className="bg-white text-slate-800">Llama 3.2 (1B · Light)</option>
+              <option value="instant_demo" className="bg-white text-slate-800">Instant Demo (Zero Compute)</option>
             </select>
           </div>
 
           {/* Spoken Language */}
-          <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/80 border border-slate-300/60 text-slate-700">
+          <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/80 border border-slate-200 text-slate-700">
             Language:
             <select 
               value={spokenLanguage} 
               onChange={(e) => setSpokenLanguage(e.target.value)}
-              className="bg-white text-slate-800 rounded-sm px-1.5 py-0.5 focus:outline-hidden cursor-pointer"
+              className="bg-white text-slate-800 rounded-md border border-slate-200 px-2 py-0.5 focus:outline-hidden cursor-pointer"
             >
               <option value="">Auto-detect</option>
               <option value="en">English</option>
@@ -310,13 +310,13 @@ export default function DocumentWorkspace({
               onClick={() => setEnableMmr(!enableMmr)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-l-xl border text-xs font-medium transition-all ${
                 enableMmr 
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-700'
-                  : 'bg-slate-100/60 border-slate-300/50 text-slate-600'
+                  ? 'bg-[#eef1fc] border-[#d9dff8] text-[#4854b8]'
+                  : 'bg-slate-100/70 border-slate-200/80 text-slate-600 hover:text-slate-900'
               }`}
               title="Maximal Marginal Relevance (Redundancy Filter)"
             >
               <span>MMR Filter</span>
-              <span className={`text-[10px] px-1 rounded-sm font-mono font-bold ${enableMmr ? 'text-indigo-700' : 'text-slate-500'}`}>
+              <span className={`text-[10px] px-1 rounded-sm font-mono font-bold ${enableMmr ? 'text-[#4854b8]' : 'text-slate-500'}`}>
                 {enableMmr ? 'ON' : 'OFF'}
               </span>
             </button>
@@ -325,7 +325,7 @@ export default function DocumentWorkspace({
               onClick={() => setShowAdvancedMmr(!showAdvancedMmr)}
               aria-label="MMR lambda settings"
               className={`px-2 py-1.5 rounded-r-xl border border-l-0 text-xs transition-all ${
-                showAdvancedMmr ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-100/80 border-slate-300/60 text-slate-600'
+                showAdvancedMmr ? 'bg-[#5867ce] text-white border-[#5867ce]' : 'bg-slate-100/70 border-slate-200/80 text-slate-600 hover:text-slate-900'
               }`}
               title="Configure λ hyperparameter"
             >
@@ -340,8 +340,8 @@ export default function DocumentWorkspace({
               onClick={() => setEnableDiarization(!enableDiarization)}
               className={`flex items-center gap-1.5 px-3 py-1.5 ${enableDiarization ? 'rounded-l-xl' : 'rounded-xl'} border text-xs font-medium transition-all ${
                 enableDiarization 
-                  ? 'bg-purple-600/20 border-purple-500/50 text-purple-700'
-                  : 'bg-slate-100/60 border-slate-300/50 text-slate-600'
+                  ? 'bg-[#eef1fc] border-[#d9dff8] text-[#4854b8]'
+                  : 'bg-slate-100/70 border-slate-200/80 text-slate-600 hover:text-slate-900'
               }`}
               title="Speaker Diarization (Identify speakers)"
             >
@@ -352,7 +352,7 @@ export default function DocumentWorkspace({
               <select
                 value={numSpeakers}
                 onChange={(e) => setNumSpeakers(e.target.value)}
-                className="bg-slate-100 text-slate-700 border border-l-0 border-purple-500/50 rounded-r-xl px-2 py-1.5 text-xs focus:outline-hidden"
+                className="bg-[#f5f7fe] text-[#4854b8] border border-l-0 border-[#d9dff8] rounded-r-xl px-2 py-1.5 text-xs focus:outline-hidden font-medium"
                 title="Expected speaker count"
               >
                 <option value="">Auto Spk</option>
@@ -409,10 +409,10 @@ export default function DocumentWorkspace({
           {...getRootProps({ role: 'button', 'aria-label': 'Choose meeting audio or video file' })}
           className={`relative group rounded-3xl p-10 md:p-14 text-center cursor-pointer transition-all duration-300 border-2 border-dashed overflow-hidden ${
             isDragActive 
-              ? 'border-indigo-400 bg-indigo-50/20'
+              ? 'border-[#6370ce] bg-[#eef1fc]/40'
               : file 
-                ? 'border-emerald-500/50 bg-white/60'
-                : 'border-slate-200 hover:border-indigo-500/50 bg-white/40 hover:bg-white/60'
+                ? 'border-[#dce2f4] bg-white/80 shadow-xs'
+                : 'border-slate-200 hover:border-[#6370ce]/50 bg-white/40 hover:bg-[#fafbff]/80'
           }`}
         >
           <input {...getInputProps()} />
@@ -420,38 +420,38 @@ export default function DocumentWorkspace({
           <div className="flex flex-col items-center gap-4 relative z-10">
             {file ? (
               <div className="flex flex-col items-center gap-3 w-full max-w-md">
-                <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 rounded-2xl shadow-inner">
+                <div className="p-4 bg-[#eef1fc] border border-[#d9dff8] text-[#5867ce] rounded-2xl shadow-xs">
                   <FileAudio className="w-8 h-8" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-900 truncate max-w-sm">{file.name}</p>
-                  <p className="text-xs text-slate-600 mt-1">Ready for analysis • {formatUploadLimits(uploadLimits)}</p>
+                  <p className="text-sm font-semibold text-[#2b3559] truncate max-w-sm">{file.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">Ready for analysis • {formatUploadLimits(uploadLimits)}</p>
                 </div>
 
                 {audioUrl && (
                   <div className="w-full pt-2" onClick={(e) => e.stopPropagation()}>
-                    <audio ref={audioRef} controls src={audioUrl} className="w-full h-8 rounded-lg" />
+                    <audio ref={audioRef} controls src={audioUrl} className="w-full h-8 rounded-lg accent-[#6370ce]" />
                   </div>
                 )}
 
                 <button 
                   type="button"
                   onClick={(e) => { e.stopPropagation(); handleReset(); }}
-                  className="mt-1 flex items-center gap-1.5 text-xs text-rose-700 hover:text-rose-700 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 transition-colors"
+                  className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 hover:text-rose-600 px-3 py-1 rounded-full bg-slate-100 hover:bg-rose-50 border border-slate-200 transition-colors cursor-pointer"
                 >
                   <X className="w-3 h-3" /> Change File
                 </button>
               </div>
             ) : (
               <>
-                <div className="p-5 bg-linear-to-tr from-indigo-500/10 to-emerald-500/10 border border-indigo-500/20 text-indigo-700 rounded-3xl shadow-inner group-hover:scale-105 transition-transform duration-300">
+                <div className="p-5 bg-[#eef1fc] border border-[#d9dff8] text-[#5867ce] rounded-3xl shadow-xs group-hover:scale-105 transition-transform duration-300">
                   <UploadCloud className="w-10 h-10" />
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-slate-900">
+                  <p className="text-base font-semibold text-[#2b3559]">
                     Drag and drop your meeting audio or video here
                   </p>
-                  <p className="text-xs text-slate-600 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     or click anywhere to browse from your computer ({formatUploadLimits(uploadLimits)})
                   </p>
                 </div>
@@ -469,20 +469,20 @@ export default function DocumentWorkspace({
         </div>
 
         {/* Sample Meeting Card */}
-        <div className="p-4 rounded-2xl bg-white/40 border border-slate-200/80 flex items-center justify-between text-xs">
+        <div className="p-4 rounded-2xl bg-white/70 border border-slate-200/90 flex items-center justify-between text-xs shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-700">
-              <Zap className="w-4 h-4" />
+            <div className="p-2 rounded-xl bg-[#eef1fc] border border-[#d9dff8] text-[#5867ce]">
+              <Play className="w-4 h-4 fill-current" />
             </div>
             <div>
-              <p className="font-semibold text-slate-800">Want to test right away without an audio file?</p>
-              <p className="text-[11px] text-slate-600">Load a pre-packaged Q3 product and budget review audio sample.</p>
+              <p className="font-semibold text-[#2b3559]">Want to test right away without an audio file?</p>
+              <p className="text-[11px] text-slate-500">Load a pre-packaged Q3 product and budget review audio sample.</p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleDemoSample}
-            className="px-3.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-700 border border-indigo-500/40 font-semibold transition-all active:scale-95 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl bg-[#eef1fc] hover:bg-[#e2e7fb] text-[#4854b8] border border-[#d9dff8] font-medium transition-all active:scale-95 cursor-pointer shadow-xs"
           >
             Load Sample Audio
           </button>

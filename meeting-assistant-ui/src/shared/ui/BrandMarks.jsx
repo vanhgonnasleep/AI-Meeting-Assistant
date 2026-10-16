@@ -26,3 +26,29 @@ export function ClarionMark({ size = 24 }) {
     <path d="M7 14v4m6-11v18m6-23v28m6-17v6" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
   </svg>;
 }
+
+export function ClarionWordmark({ 
+  markSize = 19, 
+  textSize = 'text-[20px]', 
+  showTagline = false,
+  tagline = 'Private Intelligence',
+  className = '' 
+}) {
+  return (
+    <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
+      <span className="grid place-items-center w-[32px] h-[32px] rounded-[10px] text-white bg-[#6370ce] shadow-[inset_0_1px_0_#9eabed] shrink-0">
+        <ClarionMark size={markSize} />
+      </span>
+      <div className="min-w-0 flex flex-col justify-center">
+        <span className={`font-semibold tracking-[-0.8px] text-[#2b3559] leading-tight flex items-baseline ${textSize}`}>
+          clarion<span className="text-[#5363c9] ml-[-0.05em]">.</span>
+        </span>
+        {showTagline && (
+          <span className="text-[10px] text-slate-500 tracking-normal font-normal leading-tight mt-0.5">
+            {tagline}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
