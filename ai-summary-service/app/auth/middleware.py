@@ -8,6 +8,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from database import db
+from app.core.error_boundary import StorageUnavailableError
 from .config import settings
 from .store import find_session
 
@@ -66,7 +67,10 @@ class PrivateWorkspaceMiddleware:
         path = config.data_dir / 'users' / session['id'] / 'meeting.db'
         selection = db.ACTIVE_DB_PATH.set(path)
         try:
-            await run_in_threadpool(ensure_database, path)
+            try:
+                await run_in_threadpool(ensure_database, path)
+            except OSError as exc:
+                raise StorageUnavailableError('Workspace storage could not be prepared.') from exc
             await self.app(scope, receive, send)
         finally:
             db.ACTIVE_DB_PATH.reset(selection)

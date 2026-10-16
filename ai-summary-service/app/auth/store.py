@@ -7,6 +7,7 @@ from contextlib import closing
 from uuid import uuid4
 
 from .config import settings
+from app.core.error_boundary import StorageUnavailableError
 
 SESSION_SECONDS = 24 * 60 * 60
 STATE_SECONDS = 10 * 60
@@ -18,7 +19,10 @@ def digest(value):
 
 def connect():
     directory = settings().data_dir
-    directory.mkdir(parents=True, exist_ok=True)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise StorageUnavailableError('Account storage could not be prepared.') from exc
     connection = sqlite3.connect(directory / 'identity.db', timeout=15)
     connection.row_factory = sqlite3.Row
     connection.executescript('''

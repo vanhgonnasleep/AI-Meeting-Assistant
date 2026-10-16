@@ -1,6 +1,7 @@
 """Backend failure boundaries exercised with disposable data only."""
 import asyncio
 import sqlite3
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -12,7 +13,7 @@ from app.core.error_boundary import StorageErrorMiddleware
 from database import crud, db
 
 
-@pytest.mark.parametrize('failure', ['read', 'write', 'initialize', 'session'])
+@pytest.mark.parametrize('failure', ['read', 'write', 'initialize', 'session', 'initialize-filesystem', 'session-filesystem'])
 def test_private_storage_failure_is_readable_without_losing_account(monkeypatch, failure):
     monkeypatch.setenv('CLARION_AUTH_MODE', 'private')
     client = TestClient(main.app, raise_server_exceptions=False)
@@ -30,8 +31,15 @@ def test_private_storage_failure_is_readable_without_losing_account(monkeypatch,
     def unavailable(*args, **kwargs):
         raise sqlite3.OperationalError('private-path/identity.db: sensitive diagnostic')
 
+    def filesystem_unavailable(*args, **kwargs):
+        raise PermissionError('private-path: sensitive diagnostic')
+
     if failure == 'session':
         monkeypatch.setattr(middleware, 'find_session', unavailable)
+    elif failure == 'session-filesystem':
+        monkeypatch.setattr(Path, 'mkdir', filesystem_unavailable)
+    elif failure == 'initialize-filesystem':
+        monkeypatch.setattr(middleware, 'ensure_database', filesystem_unavailable)
     elif failure == 'initialize':
         monkeypatch.setattr(middleware, 'ensure_database', unavailable)
     elif failure == 'read':
@@ -52,7 +60,7 @@ def test_private_storage_failure_is_readable_without_losing_account(monkeypatch,
     assert response.json()['code'] == 'workspace_unavailable'
     assert response.headers['access-control-allow-origin'] == headers['Origin']
     assert response.headers['cache-control'] == 'no-store'
-    if failure != 'session':
+    if not failure.startswith('session'):
         assert response.headers['x-clarion-account'] == session['user']['id']
     assert 'sensitive diagnostic' not in response.text
     assert '.db' not in response.text

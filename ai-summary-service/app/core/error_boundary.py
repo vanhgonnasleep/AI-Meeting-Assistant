@@ -7,6 +7,10 @@ from starlette.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 
+class StorageUnavailableError(RuntimeError):
+    """A filesystem operation failed while preparing application storage."""
+
+
 class StorageErrorMiddleware:
     def __init__(self, app):
         self.app = app
@@ -24,7 +28,7 @@ class StorageErrorMiddleware:
 
         try:
             await self.app(scope, receive, tracked_send)
-        except sqlite3.Error:
+        except (sqlite3.Error, StorageUnavailableError):
             # A stream that has already started cannot be replaced with JSON.
             # Its endpoint owns any terminal SSE error event.
             if started:
