@@ -1,0 +1,13 @@
+﻿case_id,variant,review_complete,task_matches,covered_fact_ids,unsupported_claims
+vi-clear,mmr_off,false,[],[],
+vi-clear,mmr_on,false,[],[],
+vi-cancel,mmr_off,false,[],[],
+vi-cancel,mmr_on,false,[],[],
+vi-no_tasks,mmr_off,false,[],[],
+vi-no_tasks,mmr_on,false,[],[],
+vi-reassign,mmr_off,false,[],[],
+vi-reassign,mmr_on,false,[],[],
+vi-deadline,mmr_off,false,[],[],
+vi-deadline,mmr_on,false,[],[],
+vi-mixed,mmr_off,false,[],[],
+vi-mixed,mmr_on,false,[],[],

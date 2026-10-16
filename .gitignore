@@ -36,3 +36,5 @@ database/*.db
 database/backups/
 .superpowers/
 /data/
+/.evaluation-data/
+/.evaluation-runs/

@@ -82,6 +82,11 @@ def extract_action_items_heuristic(transcript: str) -> List[Dict[str, Any]]:
 
 
 def extract_action_items(transcript: str, model_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Compatibility wrapper; detailed provenance is available separately."""
+    return extract_action_items_detailed(transcript, model_name)['items']
+
+
+def extract_action_items_detailed(transcript: str, model_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Receives raw meeting transcript and extracts actionable work items.
     
@@ -97,7 +102,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
             ]
     """
     if not transcript or not transcript.strip():
-        return []
+        return {'items': [], 'source': 'empty', 'reason': 'empty_input', 'raw_output': ''}
 
     target_model = model_name or os.getenv("OLLAMA_MODEL", "llama3")
 
@@ -224,14 +229,16 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
                 })
 
         if valid_items:
-            return valid_items
+            return {'items': valid_items, 'source': 'llm', 'reason': None, 'raw_output': raw_content}
 
         # If LLM returned empty list, fall back to heuristic extraction
-        return extract_action_items_heuristic(transcript)
+        return {'items': extract_action_items_heuristic(transcript), 'source': 'heuristic',
+                'reason': 'empty_or_invalid_output', 'raw_output': raw_content}
 
     except Exception as e:
         print(f"[Agent 3] Warning during LLM action item extraction: {e}. Running heuristic fallback.")
-        return extract_action_items_heuristic(transcript)
+        return {'items': extract_action_items_heuristic(transcript), 'source': 'heuristic',
+                'reason': 'generation_error', 'raw_output': locals().get('raw_content', '')}
 
 
 # --- Quick Local Test ---

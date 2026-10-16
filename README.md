@@ -354,4 +354,6 @@ Root startup launchers and Docker configuration remain in place. `python main.py
 
 ## 📜 License & Academic Integrity
 
+Bộ đánh giá phục vụ bảo vệ nằm tại [evaluation/README.md](evaluation/README.md): pilot ASR tiếng Việt công khai, MMR bật/tắt, phiếu chấm NLP và báo cáo HTML/CSV/JSON/Markdown tái lập được. Số liệu AI lấy từ inference thật; nhãn synthetic chưa duyệt không tạo F1.
+
 This project is submitted as a Final Capstone for the **Advanced Topics in Information Technology** course. Developed collaboratively by the project team for educational, non-commercial research and demonstration purposes.

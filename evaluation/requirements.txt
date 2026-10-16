@@ -1,0 +1,2 @@
+# Optional public-data preparation only; not an application dependency.
+pyarrow==23.0.1
