@@ -585,6 +585,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
 
   const handleReset = ({ resetStorage = false } = {}) => {
     invalidateSession();
+    setSelectedModel(previous => previous === 'instant_demo' ? 'auto' : previous);
     saveKey.current = null;
     if (resetStorage) setSaveToLibrary(true);
     setFile(null);
