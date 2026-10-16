@@ -78,7 +78,9 @@ export default function MeetingLibrary({
   onOpen,
   onDelete,
   canOpen,
-  onNewMeeting
+  onNewMeeting,
+  filters = { project: '', days: '', sort: 'newest' },
+  onFiltersChange,
 }) {
   return (
     <div className="space-y-6 max-w-4xl mx-auto py-4">
@@ -107,7 +109,7 @@ export default function MeetingLibrary({
             type="search"
             aria-label="Search meeting library"
             value={query}
-            maxLength={4000}
+            maxLength={500}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search recordings, summaries or action items..."
             className="w-full bg-transparent text-xs text-slate-900 placeholder-slate-500 outline-none"
@@ -126,6 +128,33 @@ export default function MeetingLibrary({
         <span className="text-xs text-slate-600 font-mono">
           {total} matching {total === 1 ? 'meeting' : 'meetings'}
         </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" aria-label="Library filters and sorting">
+        <label className="text-xs text-slate-600 space-y-1">
+          <span>Project</span>
+          <select aria-label="Filter by project" value={filters.project} onChange={event => onFiltersChange?.({ ...filters, project: event.target.value })}
+            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 p-2.5 text-slate-800">
+            <option value="">All projects</option>
+            <option>Clarion Core Platform</option>
+            <option>Enterprise Compliance</option>
+          </select>
+        </label>
+        <label className="text-xs text-slate-600 space-y-1">
+          <span>Date</span>
+          <select aria-label="Filter by date" value={filters.days} onChange={event => onFiltersChange?.({ ...filters, days: event.target.value })}
+            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 p-2.5 text-slate-800">
+            <option value="">All dates</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option>
+          </select>
+        </label>
+        <label className="text-xs text-slate-600 space-y-1">
+          <span>Sort by</span>
+          <select aria-label="Sort meetings" value={filters.sort} onChange={event => onFiltersChange?.({ ...filters, sort: event.target.value })}
+            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 p-2.5 text-slate-800">
+            <option value="newest">Newest</option><option value="oldest">Oldest</option>
+            <option value="duration">Longest duration</option><option value="tasks">Most tasks</option>
+          </select>
+        </label>
       </div>
 
       {!canOpen && (

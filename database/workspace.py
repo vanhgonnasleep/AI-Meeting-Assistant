@@ -76,7 +76,8 @@ def review_meeting(meeting_id, expected_revision, review_status, **changes):
         if "executive_summary" in changes:
             record.executive_summary = changes["executive_summary"]
         if "action_items" in changes:
-            record.action_items = changes["action_items"]
+            record.action_items = json.loads(action_items_to_json(changes['action_items'], reference_date=record.created_at,
+                                                                 previous_items=record.action_items))
         if "insights" in changes:
             record.insights = _edited_insights(changes["insights"])
         after = record.to_dict()

@@ -116,7 +116,7 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
     )
 
 
-def action_items_to_json(action_items: Any, reference_date=None) -> Optional[str]:
+def action_items_to_json(action_items: Any, reference_date=None, previous_items=None) -> Optional[str]:
     """
     Convert action items to JSON string for SQLite storage.
     Ensures output is always a standardized JSON array.
@@ -124,14 +124,31 @@ def action_items_to_json(action_items: Any, reference_date=None) -> Optional[str
     if action_items is None:
         return None
 
+    if isinstance(action_items, str):
+        try:
+            action_items = json.loads(action_items)
+        except (ValueError, TypeError):
+            action_items = [{'task': action_items, 'assignee': 'Unassigned', 'status': 'pending'}]
+    if isinstance(action_items, (dict, ActionItem)):
+        action_items = [action_items]
+    if isinstance(reference_date, str):
+        try:
+            reference_date = datetime.fromisoformat(reference_date)
+        except ValueError:
+            reference_date = None
+
     # Action items are stored as a JSON array in SQLite, so each task retains
     # its own ISO date rather than a single incorrect meeting-level deadline.
     if isinstance(action_items, list):
         normalized = []
-        for item in action_items:
+        for index, item in enumerate(action_items):
             entry = item.to_dict() if isinstance(item, ActionItem) else dict(item) if isinstance(item, dict) else item
             if isinstance(entry, dict):
-                if not entry.get('deadline_iso'):
+                previous = previous_items[index] if previous_items and index < len(previous_items) else None
+                previous = previous.to_dict() if isinstance(previous, ActionItem) else previous
+                if isinstance(previous, dict) and previous.get('deadline') == entry.get('deadline') and previous.get('deadline_iso'):
+                    entry['deadline_iso'] = previous['deadline_iso']
+                elif reference_date is not None or not entry.get('deadline_iso'):
                     entry['deadline_iso'] = normalize_deadline_to_iso(entry.get('deadline'), reference_date or datetime.now())
             normalized.append(entry)
         action_items = normalized
@@ -337,34 +354,49 @@ def search_meetings_fts(query: str, limit: int = 50):
         connection.close()
 
 
-def get_meeting_page(search=None, limit=50, offset=0, compact=False):
+def get_meeting_page(search=None, limit=50, offset=0, compact=False, project=None, days=None, sort='newest'):
     """Search before pagination; compact rows exclude transcript, segments and chat."""
     where, params = "", []
     if search and search.strip():
         term = search.strip()
-        if re.fullmatch(r'[\w\s]+', term, re.UNICODE):
+        if re.fullmatch(r'[^\W_]+(?:\s+[^\W_]+)*', term, re.UNICODE):
             # Quote each token: AND/OR/NOT in user text remain literal words.
             expression = ' AND '.join('"' + word + '"' for word in term.split())
             where = "WHERE (id IN (SELECT rowid FROM meetings_fts WHERE meetings_fts MATCH ?) OR instr(casefold(filename), ?) > 0)"
             params = [expression, term.casefold()]
         else:
-            # Unicode casefold preserves the existing literal substring contract.
-            # instr also avoids treating % and _ as SQL LIKE wildcards.
-            where = "WHERE (instr(casefold(filename), ?) > 0 OR instr(casefold(executive_summary), ?) > 0 OR instr(casefold(raw_transcript), ?) > 0 OR instr(casefold(action_items), ?) > 0)"
-            params = [term.casefold()] * 4
-    projection = "*" if not compact else "id, filename, substr(executive_summary, 1, 600) AS executive_summary, '' AS raw_transcript, action_items, duration, language, created_at, updated_at"
+            # Unicode-aware LIKE, escaping every wildcard for literal matching.
+            where = "WHERE (casefold(filename) LIKE ? ESCAPE '\\' OR casefold(executive_summary) LIKE ? ESCAPE '\\' OR casefold(raw_transcript) LIKE ? ESCAPE '\\' OR casefold(action_items) LIKE ? ESCAPE '\\')"
+            params = [f'%{_escape_like(term.casefold())}%'] * 4
+    filters = []
+    if project:
+        filters.append('project_id IN (SELECT id FROM projects WHERE name_key=?)')
+        params.append(project.strip().casefold())
+    if days is not None:
+        filters.append("julianday(created_at) BETWEEN julianday('now', ?) AND julianday('now')")
+        params.append(f'-{int(days)} days')
+    if filters:
+        where += (' AND ' if where else 'WHERE ') + ' AND '.join(filters)
+    orders = {
+        'newest': 'julianday(created_at) DESC, id DESC',
+        'oldest': 'julianday(created_at) IS NULL, julianday(created_at) ASC, id ASC',
+        'duration': 'duration DESC, id DESC',
+        'tasks': "CASE WHEN json_valid(action_items) THEN CASE WHEN json_type(action_items)='array' THEN json_array_length(action_items) ELSE 0 END ELSE 0 END DESC, id DESC",
+    }
+    order = orders.get(sort, orders['newest'])
+    projection = "*" if not compact else "id, filename, project_id, substr(executive_summary, 1, 600) AS executive_summary, '' AS raw_transcript, action_items, duration, language, created_at, updated_at"
     connection = get_connection()
     try:
         connection.execute("BEGIN")
         total = connection.execute(f"SELECT COUNT(*) FROM meetings {where}", params).fetchone()[0]
         rows = connection.execute(
-            f"SELECT {projection} FROM meetings {where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+            f"SELECT {projection} FROM meetings {where} ORDER BY {order} LIMIT ? OFFSET ?",
             [*params, limit, offset],
         ).fetchall()
         if compact:
             records = []
             for row in rows:
-                entry = {key: row[key] for key in ("id", "filename", "executive_summary", "duration", "language", "created_at", "updated_at")}
+                entry = {key: row[key] for key in ("id", "filename", "project_id", "executive_summary", "duration", "language", "created_at", "updated_at")}
                 record = row_to_meeting(row)
                 entry["duration"] = record.duration
                 entry["action_item_count"] = len(record.action_items)
@@ -477,7 +509,7 @@ def update_meeting(
             return False
 
         new_action_items = (
-            action_items_to_json(action_items)
+            action_items_to_json(action_items, reference_date=existing.created_at, previous_items=existing.action_items)
             if action_items is not None
             else action_items_to_json(existing.action_items)
         )
