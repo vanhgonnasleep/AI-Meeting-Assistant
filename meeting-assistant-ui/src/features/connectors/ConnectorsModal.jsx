@@ -5,7 +5,6 @@ import { GitHubMark, GmailMark } from '../../shared/ui/BrandMarks.jsx';
 import ConnectorPreview from './ConnectorPreview.jsx';
 import { buildGitHubIssuePayload, buildGitHubIssueUrl, buildGmailDispatchUrl, formatEmailMinutes, postGitHubIssue, extractAssignee, isValidGitHubRepo, getKnownRecipientEmails } from './connectors.js';
 
-const readSetting = key => { try { return localStorage.getItem(key) || ''; } catch { return ''; } };
 const taskText = task => typeof task === 'string' ? task : task?.text || task?.task || task?.title || '';
 
 export default function ConnectorsModal(props) {
@@ -14,8 +13,8 @@ export default function ConnectorsModal(props) {
 
 function ConnectorSheet({ onClose, meetingData = {}, actionItems = [], completedTasks = new Set() }) {
   const [activeTab, setActiveTab] = useState('github');
-  const [repo, setRepo] = useState(() => readSetting('ma_github_repo'));
-  const [token, setToken] = useState(() => readSetting('ma_github_token'));
+  const [repo, setRepo] = useState('');
+  const [token, setToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [deselected, setDeselected] = useState(() => new Set());
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -27,8 +26,6 @@ function ConnectorSheet({ onClose, meetingData = {}, actionItems = [], completed
   const copyTimer = useRef(null);
   const id = useId();
   const busy = creating;
-  useEffect(() => { try { localStorage.setItem('ma_github_repo', repo); } catch { /* Browser storage is optional. */ } }, [repo]);
-  useEffect(() => { try { if (token) localStorage.setItem('ma_github_token', token); else localStorage.removeItem('ma_github_token'); } catch { /* Browser storage is optional. */ } }, [token]);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
   const selected = actionItems.map((task, index) => ({ task, index })).filter(({ index }) => !deselected.has(index));
   const activeTask = selected.find(item => item.index === previewIndex) || selected[0];
@@ -96,7 +93,7 @@ function ConnectorSheet({ onClose, meetingData = {}, actionItems = [], completed
           {activeTab === 'gmail' && <a className="connector-native-mail" href={buildGmailDispatchUrl({ to: recipients, subject: emailSubject, body: emailBody, format: 'mailto' })}><Mail size={12} />Use your mail app instead</a>}
         </div>
       </div>
-      {activeTab === 'github' && <details className="connector-advanced"><summary>Advanced: create issues directly with a token</summary><div><p>This creates all selected issues immediately. Your token is stored in this browser.</p><label className="connector-field">Personal access token<span className="connector-token-field"><input type={showToken ? 'text' : 'password'} value={token} autoComplete="off" onChange={event => setToken(event.target.value)} placeholder="GitHub token" /><button type="button" onClick={() => setShowToken(value => !value)} aria-label={showToken ? 'Hide token' : 'Show token'}>{showToken ? <EyeOff size={15} /> : <Eye size={15} />}</button></span></label><button type="button" className="visual-button button-ink" disabled={busy || !validRepo || !token.trim() || !selected.length} onClick={createBatch}>{busy && <Loader2 size={13} className="animate-spin" />}Create {selected.length} issues directly</button></div></details>}
+      {activeTab === 'github' && <details className="connector-advanced"><summary>Advanced: create issues directly with a token</summary><div><p>This creates all selected issues immediately. Your token is kept only while this dialog is open.</p><label className="connector-field">Personal access token<span className="connector-token-field"><input type={showToken ? 'text' : 'password'} value={token} autoComplete="off" onChange={event => setToken(event.target.value)} placeholder="GitHub token" /><button type="button" onClick={() => setShowToken(value => !value)} aria-label={showToken ? 'Hide token' : 'Show token'}>{showToken ? <EyeOff size={15} /> : <Eye size={15} />}</button></span></label><button type="button" className="visual-button button-ink" disabled={busy || !validRepo || !token.trim() || !selected.length} onClick={createBatch}>{busy && <Loader2 size={13} className="animate-spin" />}Create {selected.length} issues directly</button></div></details>}
       {status && <p role={status.type === 'error' ? 'alert' : 'status'} className={`connector-status status-${status.type}`}>{status.message}</p>}
     </div>
   </WorkspaceDialog>;

@@ -6,6 +6,7 @@
 
 ## 🌟 Key Features
 
+- **Private accounts:** Google/GitHub sign-in, separate libraries, session expiry/logout and account-safe requests. Provider credentials are configured on the backend; see [sign-in setup](../docs/auth-setup.md).
 - **Drag-and-Drop Ingestion:** Audio and video file drops with format validation (`.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac`, `.mp4`, `.webm`, `.mkv`) and size bounds.
 - **Adaptive Model Selection:** Dynamic profile switcher between Auto-detection, Llama 3 (8B GPU), Llama 3.2 (3B / 1B CPU), and Instant Demo mode.
 - **Algorithmic MMR Telemetry:** Live visualization of noise reduction percentage, sentence counts, word savings, and trade-off parameter $\lambda$.
@@ -20,7 +21,7 @@
 ## 🛠️ Development & Build
 
 ### Prerequisites
-- Node.js 20.19+ or 22.12+ (Vite 8 requirement)
+- Node.js 24 LTS recommended (Vite 8 minimum: 20.19+ or 22.12+)
 - npm or yarn
 
 ### Quick Start

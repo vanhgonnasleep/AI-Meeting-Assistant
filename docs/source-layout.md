@@ -34,6 +34,8 @@ meeting-assistant-ui/
 docker/                         nginx and disposable smoke override
 scripts/                        maintenance, benchmark and container verification
 docs/                           setup, usage, design, acceptance and measurements
+  defense/                      technical defense and presentation guides
+  reports/                      archived midterm HTML/PDF
 ```
 
 The root Dockerfiles/Compose file and Windows launchers remain easy to find. Python's root `main.py` aliases the real `app.main` module when imported so test/tool monkeypatches still affect live application globals. Other old flat backend modules have moved; import their `app.*` paths directly.

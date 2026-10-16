@@ -3,6 +3,7 @@ import App from '../../app/App.jsx';
 import SignIn from './SignIn.jsx';
 import { API_BASE, apiClient, apiFetch } from './api-client.js';
 import { navigateTo } from '../../app/navigation.js';
+import { discardLegacyConnectorSettings } from './browser-privacy.js';
 
 export default function AuthGate() {
   const [state, setState] = useState({ phase: 'checking', session: null, error: '' });
@@ -30,6 +31,7 @@ export default function AuthGate() {
   }, []);
 
   useEffect(() => {
+    discardLegacyConnectorSettings();
     const stop = apiClient.onSessionInvalid(() => {
       setState({ phase: 'checking', session: null, error: '' });
       void refresh();

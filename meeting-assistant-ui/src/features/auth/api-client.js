@@ -1,3 +1,5 @@
+import { discardLegacyConnectorSettings } from './browser-privacy.js';
+
 export const API_BASE = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
 
 export function createApiClient({ baseUrl, fetcher = (...args) => fetch(...args) }) {
@@ -8,6 +10,7 @@ export function createApiClient({ baseUrl, fetcher = (...args) => fetch(...args)
   let invalidationHandler = () => {};
 
   const configureSession = session => {
+    discardLegacyConnectorSettings();
     const nextAccount = session?.user?.id || null;
     const nextCsrf = session?.csrf_token || null;
     if (nextAccount !== account || nextCsrf !== csrf) generation += 1;
