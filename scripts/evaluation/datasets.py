@@ -95,6 +95,9 @@ def prepare_fleurs(output_dir: Path, *, limit: int = 20, fetch_json=None, downlo
         for case in cases:
             if sha256_file(Path(case['audio_path'])) != case['audio_sha256']:
                 raise ValueError('Audio cache checksum mismatch')
+            reference_hash = hashlib.sha256(case['reference_text'].encode()).hexdigest()
+            if reference_hash != case['provenance'].get('reference_sha256'):
+                raise ValueError('Reference cache checksum mismatch')
         return manifest
     fetch, downloader = fetch_json or _fetch, download or _download
     extra = {}

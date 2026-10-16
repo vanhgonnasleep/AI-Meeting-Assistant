@@ -53,6 +53,15 @@ def test_non_first_rows_rejected(tmp_path):
         prepare_fleurs(tmp_path, limit=2, fetch_json=wrong, download=download)
 
 
+def test_changed_reference_cache_refused(tmp_path):
+    path = prepare_fleurs(tmp_path,limit=2,fetch_json=response,download=download)
+    rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
+    rows[0]['reference_text'] = 'changed reference'
+    path.write_text(''.join(json.dumps(row)+'\n' for row in rows),encoding='utf-8')
+    with pytest.raises(ValueError,match='checksum'):
+        prepare_fleurs(tmp_path,limit=2,fetch_json=response,download=download)
+
+
 def test_six_authored_cases_unapproved():
     root = Path(__file__).resolve().parents[2]
     cases = load_cases(root / 'evaluation/fixtures/vi_text_cases.jsonl')

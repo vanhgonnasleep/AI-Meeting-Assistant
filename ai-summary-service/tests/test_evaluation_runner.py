@@ -26,7 +26,7 @@ def manifests(tmp_path):
     audio = tmp_path / 'a.wav'
     audio.write_bytes(b'audio')
     cases = [{'case_id': 'a', 'kind': 'asr', 'split': 'test', 'reference_text': 'xin chào',
-              'audio_path': str(audio), 'audio_sha256': hashlib.sha256(b'audio').hexdigest()},
+              'audio_path': str(audio), 'audio_sha256': hashlib.sha256(b'audio').hexdigest(), 'token': 'SECRET'},
              {'case_id': 'n', 'kind': 'nlp_text', 'split': 'test', 'transcript': 'Cuộc họp ngắn.'}]
     path = tmp_path / 'cases.jsonl'
     path.write_text(''.join(json.dumps(c) + '\n' for c in cases))

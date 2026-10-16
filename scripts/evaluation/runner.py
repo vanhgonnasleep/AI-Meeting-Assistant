@@ -62,7 +62,12 @@ def run_evaluation(manifest_paths: list[Path], output_root: Path, *, models: lis
            'cases': [], 'rows': []}
     audio_errors = set()
     for original in cases:
-        case = dict(original)
+        case = {key: original[key] for key in ('schema_version','case_id','kind','split','audio_path','audio_sha256',
+                'reference_text','transcript','reference_approved','reference_tasks','reference_facts','provenance') if key in original}
+        for collection, keys in (('reference_tasks',('id','task','assignee','deadline_iso','evidence')),
+                                 ('reference_facts',('id','text','evidence'))):
+            if case.get(collection) is not None:
+                case[collection] = [{key: entry[key] for key in keys if key in entry} for entry in case[collection]]
         case['provenance'] = safe_provenance(case['provenance'])
         if case['kind'] == 'asr':
             audio = Path(case['audio_path'])

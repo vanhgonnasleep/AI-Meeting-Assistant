@@ -4,7 +4,7 @@ from html import escape
 import json
 from pathlib import Path
 
-from .metrics import aggregate_asr
+from .metrics import aggregate_asr, normalize_text
 
 REVIEW_FIELDS = ['case_id','variant','review_complete','task_matches','covered_fact_ids','unsupported_claims']
 
@@ -137,6 +137,14 @@ def generate_reports(run_dir: Path, *, review_csv: Path | None = None) -> list[P
     summary = {'schema_version':1,'run_id':run['run_id'],'status':run['status'],
                'metadata':run.get('metadata',{}),'config':run.get('config',{}), 'asr':asr,'nlp':_nlp_scores(run,reviews)}
     (root/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')
+    case_map = {c['case_id']:c for c in run.get('cases',[])}
+    with (root/'normalized.csv').open('w',encoding='utf-8-sig',newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(['case_id','variant','normalized_reference','normalized_hypothesis'])
+        for row in run['rows']:
+            if row['kind']=='asr' and row['status']=='ok':
+                writer.writerow([_cell(value) for value in (row['case_id'],row['variant'],
+                    normalize_text(case_map[row['case_id']]['reference_text']), normalize_text(row['output']['text']))])
     with (root/'results.csv').open('w',encoding='utf-8-sig',newline='') as stream:
         writer = csv.writer(stream)
         writer.writerow(['case_id','kind','variant','status','wer','cer','rtf','output','error'])
@@ -174,7 +182,6 @@ def generate_reports(run_dir: Path, *, review_csv: Path | None = None) -> list[P
     nlp_status = ' · '.join(f'{name}: {value["status"]}' for name,value in summary['nlp'].items())
     cards = []
     markdown = [f'# {header}',limitations,'```json',json.dumps(summary,ensure_ascii=False,indent=2),'```']
-    case_map = {c['case_id']:c for c in run.get('cases',[])}
     for row in run['rows']:
         title = f"{row['case_id']} / {row['variant']} — {row['status']}"
         payload = json.dumps({'input':case_map.get(row['case_id']), 'result':row},ensure_ascii=False,indent=2)
@@ -193,4 +200,4 @@ table{{border-collapse:collapse;width:100%}}th,td{{padding:12px 8px;text-align:l
 <h2>Raw inputs and outputs · MMR off/on</h2>{''.join(cards)}</main></html>'''
     (root/'report.html').write_text(html,encoding='utf-8')
     (root/'report.md').write_text('\n\n'.join(markdown),encoding='utf-8')
-    return [root/name for name in ('report.html','report.md','summary.json','results.csv','review.csv')]
+    return [root/name for name in ('report.html','report.md','summary.json','results.csv','review.csv','normalized.csv')]

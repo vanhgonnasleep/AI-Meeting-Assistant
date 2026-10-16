@@ -48,6 +48,7 @@ def test_offline_report_truthful_and_escaped(tmp_path):
     assert 'mmr_off' in text and 'mmr_on' in text
     assert summary(tmp_path)['nlp']['mmr_off']['status'] == 'not_evaluated'
     assert summary(tmp_path)['asr']['tiny']['failed'] == 1
+    assert (tmp_path/'normalized.csv').exists()
 
 
 def test_approved_complete_matching_known_counts(tmp_path):
