@@ -1,3 +1,5 @@
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
+import { userMessage } from '../../shared/lib/user-errors.js';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createRequestGate } from '../../shared/lib/request-gate.js';
 import { buildTaskQuery, workspaceRequest } from './workspace.js';
@@ -54,7 +56,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
     try {
       const data = await workspaceRequest(`${apiBase}/api/projects`, { signal: request.signal });
       if (request.isCurrent()) { setProjects(Array.isArray(data.projects) ? data.projects : []); setProjectError(null); }
-    } catch (failure) { if (request.isCurrent()) setProjectError(failure.message); }
+    } catch (failure) { if (request.isCurrent()) setProjectError(userMessage(failure, 'load')); }
   }, [apiBase]);
   useEffect(() => { loadProjects(); }, [loadProjects, reload]);
 
@@ -67,7 +69,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
       try {
         const data = url ? await workspaceRequest(url, { signal: request.signal }) : { entries: [], total: 0, has_more: false };
         if (request.isCurrent()) setPage(data);
-      } catch (failure) { if (request.isCurrent()) setError(failure.message); }
+      } catch (failure) { if (request.isCurrent()) setError(userMessage(failure, 'load')); }
       finally { if (request.isCurrent()) setBusy(false); }
     };
     load();
@@ -86,7 +88,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
       const data = await workspaceRequest(`${apiBase}/api/projects`, { method: 'POST', body: { name: name.trim() }, signal: request.signal });
       if (!request.isCurrent()) return;
       setName(''); resetPage(); setProjectId(String(data.project.id)); setOffset(0); setReload(value => value + 1);
-    } catch (failure) { if (request.isCurrent()) setProjectError(failure.message); }
+    } catch (failure) { if (request.isCurrent()) setProjectError(userMessage(failure, 'load')); }
     finally { if (request.isCurrent()) setCreating(false); }
   };
   const openMeeting = async meetingId => {
@@ -96,7 +98,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
     try {
       const opened = await onOpenMeeting(meetingId);
       if (request.isCurrent() && !opened) setError('Unable to open this meeting. It may have been deleted.');
-    } catch (failure) { if (request.isCurrent()) setError(failure.message); }
+    } catch (failure) { if (request.isCurrent()) setError(userMessage(failure, 'load')); }
     finally { if (request.isCurrent()) setOpening(false); }
   };
   const rows = tab === 'tasks' ? (page.tasks || []) : (page.entries || []);
@@ -115,7 +117,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
           }}
           className={`${buttonStyle} ${tab === value ? 'border-indigo-400 text-indigo-700' : ''}`} onClick={() => changeTab(value)}>{value === 'tasks' ? 'All tasks' : 'Projects & decisions'}</button>)}
       </div>}
-      {projectError && <p role="alert" className="text-rose-700">{projectError} <button type="button" className="underline" onClick={loadProjects}>Retry projects</button></p>}
+      {!error && projectError && <FeedbackNotice key={projectError} title="Project action needs attention" onDismiss={() => setProjectError(null)}>{projectError}</FeedbackNotice>}
       {tab === 'tasks' ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="text-xs text-slate-600">Search tasks<input className={inputStyle} value={filters.q} maxLength={4000} onChange={event => changeFilter('q', event.target.value)} /></label>
         <label className="text-xs text-slate-600">Assignee<input className={inputStyle} value={filters.assignee} maxLength={128} onChange={event => changeFilter('assignee', event.target.value)} /></label>
@@ -135,11 +137,14 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
         </select></label>
         <p className="text-xs text-slate-600">Decision history keeps each meeting's source and human-selected status.</p>
       </div>}
-      {error && <p role="alert" className="text-rose-700">{error} <button type="button" className="underline" onClick={() => { resetPage(); setReload(value => value + 1); }}>Retry</button></p>}
+      {error && <FeedbackNotice key={error} title="Workspace couldn’t be loaded" onRetry={() => { resetPage(); setReload(value => value + 1); }}>{error}</FeedbackNotice>}
       {opening && <p role="status" className="text-indigo-700">Opening source meeting…</p>}
       {!canOpenMeeting && <p className="shell-hint">Open a source meeting after the current processing or save finishes.</p>}
       <div id="workspace-panel" role={presentation === 'page' ? 'region' : 'tabpanel'} aria-label={presentation === 'page' ? 'Workspace records' : undefined} aria-labelledby={presentation === 'page' ? undefined : `workspace-tab-${tab}`} className="workspace-data-panel max-h-[40vh] overflow-y-auto space-y-2" aria-busy={busy}>
-        {busy ? <p role="status" className="p-4 text-slate-600">Loading…</p> : rows.length === 0 ? <p className="p-4 text-slate-600">{tab === 'projects' && !projectId ? 'Choose or create a project to see its decisions.' : 'No matching records.'}</p>
+        {busy ? <p role="status" className="p-4 text-slate-600">Loading…</p> : error && rows.length === 0 ? <div className="library-recovery">
+          <p>{tab === 'tasks' ? 'Your action items haven’t loaded yet.' : 'Project decisions haven’t loaded yet.'}</p>
+          <button type="button" onClick={() => { resetPage(); setReload(value => value + 1); }}>{tab === 'tasks' ? 'Reload action items' : 'Reload project decisions'}</button>
+        </div> : rows.length === 0 ? <p className="p-4 text-slate-600">{tab === 'projects' && !projectId ? 'Choose or create a project to see its decisions.' : 'No matching records.'}</p>
           : rows.map(row => <button type="button" key={`${row.meeting_id}-${tab === 'tasks' ? row.task_idx : row.decision_idx}`} disabled={opening || !canOpenMeeting}
             onClick={() => openMeeting(row.meeting_id)} className="block w-full text-left p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-indigo-400 disabled:opacity-40">
             <p className="text-sm text-slate-900">{tab === 'tasks' ? row.task : row.text}</p>
@@ -150,7 +155,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-3 text-xs">
         <button type="button" className={buttonStyle} disabled={busy || offset === 0} onClick={() => changePage(Math.max(0, offset - 50))}>Previous page</button>
-        <span>{page.total ? `${offset + 1}–${Math.min(offset + 50, page.total)} of ${page.total}` : '0 records'}</span>
+        <span>{error && !rows.length ? 'Records unavailable' : page.total ? `${offset + 1}–${Math.min(offset + 50, page.total)} of ${page.total}` : '0 records'}</span>
         <button type="button" className={buttonStyle} disabled={busy || !page.has_more} onClick={() => changePage(offset + 50)}>Next page</button>
       </div>
     </div>

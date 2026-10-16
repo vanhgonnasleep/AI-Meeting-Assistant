@@ -1,3 +1,4 @@
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -92,21 +93,14 @@ export default function SignIn({
         </section>
         <section className="auth-signin-panel">
           <div>
-            <span className="auth-eyebrow">MAKE IT YOURS</span>
+
             <h1>Your private meeting workspace</h1>
             <p>
               Sign in to organize your meetings, transcripts and action items in
               your own library.
             </p>
           </div>
-          {(error || callbackError) && (
-            <p
-              role="alert"
-              className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
-            >
-              {error || callbackError}
-            </p>
-          )}
+          {(error || callbackError) && <FeedbackNotice key={error || callbackError} title="Sign-in is unavailable" onRetry={onRetry} retryLabel="Check sign-in again">{error || callbackError}</FeedbackNotice>}
           {checking ? (
             <p role="status" className="text-sm text-slate-600">
               Checking your session…

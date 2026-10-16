@@ -1,3 +1,4 @@
+import { networkFailure, responseFailure, userMessage } from '../../shared/lib/user-errors.js';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import App from '../../app/App.jsx';
 import SignIn from './SignIn.jsx';
@@ -18,6 +19,7 @@ export default function AuthGate() {
   const logoutPending = useRef(false);
   const recheckAfterLogout = useRef(false);
   const request = useRef(null);
+  const sessionNotice = useRef('');
 
   const refresh = useCallback(async () => {
     if (logoutPending.current) return;
@@ -25,8 +27,11 @@ export default function AuthGate() {
     const controller = new AbortController();
     request.current = controller;
     try {
-      const response = await fetch(`${API_BASE}/api/auth/session`, { credentials: 'include', cache: 'no-store', signal: controller.signal });
-      if (!response.ok) throw new Error('Unable to check your session. Check the server connection and try again.');
+      const response = await fetch(`${API_BASE}/api/auth/session`, { credentials: 'include', cache: 'no-store', signal: controller.signal }).catch(error => {
+        if (error.name === 'AbortError') throw error;
+        throw networkFailure({ operation: 'session' });
+      });
+      if (!response.ok) throw responseFailure(response.status, {}, { operation: 'session' });
       const session = await response.json();
       if (controller.signal.aborted) return;
       if (!['private', 'local'].includes(session.mode)) throw new Error('The server returned an invalid session.');
@@ -34,17 +39,19 @@ export default function AuthGate() {
       setWorkspaceOwner(previous => previous === nextOwner ? previous : null);
       if (session.user && (!window.location.hash || window.location.hash === '#/signin')) navigateTo('overview');
       apiClient.configureSession(session);
-      setState({ phase: 'ready', session, error: '' });
+      if (session.user || session.mode === 'local') sessionNotice.current = '';
+      setState({ phase: 'ready', session, error: sessionNotice.current });
     } catch (error) {
       if (controller.signal.aborted) return;
       setState(previous => previous.phase === 'ready' && previous.session?.user ? previous
-        : { phase: 'error', session: null, error: error.message || 'Unable to reach the server. Please try again.' });
+        : { phase: 'error', session: null, error: userMessage(error, 'session') });
     }
   }, []);
 
   useEffect(() => {
     discardLegacyConnectorSettings();
-    const stop = apiClient.onSessionInvalid(() => {
+    const stop = apiClient.onSessionInvalid(message => {
+      sessionNotice.current = message;
       if (logoutPending.current) recheckAfterLogout.current = true;
       setState({ phase: 'checking', session: null, error: '' });
       setWorkspaceOwner(null);
@@ -74,7 +81,7 @@ export default function AuthGate() {
       setWorkspaceOwner(null);
       setState(previous => ({ phase: 'ready', session: { ...previous.session, user: null, csrf_token: null }, error: '' }));
     } catch (error) {
-      if (error.name !== 'AbortError') setState(previous => ({ ...previous, error: error.message }));
+      if (error.name !== 'AbortError') setState(previous => ({ ...previous, error: userMessage(error, 'logout') }));
     } finally {
       logoutPending.current = false;
       setSigningOut(false);

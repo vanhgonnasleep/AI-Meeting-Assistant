@@ -1,3 +1,5 @@
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
+import { userMessage } from '../../shared/lib/user-errors.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRequestGate } from '../../shared/lib/request-gate.js';
 import { applyEditorResponse, buildReviewPayload, buildReviewStatusPayload, workspaceRequest } from '../workspace/workspace.js';
@@ -36,7 +38,7 @@ export default function MeetingEditor({ apiBase, meetingId, model = 'auto', onCl
     try {
       const data = await workspaceRequest(`${apiBase}/api/projects`, { signal: request.signal });
       if (request.isCurrent()) { setProjects(data.projects || []); setProjectError(null); }
-    } catch (failure) { if (request.isCurrent()) setProjectError(failure.message); }
+    } catch (failure) { if (request.isCurrent()) setProjectError(userMessage(failure, 'load')); }
   }, [apiBase]);
   useEffect(() => { load(); loadProjects(); }, [load, loadProjects]);
 
@@ -65,11 +67,13 @@ export default function MeetingEditor({ apiBase, meetingId, model = 'auto', onCl
     <div className="space-y-4 pt-4">
       {busy && <p role="status" className="text-indigo-700">{meeting ? 'Saving or regenerating…' : 'Loading latest meeting…'}</p>}
       {notice && <p role="status" className="text-emerald-700 text-sm">{notice}</p>}
-      {error && <div role="alert" className="rounded-xl border border-rose-700 p-3 text-rose-700 text-sm">
-        <p>{error}</p>
-        {conflict && <p className="mt-1">This meeting changed elsewhere. Your draft is preserved. Copy any changes you need before reloading.</p>}
-        <button type="button" className={`${buttonStyle} mt-2`} disabled={busy} onClick={load}>{draft ? 'Reload latest (discard draft)' : 'Retry loading'}</button>
+      {error && <FeedbackNotice key={error} title="Meeting update needs attention"
+        onDismiss={() => setState(previous => ({ ...previous, error: null }))}>{error}</FeedbackNotice>}
+      {conflict && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+        <p>A newer version is available. Your draft is preserved. Copy any changes you need before reloading.</p>
+        <button type="button" className={`${buttonStyle} mt-2`} disabled={busy} onClick={load}>Reload latest (discard draft)</button>
       </div>}
+      {!meeting && !busy && <button type="button" className={buttonStyle} onClick={load}>Load meeting again</button>}
       {meeting && draft && <>
         <p className="text-sm text-slate-600">{meeting.filename} · Revision {meeting.revision || 0} · {meeting.review_status === 'reviewed' ? 'Reviewed' : 'Draft'}</p>
         <form onSubmit={save}>

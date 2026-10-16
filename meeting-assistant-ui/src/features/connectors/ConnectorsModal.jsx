@@ -1,4 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { userMessage } from '../../shared/lib/user-errors.js';
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
 import { ArrowUpRight, Copy, Check, ExternalLink, Mail, Eye, EyeOff, CircleCheck, Loader2 } from 'lucide-react';
 import { WorkspaceDialog } from '../workspace/Workspace.jsx';
 import { GitHubMark, GmailMark } from '../../shared/ui/BrandMarks.jsx';
@@ -54,7 +56,7 @@ function ConnectorSheet({ onClose, meetingData = {}, actionItems = [], completed
         created++;
       }
       setStatus({ type: 'success', message: `Created ${created} issue(s) in ${repo.trim()}.` });
-    } catch (error) { setStatus({ type: 'error', message: `${created} created. ${error.message}` }); }
+    } catch (error) { setStatus({ type: 'error', message: `${created} issue${created === 1 ? '' : 's'} created. ${userMessage(error, 'github')}` }); }
     finally { setCreating(false); }
   };
   const switchTab = value => { setActiveTab(value); setStatus(null); };
@@ -94,7 +96,8 @@ function ConnectorSheet({ onClose, meetingData = {}, actionItems = [], completed
         </div>
       </div>
       {activeTab === 'github' && <details className="connector-advanced"><summary>Advanced: create issues directly with a token</summary><div><p>This creates all selected issues immediately. Your token is kept only while this dialog is open.</p><label className="connector-field">Personal access token<span className="connector-token-field"><input type={showToken ? 'text' : 'password'} value={token} autoComplete="off" onChange={event => setToken(event.target.value)} placeholder="GitHub token" /><button type="button" onClick={() => setShowToken(value => !value)} aria-label={showToken ? 'Hide token' : 'Show token'}>{showToken ? <EyeOff size={15} /> : <Eye size={15} />}</button></span></label><button type="button" className="visual-button button-ink" disabled={busy || !validRepo || !token.trim() || !selected.length} onClick={createBatch}>{busy && <Loader2 size={13} className="animate-spin" />}Create {selected.length} issues directly</button></div></details>}
-      {status && <p role={status.type === 'error' ? 'alert' : 'status'} className={`connector-status status-${status.type}`}>{status.message}</p>}
+      {status?.type === 'error' ? <FeedbackNotice key={status.message} title="Issue creation needs attention" onDismiss={() => setStatus(null)}>{status.message}</FeedbackNotice>
+        : status && <p role="status" className={`connector-status status-${status.type}`}>{status.message}</p>}
     </div>
   </WorkspaceDialog>;
 }

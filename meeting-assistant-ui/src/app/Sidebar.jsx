@@ -1,13 +1,13 @@
 import { useMemo, useEffect, useRef } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Trash2, 
-  Clock, 
-  FileAudio, 
-  PanelLeftClose, 
-  PanelLeftOpen, 
-  Cpu, 
+import {
+  Plus,
+  Search,
+  Trash2,
+  Clock,
+  FileAudio,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Cpu,
   Loader2,
   Sparkles,
   LayoutDashboard,
@@ -21,7 +21,7 @@ import { useMobileViewport } from '../shared/hooks/mobile-viewport.js';
 
 /**
  * Staff-level Collapsible Sidebar Component
- * 
+ *
  * UX Decisions:
  * 1. Cognitive Load Reduction: Date grouping (Today, Yesterday, 7 Days) reduces visual clutter.
  * 2. Snappy Ergonomics: Collapsible rail frees up full canvas for deep transcript reading.
@@ -112,7 +112,7 @@ export default function Sidebar({
                   title={meeting.filename}
                 >
                   <FileAudio className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-700' : 'text-slate-500 group-hover:text-slate-600'}`} />
-                  
+
                   <div className="flex-1 min-w-0 pr-6">
                     <p className="truncate text-xs leading-snug">
                       {meeting.filename || 'Untitled Meeting'}
@@ -326,14 +326,14 @@ export default function Sidebar({
               />
               <div className="min-w-0">
                 <span className="font-medium text-slate-700 block truncate text-[11px]">
-                  {healthStatus.checking 
-                    ? 'Checking AI Engine...' 
-                    : healthStatus.online 
-                      ? 'Local Llama 3 Online' 
-                      : 'Ollama Offline'}
+                  {healthStatus.checking
+                    ? 'Checking meeting assistant…'
+                    : healthStatus.online
+                      ? 'Meeting assistant ready'
+                      : 'Meeting assistant unavailable'}
                 </span>
                 <span className="text-[10px] text-slate-500 block truncate">
-                  {healthStatus.data?.gpu || 'Zero-cloud privacy'}
+                  {healthStatus.data?.gpu || 'Your library remains available'}
                 </span>
               </div>
             </div>
@@ -342,7 +342,7 @@ export default function Sidebar({
             </div>
           </div>
         ) : (
-          <div className="flex justify-center" title={healthStatus.online ? 'Local AI Online' : 'Ollama Offline'}>
+          <div className="flex justify-center" title={healthStatus.online ? 'Meeting assistant ready' : 'Meeting assistant unavailable'}>
             <span
               className={`w-2.5 h-2.5 rounded-full ${
                 healthStatus.online ? 'bg-emerald-400 shadow-xs shadow-emerald-400/50 animate-pulse' : 'bg-amber-400'

@@ -1,3 +1,5 @@
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
+import { microphoneMessage } from '../../shared/lib/user-errors.js';
 import { useState, useRef, useEffect } from 'react';
 import { 
   Mic, 
@@ -52,6 +54,7 @@ export default function CommandCenter({
 }) {
   const [chatInput, setChatInput] = useState('');
   const [recordingStatus, setRecordingStatus] = useState('idle');
+  const [recordingError, setRecordingError] = useState('');
   const isRecording = recordingStatus === 'recording' || recordingStatus === 'stopping';
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -78,6 +81,7 @@ export default function CommandCenter({
       onStatusChange: status => {
         clearInterval(timer);
         setRecordingStatus(status);
+        if (status === 'starting') setRecordingError('');
         if (status === 'recording') {
           setRecordingDuration(0);
           timer = setInterval(() => setRecordingDuration(previous => previous + 1), 1000);
@@ -85,10 +89,7 @@ export default function CommandCenter({
       },
       onRecordedAudio: file => onRecordedAudioRef.current?.(file),
       onError: error => {
-        console.error('Audio recording failed:', error);
-        alert(error.name === 'NotAllowedError'
-          ? 'Unable to access microphone. Please ensure microphone permissions are granted.'
-          : error.message || 'Unable to record audio. Please try again.');
+        setRecordingError(microphoneMessage(error));
       },
     });
     recordingRef.current = recording;
@@ -113,6 +114,7 @@ export default function CommandCenter({
   };
 
   return (
+    <>
     <div 
       inert={isNavigationOpen}
       role="region" 
@@ -131,8 +133,8 @@ export default function CommandCenter({
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-semibold text-slate-900">AI Meeting Intelligence (Agent 6)</h3>
-                <p className="text-[10px] text-slate-600">Context-grounded RAG with source turn citations</p>
+                <h3 className="text-xs font-semibold text-slate-900">Ask about this meeting</h3>
+                <p className="text-[10px] text-slate-600">Answers include links to the transcript</p>
               </div>
             </div>
 
@@ -374,5 +376,7 @@ export default function CommandCenter({
 
       </div>
     </div>
+      {recordingError && <FeedbackNotice key={recordingError} title="Check your microphone" onDismiss={() => setRecordingError('')}>{recordingError}</FeedbackNotice>}
+    </>
   );
 }

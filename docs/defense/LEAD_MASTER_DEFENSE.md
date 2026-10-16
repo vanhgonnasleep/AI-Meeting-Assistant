@@ -1,3 +1,5 @@
+> **Historical reference:** This guide predates the final source layout, authentication and evaluation. For submission and current claims, use the [English submission guide](../submission/README.md), [team handoff](../submission/HANDOFF.md) and [source map](../source-layout.md). Older names, metrics and guarantees below are not final acceptance criteria.
+
 # 👑 AI Meeting Assistant — Cẩm Nang Bảo Vệ Dành Riêng Cho Lead (Lương Việt Anh)
 
 > Source files were reorganized after this guide was written. Use the [current source map](../source-layout.md) and [authentication setup](../auth-setup.md) when following older file/module examples.

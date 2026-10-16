@@ -1,3 +1,4 @@
+import { networkFailure, userMessage, UserFacingError } from '../../shared/lib/user-errors.js';
 /**
  * Connectors Hub: Pure logic & URI formatters for GitHub Issues & Gmail Executive Dispatch
  */
@@ -273,19 +274,19 @@ export async function postGitHubIssue({ repo, token, payload }) {
       body: payload.body,
       labels: payload.labels || []
     })
-  });
+  }).catch(() => { throw networkFailure({ operation: 'github' }); });
 
   if (!response.ok) {
-    let errMessage = `GitHub API error: HTTP ${response.status} ${response.statusText}`;
-    try {
-      const errJson = await response.json();
-      if (errJson && errJson.message) {
-        errMessage = `GitHub API: ${errJson.message}`;
-      }
-    } catch {
-      // ignore json parse error on error response
-    }
-    throw new Error(errMessage);
+    const message = response.status === 401 || response.status === 403
+      ? 'GitHub didn’t allow issue creation. Check that your access key can create issues in this repository.'
+      : response.status === 404
+        ? 'This repository isn’t available to your account. Check its name and your access.'
+        : response.status === 422
+          ? 'GitHub couldn’t accept this issue. Check its title and labels before trying again.'
+          : response.status === 429
+            ? 'GitHub is limiting issue creation. Wait a moment, then try again.'
+            : userMessage(null, 'github');
+    throw new UserFacingError(message, { status: response.status });
   }
 
   return response.json();

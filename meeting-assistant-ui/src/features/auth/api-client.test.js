@@ -65,3 +65,24 @@ test('refreshing the same session does not cancel an in-flight request', async (
   finish(response('alice'));
   assert.equal((await pending).status, 200);
 });
+
+test('a temporary service failure does not sign out a valid account or expose storage details', async () => {
+  let invalidated = false;
+  const api = client(async () => new Response('{"detail":"sqlite3 database locked"}', { status: 503 }));
+  api.configureSession(session('alice'));
+  api.onSessionInvalid(() => { invalidated = true; });
+  await assert.rejects(api.fetch('/api/meetings'), error => {
+    assert.equal(error.name, 'UserFacingError');
+    assert.equal(error.status, 503);
+    assert.doesNotMatch(error.message, /sqlite|database|503/);
+    return true;
+  });
+  assert.equal(invalidated, false);
+});
+
+test('network failure on a write warns that its result is unknown, while cancellation stays silent', async () => {
+  const api = client(async () => { throw new TypeError('Failed to fetch'); });
+  await assert.rejects(api.fetch('/api/meetings', { method: 'POST' }), /confirm.*saved/i);
+  const cancelled = client(async () => { throw new DOMException('Stopped', 'AbortError'); });
+  await assert.rejects(cancelled.fetch('/api/meetings'), { name: 'AbortError' });
+});

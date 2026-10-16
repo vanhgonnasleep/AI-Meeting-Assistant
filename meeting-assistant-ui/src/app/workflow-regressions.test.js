@@ -21,6 +21,7 @@ before(async () => {
       value: typeof dom.window[key] === 'function' && key.includes('AnimationFrame') ? dom.window[key].bind(dom.window) : dom.window[key] });
   }
   window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  globalThis.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   React = await import('react');
   ({ createRoot } = await import('react-dom/client'));
@@ -252,6 +253,61 @@ test('task changes send the displayed revision and keep a stale checkbox unchang
     assert.deepEqual(submitted, { status: 'completed', expected_revision: 7 });
     assert.equal(task.getAttribute('aria-pressed'), 'false');
     assert.match(view.container.textContent, /changed elsewhere/);
+  } finally { await view.close(); }
+});
+
+test('a lost task-save response preserves the displayed state and explains the uncertain outcome', async t => {
+  t.mock.method(console, 'error', () => {});
+  const view = await openFixtureMeeting(async () => { throw new TypeError('Failed to fetch'); });
+  try {
+    const task = [...view.container.querySelectorAll('button[aria-pressed]')].find(button => button.textContent.includes('Review fixture task'));
+    await click(task);
+    assert.equal(task.getAttribute('aria-pressed'), 'false');
+    assert.match(view.container.textContent, /confirm.*saved/);
+    assert.match(view.container.textContent, /Keep this page open/);
+    assert.doesNotMatch(view.container.textContent, /Failed to fetch|database.*down/i);
+    assert.ok(view.container.querySelector('.feedback-toast[role="alert"]'));
+    await click(view.container.querySelector('[aria-label="Dismiss notification"]'));
+    assert.equal(view.container.querySelector('.feedback-toast'), null);
+  } finally { await view.close(); }
+});
+
+test('a failed library load is not represented as an empty account', async () => {
+  apiClient.configureSession(null);
+  globalThis.fetch = async () => json({ projects: [] });
+  const view = await mount(Library, { apiBase: 'http://localhost:8002', meetings: [], total: 0, loading: false,
+    error: 'We couldn’t load your meetings. Try again.', query: '', offset: 0, onPage() {}, canOpen: true });
+  try {
+    assert.match(view.container.textContent, /couldn’t load/);
+    assert.doesNotMatch(view.container.textContent, /Your library starts here|Start a meeting/);
+    await click(view.container.querySelector('[aria-label="Dismiss notification"]'));
+    assert.equal(view.container.querySelector('.feedback-toast'), null);
+    assert.doesNotMatch(view.container.textContent, /Your library starts here/);
+    assert.match(view.container.textContent, /Reload library/);
+  } finally { await view.close(); }
+});
+
+test('dismissed task-load errors retain an unavailable state and an explicit reload action', async () => {
+  apiClient.configureSession(null);
+  globalThis.fetch = async input => new URL(input).pathname === '/api/projects'
+    ? json({ projects: [] }) : json({ detail: 'storage unavailable' }, 503);
+  const { default: Workspace } = await server.ssrLoadModule('/src/features/workspace/Workspace.jsx');
+  const view = await mount(Workspace, { apiBase: 'http://localhost:8002', presentation: 'page' });
+  try {
+    await click(view.container.querySelector('[aria-label="Dismiss notification"]'));
+    assert.doesNotMatch(view.container.textContent, /No matching records|0 records/);
+    assert.ok([...view.container.querySelectorAll('button')].some(button => button.textContent === 'Reload action items'));
+  } finally { await view.close(); }
+});
+
+test('dismissed overview-load errors still offer reload instead of leaving a blank section', async () => {
+  apiClient.configureSession(null);
+  globalThis.fetch = async () => json({ detail: 'storage unavailable' }, 503);
+  const { default: Overview } = await server.ssrLoadModule('/src/features/overview/Overview.jsx');
+  const view = await mount(Overview, { apiBase: 'http://localhost:8002' });
+  try {
+    await click(view.container.querySelector('[aria-label="Dismiss notification"]'));
+    assert.ok([...view.container.querySelectorAll('button')].some(button => button.textContent === 'Reload recent meetings'));
   } finally { await view.close(); }
 });
 

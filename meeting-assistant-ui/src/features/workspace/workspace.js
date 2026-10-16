@@ -1,3 +1,4 @@
+import { UserFacingError, requestContext, userMessage } from '../../shared/lib/user-errors.js';
 import { apiFetch } from '../auth/api-client.js';
 const objects = value => Array.isArray(value) ? value.filter(item => item && typeof item === 'object' && !Array.isArray(item)) : [];
 const text = value => String(value ?? '');
@@ -63,13 +64,9 @@ export function buildTaskQuery(filters, offset = 0) {
 export async function workspaceRequest(url, options = {}) {
   const response = await apiFetch(url, { ...options,
     ...(options.body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options.body) } : {}) });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = typeof data.detail === 'string' ? data.detail : Array.isArray(data.detail)
-      ? data.detail.map(item => item.msg || 'Invalid value').join('; ') : `Request failed (HTTP ${response.status}). Please retry.`;
-    const error = new Error(detail);
-    error.status = response.status;
-    throw error;
+  try {
+    return await response.json();
+  } catch {
+    throw new UserFacingError(userMessage(null, requestContext(url, options).operation));
   }
-  return data;
 }

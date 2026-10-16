@@ -1,12 +1,14 @@
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
+import { userMessage } from '../../shared/lib/user-errors.js';
 import { apiFetch } from '../auth/api-client.js';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  ArrowUpRight, 
-  AudioLines, 
-  FolderOpen, 
-  ListTodo, 
-  Plus, 
+import {
+  ArrowUpRight,
+  AudioLines,
+  FolderOpen,
+  ListTodo,
+  Plus,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -18,10 +20,10 @@ import {
 import { appPageHref } from '../../app/navigation.js';
 import { MeetingRow } from '../meetings/MeetingLibrary.jsx';
 import { createRequestGate } from '../meetings/session.js';
-import { 
-  calculateCompletionRate, 
-  formatMeetingPreview, 
-  getCarouselScrollOffset 
+import {
+  calculateCompletionRate,
+  formatMeetingPreview,
+  getCarouselScrollOffset
 } from './overview-utils.js';
 import FeatureShowcase from '../landing/FeatureShowcase.jsx';
 
@@ -106,7 +108,7 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
   const [error, setError] = useState(null);
   const [retry, setRetry] = useState(0);
   const [viewMode, setViewMode] = useState('carousel'); // 'carousel' | 'list'
-  
+
   const gate = useRef(createRequestGate());
   const carouselRef = useRef(null);
 
@@ -122,14 +124,14 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
         if (!records.ok) throw new Error('Unable to load recent meetings. Please retry.');
         const recordsData = await records.json();
         const statsData = stats?.ok ? await stats.json() : null;
-        if (request.isCurrent()) { 
-          setData({ meetings: recordsData.meetings || [], analytics: statsData?.analytics || null }); 
-          setError(null); 
+        if (request.isCurrent()) {
+          setData({ meetings: recordsData.meetings || [], analytics: statsData?.analytics || null });
+          setError(null);
         }
-      } catch (failure) { 
-        if (request.isCurrent()) setError(failure.message); 
-      } finally { 
-        if (request.isCurrent()) setLoading(false); 
+      } catch (failure) {
+        if (request.isCurrent()) setError(userMessage(failure, 'load'));
+      } finally {
+        if (request.isCurrent()) setLoading(false);
       }
     };
     load();
@@ -186,7 +188,7 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
       {/* Key Metric Highlights with Dynamic Glow & Progress Indicator */}
       <div className="overview-metrics-grid grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Saved Meetings */}
-        <motion.div 
+        <motion.div
           whileHover={{ y: -3 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className="p-5 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-indigo-500/40 shadow-xs transition-all space-y-2 relative overflow-hidden"
@@ -200,7 +202,7 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
         </motion.div>
 
         {/* Pending Action Items */}
-        <motion.div 
+        <motion.div
           whileHover={{ y: -3 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className="p-5 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-amber-500/40 shadow-xs transition-all space-y-2 relative overflow-hidden"
@@ -214,7 +216,7 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
         </motion.div>
 
         {/* Completed Action Items with Progress Bar */}
-        <motion.div 
+        <motion.div
           whileHover={{ y: -3 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className="p-5 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-emerald-500/40 shadow-xs transition-all space-y-2 relative overflow-hidden"
@@ -228,9 +230,9 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
           </div>
           <p className="text-2xl font-bold text-emerald-700 tracking-tight">{metric(analytics?.completed_action_items)}</p>
           <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden mt-1">
-            <div 
-              className="bg-emerald-400 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${Math.min(100, Math.max(0, completionRate))}%` }} 
+            <div
+              className="bg-emerald-400 h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(0, completionRate))}%` }}
             />
           </div>
         </motion.div>
@@ -238,7 +240,7 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
 
       {/* 2-Column Split: Recent Meetings & Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        
+
         {/* Left Column: Recent Meetings (8 Cols) with Swipe Carousel */}
         <div className="md:col-span-8 space-y-3">
           <div className="flex items-center justify-between pb-1">
@@ -294,8 +296,8 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
                 </div>
               )}
 
-              <a 
-                href={appPageHref('meetings')} 
+              <a
+                href={appPageHref('meetings')}
                 className="text-xs text-indigo-700 hover:text-indigo-700 flex items-center gap-1 font-medium transition-colors ml-1"
               >
                 <span>View library</span>
@@ -304,19 +306,17 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
             </div>
           </div>
 
-          {error && (
-            <div role="alert" className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-700 flex items-center justify-between">
-              <span>{error}</span>
-              <button type="button" onClick={onRetry} className="underline hover:text-slate-900">Retry</button>
-            </div>
-          )}
+          {error && <FeedbackNotice key={error} title="Recent meetings couldn’t be loaded" onRetry={onRetry}>{error}</FeedbackNotice>}
 
           {loading ? (
             <div className="py-12 flex flex-col items-center justify-center space-y-2 text-slate-500 text-xs">
               <span className="w-5 h-5 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
               <p>Loading recent meetings…</p>
             </div>
-          ) : meetings.length ? (
+          ) : error ? <div className="library-recovery">
+            <p>Recent meetings haven’t loaded yet.</p>
+            <button type="button" onClick={onRetry}>Reload recent meetings</button>
+          </div> : meetings.length ? (
             viewMode === 'carousel' ? (
               /* Swipe Carousel View with Scroll Snap */
               <div
@@ -340,12 +340,12 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
               /* Classic List View */
               <div className="space-y-2">
                 {meetings.slice(0, 4).map(meeting => (
-                  <MeetingRow 
-                    key={meeting.id} 
-                    meeting={meeting} 
-                    onOpen={onOpen} 
-                    disabled={!canOpen} 
-                    compact 
+                  <MeetingRow
+                    key={meeting.id}
+                    meeting={meeting}
+                    onOpen={onOpen}
+                    disabled={!canOpen}
+                    compact
                   />
                 ))}
               </div>
@@ -361,10 +361,10 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
         {/* Right Column: Keep the Work Moving (4 Cols) */}
         <div className="md:col-span-4 space-y-3">
           <h2 className="text-sm font-bold text-slate-900 tracking-tight pb-1">Keep Work Moving</h2>
-          
+
           <div className="space-y-2.5">
-            <a 
-              href={appPageHref('tasks')} 
+            <a
+              href={appPageHref('tasks')}
               className="p-4 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-slate-300/80 transition-all flex items-start gap-3 group"
             >
               <div className="p-2 rounded-2xl bg-indigo-500/15 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
@@ -381,8 +381,8 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
               </div>
             </a>
 
-            <a 
-              href={appPageHref('projects')} 
+            <a
+              href={appPageHref('projects')}
               className="p-4 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-slate-300/80 transition-all flex items-start gap-3 group"
             >
               <div className="p-2 rounded-2xl bg-purple-500/15 text-purple-700 group-hover:bg-purple-600 group-hover:text-white transition-colors shrink-0">

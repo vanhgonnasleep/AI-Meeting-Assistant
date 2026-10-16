@@ -539,7 +539,7 @@ export default function DocumentWorkspace({
           <span className="text-slate-600">{completedCount} of {totalTasks} completed</span>
           {currentMeetingId && (
             <span className="text-[10px] text-emerald-700 bg-emerald-500/10 px-1.5 py-0.2 rounded-sm border border-emerald-500/20">
-              SQLite Synced
+              Saved to your library
             </span>
           )}
         </div>

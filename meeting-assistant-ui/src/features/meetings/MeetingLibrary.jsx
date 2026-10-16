@@ -1,3 +1,5 @@
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
+import { userMessage } from '../../shared/lib/user-errors.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioLines, ArrowUpRight, Clock, Search, Trash2, X, Plus } from 'lucide-react';
 import { formatMeetingDuration } from '../../app/navigation.js';
@@ -86,6 +88,7 @@ export default function MeetingLibrary({
   filters = { project: '', days: '', sort: 'newest' },
   onFiltersChange,
 }) {
+  const hasFilters = Boolean(query || filters.project || filters.days);
   const [projects, setProjects] = useState([]);
   const [projectError, setProjectError] = useState(null);
   const projectsGate = useRef(createRequestGate());
@@ -94,7 +97,7 @@ export default function MeetingLibrary({
     try {
       const data = await workspaceRequest(`${apiBase}/api/projects`, { signal: request.signal });
       if (request.isCurrent()) { setProjects(Array.isArray(data.projects) ? data.projects : []); setProjectError(null); }
-    } catch (failure) { if (request.isCurrent()) setProjectError(failure.message); }
+    } catch (failure) { if (request.isCurrent()) setProjectError(userMessage(failure, 'load')); }
   }, [apiBase]);
   useEffect(() => {
     const gate = projectsGate.current;
@@ -147,7 +150,7 @@ export default function MeetingLibrary({
           )}
         </div>
         <span className="text-xs text-slate-600 font-mono">
-          {total} matching {total === 1 ? 'meeting' : 'meetings'}
+          {error ? 'Meetings unavailable' : <>{total} matching {total === 1 ? 'meeting' : 'meetings'}</>}
         </span>
       </div>
 
@@ -177,7 +180,7 @@ export default function MeetingLibrary({
         </label>
       </div>
 
-      {projectError && <p role="alert" className="text-xs text-rose-700">{projectError} <button type="button" className="underline" onClick={loadProjects}>Retry projects</button></p>}
+      {!error && projectError && <FeedbackNotice title="Projects are unavailable" onRetry={loadProjects} onDismiss={() => setProjectError(null)}>{projectError}</FeedbackNotice>}
 
       {!canOpen && (
         <p className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700">
@@ -185,14 +188,7 @@ export default function MeetingLibrary({
         </p>
       )}
 
-      {error && (
-        <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-700 flex items-center justify-between gap-2">
-          <span>{error}</span>
-          <button type="button" onClick={() => onPage(offset)} className="underline hover:text-slate-900">
-            Retry
-          </button>
-        </div>
-      )}
+      {error && <FeedbackNotice key={error} title="Your library couldn’t be loaded" onRetry={() => onPage(offset)}>{error}</FeedbackNotice>}
 
       {opening && <p role="status" className="text-xs text-indigo-700 font-medium">Opening meeting…</p>}
 
@@ -213,24 +209,29 @@ export default function MeetingLibrary({
               disabled={!canOpen || Boolean(opening)}
             />
           ))
+        ) : error ? (
+          <div className="library-recovery">
+            <p>Your meetings haven’t loaded yet.</p>
+            <button type="button" onClick={() => onPage(offset)}>Reload library</button>
+          </div>
         ) : (
           <div className="py-16 text-center space-y-3 bg-white/30 border border-dashed border-slate-200 rounded-3xl p-8">
             <AudioLines size={36} className="mx-auto text-slate-500" />
             <div className="space-y-1">
               <h2 className="text-sm font-semibold text-slate-900">
-                {query ? 'No matching meetings' : 'Your library starts here'}
+                {hasFilters ? 'No meetings match these filters' : 'Your library starts here'}
               </h2>
               <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                {query ? 'Try a different keyword or clear the search.' : 'Upload or record a meeting to create your first transcript and notes.'}
+                {hasFilters ? 'Try another search, project or date range.' : 'Upload or record a meeting to create your first transcript and notes.'}
               </p>
             </div>
             <button
               type="button"
-              onClick={query ? () => onSearch('') : onNewMeeting}
+              onClick={hasFilters ? () => { onSearch(''); onFiltersChange?.({ ...filters, project: '', days: '' }); } : onNewMeeting}
               disabled={!canOpen}
               className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-medium transition-all"
             >
-              {query ? 'Clear search' : 'Start a meeting'}
+              {hasFilters ? 'Clear filters' : 'Start a meeting'}
             </button>
           </div>
         )}

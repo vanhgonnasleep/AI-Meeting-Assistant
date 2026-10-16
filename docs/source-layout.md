@@ -8,9 +8,11 @@ ai-summary-service/
   app/
     main.py                     FastAPI composition and orchestration
     api/                        saved-session and task/project/review routes
+      schemas/                  chat, meeting and workspace request contracts
     auth/                       configuration, providers, sessions, middleware, routes
     core/                       request budgets and runtime configuration
     pipeline/                   transcription, audio preparation, MMR, chat, insights, actions
+      summarization.py          bounded direct/map-reduce algorithm with injected generation
     fixtures/                   explicit demonstration content
   tests/                        API, algorithm, account-isolation and model regressions
   requirements*.txt
@@ -34,13 +36,17 @@ meeting-assistant-ui/
         data/                   explicitly prepared client-only sample fixtures
       connectors/               GitHub issue/Gmail draft previews
     shared/{ui,hooks,lib,assets}/
+      ui/FeedbackNotice.jsx     accessible floating error/success notifications
+      lib/user-errors.js        business-language recovery messages and failure classification
     styles/                     global styles and preserved palette
   scripts/test.mjs              recursive Node test discovery, including Windows
   tests/public-preview-mobile.html   375px manual responsive QA fixture
 docker/                         nginx and disposable smoke override
 scripts/                        maintenance, benchmark and container verification
+  submission/                   clean, commit-addressed source archive builder
 docs/                           setup, usage, design, acceptance and measurements
   defense/                      technical defense and presentation guides
+  submission/                   English submission checklist and presenter handoff
   reports/                      archived midterm HTML/PDF
 ```
 

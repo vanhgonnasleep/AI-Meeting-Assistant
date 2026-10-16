@@ -7,6 +7,7 @@ import './styles/visual-story.css'
 import './styles/connector-sheet.css'
 import './features/auth/auth.css'
 import './features/preview/preview.css'
+import './styles/feedback.css'
 import AuthGate from './features/auth/AuthGate.jsx'
 
 createRoot(document.getElementById('root')).render(

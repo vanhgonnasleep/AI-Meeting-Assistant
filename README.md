@@ -21,6 +21,8 @@
 
 ## 📌 Executive Summary
 
+**Submitting or handing over the project?** Start with the English [submission guide](docs/submission/README.md) and [team handoff](docs/submission/HANDOFF.md). They identify the source package, setup steps, code map and claims supported by the final evidence. The presenting team prepares its own slides.
+
 **Explore before signing in.** Clarion includes a public product tour and an interactive workspace with prepared meeting, task and project samples. Your private library still requires Google/GitHub sign-in. [See the interface and validation notes](docs/ui/public-preview/README.md).
 
 ![Clarion public workspace preview](docs/ui/public-preview/overview.png)

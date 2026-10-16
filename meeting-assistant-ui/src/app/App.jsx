@@ -1,3 +1,5 @@
+import FeedbackNotice from '../shared/ui/FeedbackNotice.jsx';
+import { userMessage, warningMessage } from '../shared/lib/user-errors.js';
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { API_BASE, apiFetch } from '../features/auth/api-client.js';
 import LazyPanel from '../shared/ui/LazyPanel.jsx';
@@ -38,9 +40,6 @@ import { readChatStream } from '../features/chat/chat-stream.js';
 import { useMobileViewport } from '../shared/hooks/mobile-viewport.js';
 
 import { 
-  AlertTriangle, 
-  Check, 
-  X, 
   PanelLeftOpen, 
   PanelLeftClose, 
   Zap, 
@@ -238,14 +237,14 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
         if (value) params.set(key, value);
       }
       const resMeetings = await apiFetch(`${API_BASE}/api/meetings?${params}`, { signal: request.signal });
-      if (!resMeetings.ok) throw new Error('Unable to load meeting history.');
+
       const data = await resMeetings.json();
       if (!request.isCurrent()) return;
       if (offset > 0 && offset >= data.total) return loadHistory(query, Math.max(0, offset - 20));
       setMeetingsHistory(data.meetings || []);
       setHistoryTotal(data.total || 0);
     } catch (e) {
-      if (request.isCurrent()) setHistoryError(e.message || 'Unable to load history.');
+      if (request.isCurrent()) setHistoryError(userMessage(e, 'load'));
     } finally {
       if (request.isCurrent()) setLoadingHistory(false);
     }
@@ -283,12 +282,12 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     let item;
     try {
       const response = await apiFetch(`${API_BASE}/api/meetings/${entry.id}`, { signal: request.signal });
-      if (!response.ok) throw new Error('Unable to open this meeting record.');
+
       const data = await response.json();
       if (!request.isCurrent()) return;
       item = data.meeting;
     } catch (error) {
-      if (request.isCurrent()) { setHistoryError(error.message); setErrorMessage(error.message); notify(error.message, 'error'); }
+      if (request.isCurrent()) { setErrorMessage(userMessage(error, 'open')); notify(userMessage(error, 'open'), 'error'); }
       return false;
     } finally {
       release();
@@ -318,7 +317,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
 
     setErrorMessage(null);
     setMetaInfo({
-      model: "SQLite Stored Record",
+      model: "Saved meeting",
       hardware: `Meeting #${item.id} • ${item.created_at ? new Date(item.created_at).toLocaleString() : 'Saved Record'}`
     });
     setSpeakerFilter('all');
@@ -347,19 +346,15 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     const version = sessionVersion.current;
     if (loadingMeetingId === id) { detailGate.current.cancel(); setLoadingMeetingId(null); }
     try {
-      const res = await apiFetch(`${API_BASE}/api/meetings/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `Failed to delete meeting (HTTP ${res.status})`);
-      }
+      await apiFetch(`${API_BASE}/api/meetings/${id}`, { method: 'DELETE' });
       setMeetingsHistory(prev => prev.filter(m => m.id !== id));
       if (version === sessionVersion.current && currentMeetingId === id) handleReset();
       await fetchMeetingHistory();
       notify('Meeting record deleted');
     } catch (err) {
       console.error("Failed to delete meeting:", err);
-      setErrorMessage(err.message || "Failed to delete meeting.");
-      notify(err.message || 'Failed to delete meeting.', 'error');
+      setErrorMessage(userMessage(err, 'delete'));
+      notify(userMessage(err, 'delete'), 'error');
     }
   };
 
@@ -443,16 +438,11 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
         body: formData,
         signal: request.signal,
       });
-      
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || `Server error (HTTP ${response.status})`);
-      }
-      
+
       const data = await response.json();
       if (!request.isCurrent()) return;
       setIsDemoResult(data.mode === "instant_demo");
-      setWarnings(data.warnings || []);
+      setWarnings((data.warnings || []).map(warningMessage));
       setResult(data.data);
       const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
         ? normalizeChatMessages(data.data.chat_history)
@@ -468,8 +458,8 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
       fetchMeetingHistory();
     } catch (error) {
       if (!request.isCurrent()) return;
-      setErrorMessage(error.message || "An unexpected error occurred.");
-      notify(error.message || 'Processing failed.', 'error');
+      setErrorMessage(userMessage(error, 'process'));
+      notify(userMessage(error, 'process'), 'error');
     } finally {
       if (request.isCurrent()) setIsProcessing(false);
     }
@@ -504,14 +494,10 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
         body: formData,
         signal: request.signal,
       });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || `Demo mode error (HTTP ${response.status})`);
-      }
       const data = await response.json();
       if (!request.isCurrent()) return;
       setIsDemoResult(data.mode === "instant_demo");
-      setWarnings(data.warnings || []);
+      setWarnings((data.warnings || []).map(warningMessage));
       setResult(data.data);
       const initialChat = (data.data?.chat_history && data.data.chat_history.length > 0)
         ? normalizeChatMessages(data.data.chat_history)
@@ -534,7 +520,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
       notify('Demo meeting loaded');
     } catch (e) {
       if (!request.isCurrent()) return;
-      setErrorMessage(e.message || "Backend server not reachable on port 8002.");
+      setErrorMessage(userMessage(e, 'process'));
     } finally {
       if (request.isCurrent()) setIsProcessing(false);
     }
@@ -632,7 +618,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
         signal: request.signal 
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Unable to save meeting.');
+
       if (!request.isCurrent()) return;
       if (!data.meeting?.id) throw new Error('Save was not confirmed. Please retry.');
       const saved = resultFromMeeting(data.meeting);
@@ -640,11 +626,11 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
       setChatMessages(saved.chat_history);
       setCurrentMeetingId(data.meeting.id);
       setMeetingTitle(data.meeting.filename);
-      setWarnings(previous => previous.filter(warning => warning !== 'Meeting could not be saved. Export your results before leaving this page.'));
+      setWarnings(previous => previous.filter(warning => warning !== warningMessage('Meeting could not be saved')));
       notify('Meeting saved to library');
       fetchMeetingHistory();
     } catch (error) {
-      if (request.isCurrent()) { setErrorMessage(error.message); notify(error.message, 'error'); }
+      if (request.isCurrent()) { setErrorMessage(userMessage(error, 'save')); notify(userMessage(error, 'save'), 'error'); }
     } finally {
       release();
       if (request.isCurrent()) setIsSavingMeeting(false);
@@ -687,10 +673,6 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
         signal: request.signal,
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `Chat request failed (HTTP ${res.status})`);
-      }
 
       const messageId = request.id ?? newUserMsg.created_at;
       let answer = '';
@@ -719,7 +701,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
       console.error("Chat error:", err);
       const errorMsg = {
         role: 'assistant',
-        content: `⚠️ ${err.message || 'Failed to generate answer. Please retry.'}`,
+        content: `⚠️ ${userMessage(err, 'chat')}`,
         citations: [],
         created_at: new Date().toISOString()
       };
@@ -736,15 +718,15 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     setIsChatLoading(true);
     try {
       if (currentMeetingId) {
-        const response = await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/chat`, { method: 'DELETE', signal: request.signal });
-        if (!response.ok) throw new Error('Could not clear saved chat.');
+        await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/chat`, { method: 'DELETE', signal: request.signal });
+
       }
       if (version !== sessionVersion.current || !request.isCurrent()) return;
       setResult(previous => previous ? { ...previous, chat_history: [] } : previous);
       setChatMessages(getDefaultChatGreeting({ ...result, chat_history: [] }));
       notify('Chat conversation cleared');
     } catch (error) {
-      if (version === sessionVersion.current && request.isCurrent()) { setErrorMessage(error.message); notify(error.message, 'error'); }
+      if (version === sessionVersion.current && request.isCurrent()) { setErrorMessage(userMessage(error, 'chat')); notify(userMessage(error, 'chat'), 'error'); }
     } finally {
       if (request.isCurrent()) setIsChatLoading(false);
     }
@@ -791,12 +773,6 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending', expected_revision: result?.revision || 0 })
         });
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(response.status === 409
-            ? 'This meeting changed elsewhere. Reopen it from the library before updating tasks.'
-            : errData.detail || `Failed to update task (HTTP ${response.status})`);
-        }
         const data = await response.json();
         if (version !== sessionVersion.current) return;
         if (data.meeting) { handleUpdatedMeeting(data.meeting); notify('Task updated'); return; }
@@ -811,8 +787,8 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     } catch (err) {
       if (version !== sessionVersion.current) return;
       console.error("Failed to update task:", err);
-      setErrorMessage(err.message || "Failed to save task status.");
-      notify(err.message || 'Failed to save task status.', 'error');
+      setErrorMessage(userMessage(err, 'save'));
+      notify(userMessage(err, 'save'), 'error');
     } finally {
       release();
       if (version === sessionVersion.current) setUpdatingTasks(prev => ({ ...prev, [idx]: false }));
@@ -844,7 +820,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
       setIsCopied(true);
       notify('Meeting notes copied to clipboard');
       setTimeout(() => setIsCopied(false), 2500);
-    }).catch(console.error);
+    }).catch(() => notify('We couldn’t copy the notes. Select and copy the text, or export a file instead.', 'error'));
   };
 
   const handleCopySummary = (e) => {
@@ -854,7 +830,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
       setSummaryCopied(true);
       notify('Summary copied to clipboard');
       setTimeout(() => setSummaryCopied(false), 2000);
-    }).catch(console.error);
+    }).catch(() => notify('We couldn’t copy the notes. Select and copy the text, or export a file instead.', 'error'));
   };
 
   const applySpeakerEdit = async (oldName, newName, segmentIndex = null) => {
@@ -880,7 +856,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
           body: JSON.stringify({ old_name: oldName, new_name: newName.trim(), segment_index: segmentIndex }),
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.detail || 'Speaker edit could not be saved.');
+
         if (!request.isCurrent()) return;
         updated = { ...result, ...resultFromMeeting(data.meeting) };
       } else {
@@ -894,7 +870,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
       notify('Speaker name updated');
       return true;
     } catch (error) {
-      if (request.isCurrent()) { setErrorMessage(error.message || 'Speaker edit failed.'); notify(error.message || 'Speaker edit failed.', 'error'); }
+      if (request.isCurrent()) { setErrorMessage(userMessage(error, 'save')); notify(userMessage(error, 'save'), 'error'); }
     } finally {
       release();
       if (request.isCurrent()) { speakerBusy.current = false; setIsSpeakerSaving(false); }
@@ -1128,27 +1104,6 @@ ${result.transcript || ""}
           </div>
         </header>
 
-        {/* Global Error Banner */}
-        {accountError && <p role="alert" className="mx-4 md:mx-8 mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{accountError}</p>}
-        {(uploadError || errorMessage) && (
-          <div role="alert" className="mx-4 md:mx-8 mt-4 flex items-start justify-between gap-3 px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 text-xs">
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-rose-700">Notice</p>
-                <p className="text-rose-700/90 mt-0.5">{uploadError || errorMessage}</p>
-              </div>
-            </div>
-            <button
-              aria-label="Dismiss error"
-              onClick={() => setErrorMessage(null)}
-              className="text-rose-700 hover:text-rose-700 p-1 rounded-lg"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
         {/* Dynamic Page Content */}
         <main className="workspace-main flex-1 p-4 md:p-8 pb-32 overflow-y-auto">
           {page === 'overview' ? (
@@ -1258,7 +1213,7 @@ ${result.transcript || ""}
               uploadLimits={uploadLimits}
               handleReset={handleReset}
               handleDemoSample={handleDemoSample}
-              onStopWaiting={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }}
+              onStopWaiting={() => { invalidateSession(); setErrorMessage('Stopped waiting. Your recording may still be processing. Check your library before starting again.'); }}
             />}
             </LazyPanel>
           )}
@@ -1292,30 +1247,14 @@ ${result.transcript || ""}
           renderFormattedChatText={renderFormattedChatText}
         />
 
-        {/* Toast Notifications */}
-        {notice && (
-          <div
-            role={notice.kind === 'error' ? 'alert' : 'status'}
-            className={`fixed bottom-24 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-panel text-xs font-medium animate-in fade-in slide-in-from-bottom-2 ${
-              notice.kind === 'error'
-                ? 'bg-rose-50/90 border-rose-500/40 text-rose-700'
-                : 'bg-white/90 border-emerald-500/40 text-emerald-700'
-            }`}
-          >
-            {notice.kind === 'error' ? <AlertTriangle className="w-4 h-4 text-rose-700" /> : <Check className="w-4 h-4 text-emerald-700" />}
-            <span>{notice.message}</span>
-            <button
-              type="button"
-              onClick={() => setNotice(null)}
-              aria-label="Dismiss notification"
-              className="ml-2 text-slate-600 hover:text-slate-900 p-0.5 rounded-sm"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        {(errorMessage || notice) && !speakerRename && <FeedbackNotice key={errorMessage || notice.id}
+          title={errorMessage || notice.kind === 'error' ? 'Action needs attention' : 'Done'}
+          tone={errorMessage ? 'error' : notice.kind}
+          onDismiss={() => { setErrorMessage(null); setNotice(null); }}>
+          {errorMessage || notice.message}
+        </FeedbackNotice>}
+        {accountError && <FeedbackNotice key={accountError} title="Check your sign-in">{accountError}</FeedbackNotice>}
 
-        {/* Modals & Dialogs */}
         {speakerRename && (
           <WorkspaceDialog 
             title={`Rename ${speakerRename.oldName}`} 
@@ -1344,7 +1283,8 @@ ${result.transcript || ""}
                 className="w-full rounded-xl bg-slate-50 border border-slate-300 p-2.5 text-xs text-slate-900 outline-hidden focus:border-indigo-500"
                 disabled={isContentSaving} 
               />
-              {errorMessage && <p role="alert" className="text-xs text-rose-700">{errorMessage}</p>}
+              {errorMessage && <FeedbackNotice key={errorMessage} title="Speaker change needs attention"
+                onDismiss={() => { setErrorMessage(null); setNotice(null); }}>{errorMessage}</FeedbackNotice>}
               <div className="flex justify-end gap-2 text-xs">
                 <button 
                   type="button" 
