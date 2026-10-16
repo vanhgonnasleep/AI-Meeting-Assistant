@@ -18,7 +18,7 @@ export default class LazyPanel extends Component {
     if (this.state.failed) {
       return (
         <section role="alert" className={this.props.errorClassName || 'rounded-2xl border border-amber-200 bg-white p-6 space-y-3'}>
-          <p className="text-sm text-slate-800">Unable to load {this.props.name || 'this panel'}. Your current meeting is still available.</p>
+          <p className="text-sm text-slate-800">Unable to load {this.props.name || 'this panel'}. {this.props.recoveryNote || 'Your current meeting is still available.'}</p>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={this.retry} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700">Retry loading</button>
             {this.props.onClose && <button type="button" onClick={this.props.onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700">Close panel</button>}

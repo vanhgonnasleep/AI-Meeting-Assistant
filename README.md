@@ -334,6 +334,8 @@ See [maintenance notes](docs/maintenance-2026-10-04.md) for the verified fixes, 
 
 ## 📂 Repository Structure
 
+Explore the product before signing in at [localhost:5173](http://localhost:5173), or open the [public workspace preview](http://localhost:5173/#/preview/overview). Sample meetings, tasks and projects stay in the browser; sign-in is required for your private library. Preview also works while the backend is offline.
+
 Implementation is grouped by feature and responsibility. See the [complete source map](docs/source-layout.md) and [Google/GitHub setup](docs/auth-setup.md).
 
 ```text
