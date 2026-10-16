@@ -41,8 +41,11 @@ class PipelineAdapter:
         self._cache = cache
         weights = []
         if models:
-            import whisper
-            import torch
+            try:
+                import whisper
+                import torch
+            except ImportError as exc:
+                raise RuntimeError('Whisper/Torch model dependencies are missing. Install ai-summary-service/requirements.txt before ASR evaluation.') from exc
             metadata.update(device='cuda' if torch.cuda.is_available() else 'cpu',
                             cuda_available=torch.cuda.is_available(),
                             gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
