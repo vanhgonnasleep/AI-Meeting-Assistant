@@ -1,5 +1,7 @@
 # Finalization verification — 16 October 2026
 
+The subsequent [final sign-in audit](../ui/signin-final/README.md) raises frontend coverage to 152 tests and fixes the healthy-page recovery link, bounded retries, local-draft preservation and sibling key collisions. The results below record the preceding finalization stage.
+
 ## Scope
 
 This maintenance release separates backend API schemas and summarization from composition, improves user-facing failure handling and supplies an English submission/handoff path. No slides were created: the presenting team owns them. Existing AI prompts, MMR selection, account storage and public/private route policy remain the same.

@@ -33,6 +33,8 @@ These references informed the implementation; their runtime, hooks and packages 
 
 ## Browser verification
 
+Sign-in recovery was refined further after this release. See the [final sign-in audit](../signin-final/README.md) for the current behavior; the earlier screenshots below record the initial notification layout.
+
 The connection-failure state was tested on a disposable Vite development server with an intentionally unreachable API URL. The running production/development backend was not stopped. At a 1275px viewport the notification stays in the bottom-right corner; a same-origin 375px iframe verified readable wrapping and complete controls. This is an emulated viewport check, not a physical-device certification. Dismissal was exercised in the browser and DOM regressions.
 
 ![Desktop connection notification](connection-toast-desktop.png)

@@ -13,3 +13,7 @@ The final adjacent-flow audit also found and fixed:
 - Dismissing a failure notification could hide the only retry action. The conditional panel action remains available.
 
 Validation: 152 frontend tests pass; lint/build and npm audit pass. New timeout/body-timeout, cancellation, malformed-session, retry progress/dismissal, local-draft and key-collision regressions exercise these cases. The new behavior regressions were observed failing before their fixes. An independent reviewer ran 33 targeted tests and found no remaining actionable issue in the changed authentication/recovery flows. This is a focused final audit, not a guarantee that every possible workflow or security condition has been tested.
+
+The full model-enabled backend suite also passes 384 tests, with the existing upstream Starlette/AnyIO deprecation warning. Browser verification on the normal application port confirmed that both provider buttons are enabled and the unnecessary connection-check link is absent. No external OAuth consent was performed during this check.
+
+![Healthy sign-in, with no connection-check link](healthy-signin.png)
