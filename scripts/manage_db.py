@@ -15,6 +15,7 @@ Provides safe, deterministic database hygiene:
 import argparse
 import datetime
 import json
+import os
 import sqlite3
 import sys
 import tempfile
@@ -22,11 +23,11 @@ from contextlib import closing
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DB_DIR = REPO_ROOT / "database"
-DB_FILE = DB_DIR / "meeting.db"
+DB_FILE = Path(os.environ.get("CLARION_DB_PATH", str(REPO_ROOT / "database" / "meeting.db"))).resolve()
+DB_DIR = DB_FILE.parent
 BACKUP_DIR = DB_DIR / "backups"
 sys.path.insert(0, str(REPO_ROOT))
-from database.db import MIGRATION_COLUMNS
+from database.db import initialize_schema
 
 # Ensure database directory exists
 DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -42,44 +43,15 @@ def get_db_connection():
 
 
 def ensure_schema(conn):
-    """Ensures tables, columns, and indexes exist according to system schema."""
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS meetings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT NOT NULL,
-            raw_transcript TEXT,
-            executive_summary TEXT,
-            action_items TEXT,
-            duration REAL,
-            language TEXT,
-            segments TEXT,
-            insights TEXT,
-            chat_history TEXT,
-            chat_generation INTEGER NOT NULL DEFAULT 0,
-            revision INTEGER NOT NULL DEFAULT 0,
-            review_status TEXT NOT NULL DEFAULT 'draft',
-            project_id INTEGER,
-            save_key TEXT,
-            save_digest TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    columns = {row[1] for row in conn.execute("PRAGMA table_info(meetings)")}
-    for column, definition in MIGRATION_COLUMNS.items():
-        if column not in columns:
-            conn.execute(f"ALTER TABLE meetings ADD COLUMN {column} {definition}")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_recent ON meetings(created_at DESC, id DESC)")
-    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_meetings_save_key ON meetings(save_key) WHERE save_key IS NOT NULL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            name_key TEXT NOT NULL UNIQUE
-        )
-    """)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_project ON meetings(project_id, created_at DESC, id DESC)")
-    conn.commit()
+    """Use the same transactional migrations as the API."""
+    try:
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+        initialize_schema(conn)
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
 
 
 def backup_database():
@@ -136,7 +108,7 @@ def get_status():
 
 
 def clean_database(perform_backup=True):
-    """Wipes all meetings and projects, resetting auto-increment sequences."""
+    """Wipe workspace data, including remembered voices, after a backup."""
     if perform_backup and DB_FILE.exists():
         backup_database()
 
@@ -144,6 +116,7 @@ def clean_database(perform_backup=True):
     ensure_schema(conn)
     conn.execute("DELETE FROM meetings")
     conn.execute("DELETE FROM projects")
+    conn.execute("DELETE FROM speaker_profiles")
     try:
         conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('meetings', 'projects')")
     except sqlite3.OperationalError:
@@ -151,7 +124,7 @@ def clean_database(perform_backup=True):
     conn.commit()
     conn.execute("VACUUM")
     conn.close()
-    print("[OK] Database cleaned: All meetings and projects wiped to pristine state.")
+    print("[OK] Database cleaned: All meetings, projects and voice profiles wiped to pristine state.")
 
 
 def seed_database():

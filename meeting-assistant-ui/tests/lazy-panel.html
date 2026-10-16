@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Lazy panel recovery regression</title></head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React, { useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import LazyPanel from '/src/LazyPanel.jsx';
+
+      // First attempt fails as a lost network chunk would; retry succeeds.
+      let attempts = 0;
+      const load = () => ++attempts === 1
+        ? Promise.reject(new Error('Simulated chunk failure'))
+        : Promise.resolve({ default: () => React.createElement('h2', null, 'Recovered panel') });
+
+      function Harness() {
+        const [revision, setRevision] = useState(21);
+        const [open, setOpen] = useState(false);
+        return React.createElement('main', null,
+          React.createElement('h1', null, 'Unsaved meeting: retained note'),
+          React.createElement('p', null, 'Revision ' + revision),
+          React.createElement('button', { onClick: () => setRevision(value => value + 1) }, 'Increase revision'),
+          React.createElement('button', { onClick: () => setOpen(true) }, 'Open panel'),
+          open && React.createElement(LazyPanel, {
+            load, name: 'the audit panel', fallback: 'Loading panel', onClose: () => setOpen(false),
+          }, Panel => React.createElement(Panel)));
+      }
+      createRoot(document.getElementById('root')).render(React.createElement(Harness));
+    </script>
+  </body>
+</html>

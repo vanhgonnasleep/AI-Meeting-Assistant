@@ -3,9 +3,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libgomp1 && rm -rf /var/lib/apt/lists/*
 COPY ai-summary-service/requirements.txt /app/requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
 COPY database /app/database
 COPY ai-summary-service /app/ai-summary-service
+COPY scripts /app/scripts
 RUN mkdir -p /app/data
 ENV CLARION_DB_PATH=/app/data/meeting.db
 WORKDIR /app/ai-summary-service

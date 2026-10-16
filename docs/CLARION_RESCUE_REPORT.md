@@ -1,5 +1,7 @@
 # Clarion rescue acceptance — 2026-10-16
 
+Follow-up: [stability audit and updated verification](AUDIT_STABILITY_2026-10-16.md) records subsequent fixes, 290 backend / 103 frontend passing tests, improved bundle size, and outstanding container/build-tool limitations. The original acceptance results below are historical.
+
 The nine tasks in the supplied Master Prompt are implemented. Changes were committed sequentially on `feat/be-streaming-fts`, `feat/ai-speech-pipeline`, and `feat/fe-ui-interactions`, with later branches incorporating earlier verified work. Integration uses explicit local merge commits into `main`. No remote push is part of this operation.
 
 | Task | Delivered behavior |

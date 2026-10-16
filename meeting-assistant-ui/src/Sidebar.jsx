@@ -298,6 +298,7 @@ export default function Sidebar({
                 key={m.id}
                 type="button"
                 onClick={() => onSelectMeeting(m)}
+                disabled={!canStartNew || loadingMeetingId === m.id}
                 title={m.filename}
                 aria-label={`Open meeting ${m.filename || m.id}`}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${

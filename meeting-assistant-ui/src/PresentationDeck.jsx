@@ -84,14 +84,14 @@ export default function PresentationDeck({
         badge: 'Governance & Key Decisions',
         icon: ShieldCheck,
         title: 'Key Decisions & Strategic Alignment',
-        decisions: decisions.length > 0 ? decisions : ['All discussed items aligned with core strategy.']
+        decisions: decisions.length > 0 ? decisions : ['No decisions recorded in this session.']
       },
       {
         id: 'risks',
         badge: 'Risk Analysis & Blockers',
         icon: AlertTriangle,
         title: 'Identified Risks & Dependencies',
-        risks: risks.length > 0 ? risks : ['No critical blockers or architectural risks identified.']
+        risks: risks.length > 0 ? risks : ['No risks recorded in this session.']
       },
       {
         id: 'deliverables',
@@ -248,13 +248,13 @@ export default function PresentationDeck({
 
                 <div className="flex flex-wrap gap-2 pt-2">
                   <span className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-xs font-medium">
-                    ✓ AI Diarization Verified
+                    Review speaker labels
                   </span>
                   <span className="px-3 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 text-xs font-medium">
-                    ✓ Agent 5 Governance Matrix
+                    Review decisions and risks
                   </span>
                   <span className="px-3 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-700 text-xs font-medium">
-                    ✓ Action Items Extracted
+                    Review action items
                   </span>
                 </div>
               </div>

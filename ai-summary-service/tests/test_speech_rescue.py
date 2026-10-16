@@ -129,7 +129,8 @@ def test_chunk_forwards_mono_numpy_samples_without_temp_files(monkeypatch):
 
 
 def test_diarization_reuses_enrolled_name(monkeypatch):
-    import torch
+    torch = pytest.importorskip('torch')
+    pytest.importorskip('whisper')
     crud.upsert_speaker_profile('Alice', [1., 0., 0.])
     monkeypatch.setattr(stt, '_embedding_from_pcm', lambda *a: torch.tensor([1., 0., 0.]))
     segments, names = stt.diarize_segments([{'text': 'Hello', 'start': 0, 'end': 2}], 'unused',
