@@ -706,6 +706,18 @@ def transcribe_audio_detailed(
                 # Preserve Whisper's compression/log-probability fallback;
                 # scalar zero can accept repetitive decoding as the final result.
                 "temperature": temperature,
+                # ── Anti-hallucination guards ──────────────────────────────────
+                # Prevents cascading repetition loops ("ni ni ni…") by forcing
+                # each chunk to decode independently with no prior context bleed.
+                "condition_on_previous_text": False,
+                # Drop segments where Whisper itself signals no real speech.
+                "no_speech_threshold": 0.6,
+                # Drop segments whose token stream is suspiciously repetitive
+                # (compression_ratio > threshold ≈ "ni ni ni" territory).
+                "compression_ratio_threshold": 2.4,
+                # Drop low-confidence segments (avg log-probability below threshold).
+                "logprob_threshold": -1.0,
+                # ──────────────────────────────────────────────────────────────
                 **whisper_kwargs,
             }
             if language:
@@ -773,6 +785,26 @@ def transcribe_audio_detailed(
                             "start": max(0.0, min(pcm.duration, offset + float(word.get("start", 0)))),
                             "end": max(0.0, min(pcm.duration, offset + float(word.get("end", 0)))),
                         } for word in source["words"]]
+                    # ── Per-segment hallucination guard ────────────────────────
+                    # Whisper's chunk-level thresholds already discard the worst
+                    # offenders, but some hallucinated segments survive inside
+                    # otherwise acceptable chunks.  Drop segments that show any
+                    # of the three canonical hallucination signatures:
+                    #   1. High no-speech probability (segment is silence/music)
+                    #   2. Very high compression ratio (token loop: "ni ni ni…")
+                    #   3. Very low average log-probability (unreliable decode)
+                    if (float(segment.get("no_speech_prob", 0.0)) > 0.6 or
+                            float(segment.get("compression_ratio", 0.0)) > 2.4 or
+                            float(segment.get("avg_logprob", 0.0)) < -1.0):
+                        print(
+                            f"[Agent 1 STT] Dropping hallucinated segment "
+                            f"[{format_timestamp(start)} - {format_timestamp(end)}]: "
+                            f"no_speech={segment.get('no_speech_prob', 0):.2f}, "
+                            f"compression={segment.get('compression_ratio', 0):.2f}, "
+                            f"logprob={segment.get('avg_logprob', 0):.2f}"
+                        )
+                        continue
+                    # ───────────────────────────────────────────────────────────
                     segments.append(segment)
                 del audio, result
 
