@@ -8,9 +8,12 @@ import { discardLegacyConnectorSettings } from './browser-privacy.js';
 export default function AuthGate() {
   const [state, setState] = useState({ phase: 'checking', session: null, error: '' });
   const [signingOut, setSigningOut] = useState(false);
+  const logoutPending = useRef(false);
+  const recheckAfterLogout = useRef(false);
   const request = useRef(null);
 
   const refresh = useCallback(async () => {
+    if (logoutPending.current) return;
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -33,6 +36,7 @@ export default function AuthGate() {
   useEffect(() => {
     discardLegacyConnectorSettings();
     const stop = apiClient.onSessionInvalid(() => {
+      if (logoutPending.current) recheckAfterLogout.current = true;
       setState({ phase: 'checking', session: null, error: '' });
       void refresh();
     });
@@ -48,18 +52,25 @@ export default function AuthGate() {
   }, [refresh]);
 
   const logout = async () => {
-    if (signingOut) return;
+    if (logoutPending.current) return;
+    logoutPending.current = true;
     setSigningOut(true);
     request.current?.abort();
     try {
       const response = await apiFetch(`${API_BASE}/api/auth/logout`, { method: 'POST' });
       if (!response.ok) throw new Error('Sign-out failed. Please try again.');
+      request.current?.abort();
       apiClient.configureSession(null);
       setState(previous => ({ phase: 'ready', session: { ...previous.session, user: null, csrf_token: null }, error: '' }));
     } catch (error) {
       if (error.name !== 'AbortError') setState(previous => ({ ...previous, error: error.message }));
     } finally {
+      logoutPending.current = false;
       setSigningOut(false);
+      if (recheckAfterLogout.current) {
+        recheckAfterLogout.current = false;
+        void refresh();
+      }
     }
   };
 

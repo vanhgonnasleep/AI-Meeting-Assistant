@@ -1,5 +1,8 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioLines, ArrowUpRight, Clock, Search, Trash2, X, Plus } from 'lucide-react';
 import { formatMeetingDuration } from '../../app/navigation.js';
+import { createRequestGate } from '../../shared/lib/request-gate.js';
+import { workspaceRequest } from '../workspace/workspace.js';
 
 /**
  * Modernized MeetingRow component with Linear/Apple card styling
@@ -66,6 +69,7 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
 }
 
 export default function MeetingLibrary({
+  apiBase,
   meetings,
   total,
   loading,
@@ -82,6 +86,23 @@ export default function MeetingLibrary({
   filters = { project: '', days: '', sort: 'newest' },
   onFiltersChange,
 }) {
+  const [projects, setProjects] = useState([]);
+  const [projectError, setProjectError] = useState(null);
+  const projectsGate = useRef(createRequestGate());
+  const loadProjects = useCallback(async () => {
+    const request = projectsGate.current.begin();
+    try {
+      const data = await workspaceRequest(`${apiBase}/api/projects`, { signal: request.signal });
+      if (request.isCurrent()) { setProjects(Array.isArray(data.projects) ? data.projects : []); setProjectError(null); }
+    } catch (failure) { if (request.isCurrent()) setProjectError(failure.message); }
+  }, [apiBase]);
+  useEffect(() => {
+    const gate = projectsGate.current;
+    void loadProjects();
+    window.addEventListener('focus', loadProjects);
+    return () => { gate.cancel(); window.removeEventListener('focus', loadProjects); };
+  }, [loadProjects]);
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto py-4">
       {/* Header */}
@@ -136,8 +157,7 @@ export default function MeetingLibrary({
           <select aria-label="Filter by project" value={filters.project} onChange={event => onFiltersChange?.({ ...filters, project: event.target.value })}
             className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 p-2.5 text-slate-800">
             <option value="">All projects</option>
-            <option>Clarion Core Platform</option>
-            <option>Enterprise Compliance</option>
+            {projects.map(project => <option key={project.id} value={project.name}>{project.name}</option>)}
           </select>
         </label>
         <label className="text-xs text-slate-600 flex flex-col gap-1">
@@ -156,6 +176,8 @@ export default function MeetingLibrary({
           </select>
         </label>
       </div>
+
+      {projectError && <p role="alert" className="text-xs text-rose-700">{projectError} <button type="button" className="underline" onClick={loadProjects}>Retry projects</button></p>}
 
       {!canOpen && (
         <p className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700">

@@ -301,7 +301,7 @@ Standalone endpoint for Agent 1. Ingests audio files and returns raw or timestam
 - `GET /api/meetings?q={keyword}&limit=20&offset=0&compact=true`: Searches the entire history and returns a page. Default `limit=50`, maximum `100`; the UI uses compact pages of 20. The response includes `total`, `offset`, and `has_more`. Vietnamese case-insensitive search treats `%` and `_` literally.
 - `GET /api/meetings/{id}`: Retrieves full meeting details by ID.
 - `PUT /api/meetings/{id}`: Updates meeting fields (summary, action items, filename).
-- `PATCH /api/meetings/{id}/tasks/{idx}`: Toggles/updates action item status directly in SQLite.
+- `PATCH /api/meetings/{id}/tasks/{idx}`: Updates task status using `{ "status": "completed", "expected_revision": 0 }`. Supply the revision of the meeting you loaded; a stale revision returns 409 and a missing/invalid revision returns 422. Reload and reconcile before retrying.
 - `PATCH /api/meetings/{id}/speakers`: Persists speaker-label corrections with `{old_name, new_name, segment_index?}`. Omit the index to rename all matching turns. Spoken words and manual transcript annotations remain intact; generated summary prose is not rewritten.
 - `DELETE /api/meetings/{id}`: Deletes a meeting record from local storage.
 

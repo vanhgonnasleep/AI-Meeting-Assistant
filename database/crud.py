@@ -563,10 +563,14 @@ def update_meeting(
         connection.close()
 
 
-def update_action_item_status(meeting_id: int, item_idx: int, status: str) -> bool:
+class MeetingRevisionConflict(ValueError):
+    """A positional edit was based on an obsolete meeting snapshot."""
+
+
+def update_action_item_status(meeting_id: int, item_idx: int, status: str, *, expected_revision: int) -> bool:
     """
     Toggle or update the status of a specific action item within a meeting record.
-    Uses BEGIN IMMEDIATE transaction to prevent concurrent updates from overwriting each other.
+    Compare the caller's revision inside BEGIN IMMEDIATE before resolving the task index.
     """
     connection = get_connection()
     try:
@@ -576,7 +580,12 @@ def update_action_item_status(meeting_id: int, item_idx: int, status: str) -> bo
             (meeting_id,),
         ).fetchone()
         meeting = row_to_meeting(row)
-        if meeting is None or item_idx < 0 or item_idx >= len(meeting.action_items):
+        if meeting is None:
+            connection.rollback()
+            return False
+        if meeting.revision != expected_revision:
+            raise MeetingRevisionConflict("Meeting changed. Reload the latest version before updating a task.")
+        if item_idx < 0 or item_idx >= len(meeting.action_items):
             connection.rollback()
             return False
 

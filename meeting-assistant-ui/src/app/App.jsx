@@ -788,11 +788,13 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
         const response = await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/tasks/${idx}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending' })
+          body: JSON.stringify({ status: isNowDone ? 'completed' : 'pending', expected_revision: result?.revision || 0 })
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.detail || `Failed to update task (HTTP ${response.status})`);
+          throw new Error(response.status === 409
+            ? 'This meeting changed elsewhere. Reopen it from the library before updating tasks.'
+            : errData.detail || `Failed to update task (HTTP ${response.status})`);
         }
         const data = await response.json();
         if (version !== sessionVersion.current) return;
@@ -933,7 +935,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
 
   const handleDownloadJson = () => {
     if (!result) return;
-    const exportTasks = getExportTasks(result, completedTasks);
+    const exportTasks = getExportTasks(result.action_items || [], completedTasks);
     const exportData = {
       meeting_id: currentMeetingId,
       filename: file?.name || meetingTitle,
@@ -1161,6 +1163,7 @@ ${result.transcript || ""}
             </LazyPanel>
           ) : page === 'meetings' ? (
             <MeetingLibrary
+              apiBase={API_BASE}
               meetings={meetingsHistory}
               total={historyTotal}
               loading={loadingHistory}

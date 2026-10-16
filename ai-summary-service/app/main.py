@@ -791,6 +791,7 @@ class MeetingUpdateRequest(BaseModel):
 
 class TaskStatusUpdateRequest(BaseModel):
     status: str
+    expected_revision: int = Field(ge=0, strict=True)
 
 @app.post('/api/transcribe-chunk')
 def transcribe_chunk_endpoint(file: UploadFile = File(...), whisper_model: WhisperModel = Query('tiny'),
@@ -879,7 +880,11 @@ def update_meeting_task_status(meeting_id: int, task_idx: int, payload: TaskStat
     allowed_statuses = {"pending", "completed", "done", "in_progress"}
     if payload.status.lower() not in allowed_statuses:
         raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {sorted(allowed_statuses)}")
-    success = crud.update_action_item_status(meeting_id, task_idx, payload.status.lower())
+    try:
+        success = crud.update_action_item_status(meeting_id, task_idx, payload.status.lower(),
+                                                 expected_revision=payload.expected_revision)
+    except crud.MeetingRevisionConflict as exc:
+        raise HTTPException(409, detail=str(exc)) from exc
     if not success:
         raise HTTPException(status_code=404, detail="Meeting or task index not found.")
     return {"meeting_id": meeting_id, "task_idx": task_idx, "status": payload.status.lower(),
@@ -912,7 +917,7 @@ class ChatMessageRequest(BaseModel):
     meeting_id: Optional[int] = None
     transcript: Optional[str] = Field(None, max_length=1_000_000)
     summary: Optional[str] = Field(None, max_length=50_000)
-    segments: Optional[List[Dict[str, Any]]] = Field(None, max_length=10_000)
+    segments: Optional[List[Dict[str, Any]]] = Field(None, max_length=20_000)
     model: Optional[str] = Field("auto", max_length=128)
     language: Optional[str] = None
     demo_mode: Optional[bool] = False
@@ -995,7 +1000,9 @@ def chat_with_meeting_endpoint(meeting_id: int, payload: ChatMessageRequest):
 
     updated_history = []
     if crud is not None and record is not None and record.id:
-        crud.append_chat_messages(int(record.id), [user_msg, assistant_msg], expected_generation=record.chat_generation)
+        saved = crud.append_chat_messages(int(record.id), [user_msg, assistant_msg], expected_generation=record.chat_generation)
+        if not saved:
+            raise HTTPException(409, 'Meeting changed during this answer. Please ask again.')
         updated_history = crud.get_chat_history(int(record.id)) or []
     else:
         updated_history = [user_msg, assistant_msg]

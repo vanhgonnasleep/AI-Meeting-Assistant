@@ -10,6 +10,8 @@ Changes produce a new content revision and reset human review to draft. Source c
 
 If another view changes the record while your editor is open, saving returns a version conflict. The editor retains your draft. Reload the latest record and reconcile your changes; do not overwrite blindly. Regeneration similarly refuses to apply a result if the source changed during inference. Model failure leaves the existing summary intact.
 
+Task checkboxes also require the loaded meeting revision. If another tab removes or reorders tasks, an old checkbox cannot update the task now occupying its former index. Reopen the meeting from the library after a conflict. API clients must send `expected_revision` with task-status PATCH requests; missing or invalid revisions return 422, and stale revisions return 409.
+
 ## Follow tasks across meetings
 
 Open **Workspace** and its Tasks view. Search literal text and filter by status, assignee or project; pagination applies after filtering. Each task links back to its source meeting, where task text, owner, deadline and status can be edited. Free-form deadlines are preserved; do not assume a natural-language deadline has been normalized into a calendar date. Dates and ownership inferred by AI need human confirmation.
@@ -38,4 +40,4 @@ A retrieved source can still be insufficient to support a generated claim. Repre
 
 ## Operational scope
 
-The app continues to target one user on loopback. Review revisions prevent accidental lost updates; they are not accounts or ownership authorization. The existing two-request AI admission limit also applies to summary regeneration. Persistence still stores transcript/results rather than the original audio. Task and timeline queries read records in batches of 200 and return at most 100 entries per page (the UI requests 50); exact totals still require scanning the matching records. These features do not require a new database server or frontend runtime package.
+Private mode uses Google/GitHub sessions and an independent library per account; see [authentication setup](auth-setup.md). Explicit local mode keeps the original single-user library. Content revisions prevent accidental lost updates inside a library; account authorization is enforced separately. The process-wide two-request AI admission limit is shared across accounts and also applies to summary regeneration. Persistence stores transcript/results rather than the original audio. Task and timeline queries read records in batches of 200 and return at most 100 entries per page (the UI requests 50); exact totals still require scanning the matching records.
