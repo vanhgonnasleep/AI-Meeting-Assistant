@@ -13,6 +13,8 @@ Implements 100% Edge/Local Retrieval-Augmented Generation (RAG):
 """
 
 import math
+import json
+import os
 import re
 from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
@@ -172,7 +174,7 @@ def retrieve_relevant_segments(query: str, segments=None, transcript=None, top_k
     return results
 
 
-def answer_meeting_question(
+def _answer_events(
     question: str,
     transcript: Optional[str] = None,
     summary: Optional[str] = None,
@@ -184,6 +186,7 @@ def answer_meeting_question(
     timeout_sec: int = 25,
     semantic: bool = False,
     embedding_model: str = 'embeddinggemma',
+    stream: bool = False,
 ) -> Dict[str, Any]:
     """
     Processes a user query about a meeting using Lite-RAG with citations and audio timestamp sync.
@@ -196,17 +199,19 @@ def answer_meeting_question(
     """
     clean_q = (question or "").strip()
     if not clean_q:
-        return {
+        yield {
             "answer": "Vui lòng nhập câu hỏi của bạn về nội dung cuộc họp." if language == "vi" else "Please enter a question about the meeting.",
             "citations": [],
             "mode": "prompt_required"
         }
+        return
 
     # 1. Check curated Demo Answer if running in demo mode or sample meeting
     if is_demo:
         curated = demo_answer(clean_q, language=language)
         if curated:
-            return curated
+            yield curated
+            return
 
     # 2. Retrieve top-K relevant excerpts with timestamps
     citations = retrieve_relevant_segments(clean_q, segments=segments, transcript=transcript, top_k=4)
@@ -217,12 +222,13 @@ def answer_meeting_question(
 
     is_vietnamese = language == "vi" or bool(re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', clean_q.lower()))
     if not citations:
-        return {
+        yield {
             "answer": ("Không tìm thấy trích đoạn phù hợp với câu hỏi trong cuộc họp này. Hãy thử dùng từ khóa xuất hiện trong transcript."
                        if is_vietnamese else
                        "I couldn't find a matching excerpt in this meeting. Try using words from the transcript."),
             "citations": [], "mode": "no_matching_context", "retrieval_warning": retrieval_warning,
         }
+        return
 
     # 3. Format excerpts for LLM prompt
     context_lines = []
@@ -255,36 +261,73 @@ User Question:
 Answer:"""
 
     # 4. Query Ollama LLM
+    response = None
+    partial = False
     try:
         response = requests.post(
-            "http://localhost:11434/api/chat",
+            os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/') + '/api/chat',
             json={
                 "model": model_name,
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                "stream": False,
+                "stream": stream,
                 "options": {
                     "temperature": 0.2,
                     "num_ctx": 4096 if has_gpu else 2048,
                     "num_predict": 350
                 }
             },
-            timeout=timeout_sec
+            timeout=timeout_sec,
+            **({'stream': True} if stream else {}),
         )
         response.raise_for_status()
-        answer = response.json().get("message", {}).get("content", "").strip()
+        if stream:
+            parts = []
+            complete = False
+            size = 0
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                chunk = json.loads(line)
+                if chunk.get('error'):
+                    raise RuntimeError('Upstream model error')
+                token = chunk.get('message', {}).get('content', '')
+                if token:
+                    if not isinstance(token, str):
+                        raise ValueError('Invalid token')
+                    size += len(token)
+                    if size > 50_000:
+                        raise ValueError('Answer exceeds text budget')
+                    partial = True
+                    parts.append(token)
+                    yield {'token': token, 'done': False}
+                if chunk.get('done'):
+                    complete = True
+                    break
+            if not complete:
+                raise RuntimeError('Upstream stream ended before completion')
+            answer = ''.join(parts).strip()
+        else:
+            answer = response.json().get("message", {}).get("content", "").strip()
 
         if answer:
-            return {
+            yield {
                 "answer": answer,
                 "citations": citations,
                 "mode": "rag_llm",
                 "retrieval_warning": retrieval_warning,
             }
+            return
     except Exception as e:
+        if partial:
+            yield {'error': 'The answer stream was interrupted. Please retry.', 'mode': 'stream_error'}
+            return
         print(f"[MeetingChat] LLM query error ({e}). Returning source excerpts.")
+    finally:
+        if response is not None and hasattr(response, 'close'):
+            response.close()
 
     # 5. Deterministic Grounded Fallback (when LLM is offline or timed out)
     if citations:
@@ -303,9 +346,34 @@ Answer:"""
             "No corresponding dialogue was found in this meeting transcript."
         )
 
-    return {
+    yield {
         "answer": fallback,
         "citations": citations,
         "mode": "rag_fallback",
         "retrieval_warning": retrieval_warning,
     }
+
+
+def answer_meeting_question(*args, **kwargs) -> Dict[str, Any]:
+    """Existing JSON API shares retrieval and grounding with the stream API."""
+    return next(_answer_events(*args, **kwargs))
+
+
+def stream_meeting_question(*args, **kwargs):
+    """Forward live model tokens and finish with metadata; never save partial text."""
+    events = _answer_events(*args, **kwargs, stream=True)
+    sent_tokens = False
+    try:
+        for event in events:
+            if 'token' in event:
+                sent_tokens = True
+                yield event
+            elif event.get('error'):
+                yield {**event, 'done': True, 'citations': []}
+            else:
+                if not sent_tokens:
+                    for token in re.findall(r'\S+\s*|\s+', event['answer']):
+                        yield {'token': token, 'done': False}
+                yield {**event, 'done': True}
+    finally:
+        events.close()

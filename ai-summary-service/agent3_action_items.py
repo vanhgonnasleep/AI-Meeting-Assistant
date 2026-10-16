@@ -122,7 +122,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
     try:
         # 2. Query local Llama 3 via Ollama package or direct HTTP fallback
         if OLLAMA_LIB_AVAILABLE and ollama is not None:
-            with ollama.Client(timeout=35) as client:
+            with ollama.Client(timeout=35, **({'host': os.environ['OLLAMA_BASE_URL']} if os.environ.get('OLLAMA_BASE_URL') else {})) as client:
                 response = client.chat(
                     model=target_model,
                     messages=[
@@ -136,7 +136,7 @@ def extract_action_items(transcript: str, model_name: Optional[str] = None) -> L
             raw_content = (msg.content if hasattr(msg, 'content') else msg.get('content', '')).strip()
         else:
             http_res = requests.post(
-                "http://localhost:11434/api/chat",
+                os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/') + '/api/chat',
                 json={
                     "model": target_model,
                     "messages": [

@@ -15,6 +15,7 @@ Provides both:
 """
 
 import json
+import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 import requests
@@ -198,7 +199,7 @@ Example:
 
     try:
         response = requests.post(
-            "http://localhost:11434/api/chat",
+            os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/') + '/api/chat',
             json={
                 "model": model_name,
                 "messages": [
