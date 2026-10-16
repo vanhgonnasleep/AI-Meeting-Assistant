@@ -57,3 +57,11 @@ test('sidebar retains server search matches found only in meeting content', () =
   }));
   assert.match(markup, /Weekly.wav/);
 });
+
+test('collapsed sidebar blocks meeting opens while current content is being saved', () => {
+  const markup = renderToStaticMarkup(createElement(Sidebar, {
+    isCollapsed: true, canStartNew: false,
+    meetings: [{ id: 1, filename: 'Saved.wav', created_at: new Date().toISOString() }],
+  }));
+  assert.match(markup, /<button[^>]*disabled=""[^>]*title="Saved.wav"/);
+});

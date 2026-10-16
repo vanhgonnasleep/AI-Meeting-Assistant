@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { 
   FileText, 
   Sparkles, 
@@ -30,9 +30,10 @@ import {
 import { formatMeetingDuration } from './navigation.js';
 import { normalizeCitation } from './session.js';
 import { formatUploadLimits } from './upload.js';
-import PresentationDeck from './PresentationDeck.jsx';
 import ConnectorsModal from './ConnectorsModal.jsx';
 import { GitHubMark, GmailMark } from './BrandMarks.jsx';
+
+const PresentationDeck = lazy(() => import('./PresentationDeck.jsx'));
 
 const SPEAKER_BADGE_STYLES = [
   'bg-blue-500/15 text-blue-700 border-blue-500/30',
@@ -1229,6 +1230,10 @@ export default function DocumentWorkspace({
 
       {/* VIEW MODE 3: ZEN SLIDE DECK PRESENTATION (FULLSCREEN OVERLAY) */}
       {viewMode === 'zen' && (
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center gap-4">
+          <p role="status" className="text-sm text-slate-600">Loading presentation…</p>
+          <button type="button" onClick={() => setViewMode('studio')} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700">Close presentation</button>
+        </div>}>
         <PresentationDeck
           meetingData={{
             title: file?.name || meetingTitle || (isDemoResult ? 'Q3 Product & Budget Review' : 'Executive Meeting Document'),
@@ -1244,6 +1249,7 @@ export default function DocumentWorkspace({
           onToggleTask={onToggleTask}
           onExit={() => setViewMode('studio')}
         />
+        </Suspense>
       )}
 
       {/* Connectors Hub Modal Sheet */}

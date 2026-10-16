@@ -458,6 +458,10 @@ def diarize_segments(
         if use_llm_refinement:
             segments = refine_speakers_with_llm(segments, model_name=llm_model)
 
+        for segment, embedding in zip(segments, embeddings):
+            # A later single-turn correction must enroll that turn's voice,
+            # rather than the entire (potentially misclustered) speaker group.
+            segment['voice_embedding'] = embedding.detach().cpu().tolist()
         for index in set(speaker_indices):
             selected = [embedding for embedding, label in zip(embeddings, speaker_indices) if label == index]
             centroid = torch.stack(selected).mean(dim=0)
@@ -466,7 +470,6 @@ def diarize_segments(
             name = match_speaker_profile(vector) if any(abs(v) > 1e-8 for v in vector) else None
             for segment, label in zip(segments, speaker_indices):
                 if label == index:
-                    segment['voice_embedding'] = vector
                     if name:
                         segment['speaker'] = name
 

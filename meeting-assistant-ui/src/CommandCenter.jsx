@@ -12,6 +12,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { shouldSubmitChat, normalizeCitation } from './session.js';
+import { createAudioRecording } from './recording.js';
 
 /**
  * Format seconds into MM:SS display
@@ -50,13 +51,13 @@ export default function CommandCenter({
   renderFormattedChatText,
 }) {
   const [chatInput, setChatInput] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState('idle');
+  const isRecording = recordingStatus === 'recording' || recordingStatus === 'stopping';
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const recordingTimerRef = useRef(null);
+  const recordingRef = useRef(null);
+  const onRecordedAudioRef = useRef(onRecordedAudio);
   const chatScrollRef = useRef(null);
 
   // Auto-scroll chat drawer to bottom on new messages
@@ -66,72 +67,40 @@ export default function CommandCenter({
     }
   }, [chatMessages, isChatLoading]);
 
-  // Clean up recording timer and active tracks on unmount
+  useEffect(() => { onRecordedAudioRef.current = onRecordedAudio; }, [onRecordedAudio]);
+
+  // Each mount owns its capture, including unresolved microphone permission.
   useEffect(() => {
+    let timer;
+    const recording = createAudioRecording({
+      getUserMedia: navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices),
+      Recorder: globalThis.MediaRecorder,
+      onStatusChange: status => {
+        clearInterval(timer);
+        setRecordingStatus(status);
+        if (status === 'recording') {
+          setRecordingDuration(0);
+          timer = setInterval(() => setRecordingDuration(previous => previous + 1), 1000);
+        }
+      },
+      onRecordedAudio: file => onRecordedAudioRef.current?.(file),
+      onError: error => {
+        console.error('Audio recording failed:', error);
+        alert(error.name === 'NotAllowedError'
+          ? 'Unable to access microphone. Please ensure microphone permissions are granted.'
+          : error.message || 'Unable to record audio. Please try again.');
+      },
+    });
+    recordingRef.current = recording;
     return () => {
-      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-      if (mediaRecorderRef.current) {
-        if (mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.stop();
-        }
-        if (mediaRecorderRef.current.stream) {
-          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-        }
-      }
+      clearInterval(timer);
+      recording.dispose();
+      recordingRef.current = null;
     };
   }, []);
 
-  // Handle native audio recording
-  const startRecording = async () => {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert('Audio recording is not supported in this browser environment.');
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const recordedFile = new File([audioBlob], `recorded_meeting_${Date.now()}.webm`, {
-          type: 'audio/webm',
-        });
-        stream.getTracks().forEach((track) => track.stop());
-        if (onRecordedAudio) {
-          onRecordedAudio(recordedFile);
-        }
-      };
-
-      mediaRecorder.start(250);
-      setIsRecording(true);
-      setRecordingDuration(0);
-
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-    } catch (err) {
-      console.error('Microphone access failed:', err);
-      alert('Unable to access microphone. Please ensure microphone permissions are granted.');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-    }
-    setIsRecording(false);
-  };
+  const startRecording = () => recordingRef.current?.start();
+  const stopRecording = () => recordingRef.current?.stop();
 
   const handleSend = (text) => {
     const query = typeof text === 'string' ? text : chatInput;
@@ -309,12 +278,13 @@ export default function CommandCenter({
           <button
             type="button"
             onClick={startRecording}
-            disabled={isBusy || isChatLoading}
-            aria-label="Start recording live audio"
+            disabled={isBusy || isChatLoading || recordingStatus === 'starting'}
+            aria-label={recordingStatus === 'starting' ? 'Requesting microphone access' : 'Start recording live audio'}
             className="p-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all active:scale-95 shrink-0 cursor-pointer shadow-sm group"
             title="Record live audio from microphone"
           >
-            <Mic className="w-4 h-4 group-hover:text-indigo-700 transition-colors" />
+            {recordingStatus === 'starting' ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Mic className="w-4 h-4 group-hover:text-indigo-700 transition-colors" />}
           </button>
         ) : (
           /* Fluid Pulse / Wave Animation for "AI is Listening/Recording" state */
@@ -326,6 +296,7 @@ export default function CommandCenter({
             <button
               type="button"
               onClick={stopRecording}
+              disabled={recordingStatus === 'stopping'}
               aria-label="Stop recording audio"
               className="relative flex items-center gap-2 px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-rose-600/30 active:scale-95 transition-all cursor-pointer z-10"
               title="Click to stop recording and process"

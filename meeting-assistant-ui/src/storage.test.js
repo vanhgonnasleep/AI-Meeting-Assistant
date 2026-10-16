@@ -31,3 +31,12 @@ test('manual save trims chat to the same retention limit as saved-meeting chat',
   assert.equal(payload.chat_history.length, 200);
   assert.equal(payload.chat_history[0].content, 'Question 5');
 });
+
+test('saving session results preserves the resolved date alongside relative deadline wording', () => {
+  const payload = storage.buildMeetingSavePayload({ saveKey: 'session', result: {
+    transcript: 'Finish the audit tomorrow.', action_items: [{ task: 'Audit', deadline: 'tomorrow',
+      deadline_iso: '2026-10-17T00:00:00+07:00', status: 'pending' }],
+  } });
+  assert.equal(payload.action_items[0].deadline, 'tomorrow');
+  assert.equal(payload.action_items[0].deadline_iso, '2026-10-17T00:00:00+07:00');
+});

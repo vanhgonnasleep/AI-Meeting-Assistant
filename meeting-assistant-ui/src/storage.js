@@ -9,6 +9,7 @@ export function buildMeetingSavePayload({ saveKey, filename, result, completedTa
     duration: result.duration ?? null, language: result.language || null,
     segments: result.segments || [], insights: result.insights || {},
     action_items: getExportTasks(tasks, completedTasks).map(item => ({ task: item.task,
-      assignee: item.assignee || 'Unassigned', deadline: item.deadline || null, status: item.status })),
+      assignee: item.assignee || 'Unassigned', deadline: item.deadline || null,
+      deadline_iso: item.deadline_iso || null, status: item.status })),
     chat_history: normalizeChatMessages(chatMessages).slice(-200) };
 }

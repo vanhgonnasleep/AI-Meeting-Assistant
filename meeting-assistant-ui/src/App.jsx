@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { 
   normalizeCitation, 
@@ -20,7 +20,6 @@ import {
   startHealthPolling, 
   buildProcessingQuery 
 } from './upload.js';
-import Overview from './Overview.jsx';
 import MeetingLibrary from './MeetingLibrary.jsx';
 import { 
   canOpenAnotherMeeting, 
@@ -32,7 +31,6 @@ import {
 import { buildMeetingSavePayload } from './storage.js';
 import Sidebar from './Sidebar.jsx';
 import CommandCenter from './CommandCenter.jsx';
-import DocumentWorkspace from './DocumentWorkspace.jsx';
 import LandingPage from './LandingPage.jsx';
 import { readChatStream } from './chat-stream.js';
 import { useMobileViewport } from './mobile-viewport.js';
@@ -49,6 +47,8 @@ import {
 } from 'lucide-react';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002').replace(/\/$/, '');
+const DocumentWorkspace = lazy(() => import('./DocumentWorkspace.jsx'));
+const Overview = lazy(() => import('./Overview.jsx'));
 
 const getDefaultChatGreeting = (currResult) => {
   if (!currResult) return [];
@@ -160,6 +160,7 @@ function App() {
   const [libraryFilters, setLibraryFilters] = useState({ project: '', days: '', sort: 'newest' });
   const libraryFiltersRef = useRef(libraryFilters);
   const sessionVersion = useRef(0);
+  const [recordingSession, setRecordingSession] = useState(0);
   const audioRef = useRef(null);
 
   // Keyboard shortcut listener (Ctrl+B / Cmd+B for sidebar, Ctrl+N for new meeting)
@@ -193,6 +194,7 @@ function App() {
 
   const invalidateSession = (preserveResultMetadata = false) => {
     sessionVersion.current += 1;
+    setRecordingSession(sessionVersion.current);
     processGate.current.cancel();
     chatGate.current.cancel();
     detailGate.current.cancel();
@@ -1136,6 +1138,7 @@ ${result.transcript || ""}
 
         {/* Dynamic Page Content */}
         <main className="workspace-main flex-1 p-4 md:p-8 pb-32 overflow-y-auto">
+          <Suspense fallback={<p role="status" className="p-6 text-sm text-slate-600">Loading workspace…</p>}>
           {page === 'overview' ? (
             <Overview
               apiBase={API_BASE}
@@ -1242,10 +1245,12 @@ ${result.transcript || ""}
               onStopWaiting={() => { invalidateSession(); setErrorMessage('Stopped waiting. Processing may continue on the server; check History later.'); }}
             />
           )}
+          </Suspense>
         </main>
 
         {/* 3. FLOATING FROSTED-GLASS COMMAND CENTER DOCK */}
         <CommandCenter
+          key={recordingSession}
           onSendChatMessage={handleSendChatMessage}
           chatMessages={chatMessages}
           isNavigationOpen={isMobile && !isSidebarCollapsed}
@@ -1253,6 +1258,8 @@ ${result.transcript || ""}
           isBusy={isProcessing || isContentSaving || showEditor || Boolean(speakerRename)}
           onClearChat={handleClearChat}
           onRecordedAudio={(recordedFile) => {
+            // Invalidation is synchronous; cleanup follows the keyed remount.
+            if (recordingSession !== sessionVersion.current) return;
             if (!canOpenMeeting || contentMutations.current.isLocked()) return;
             handleReset();
             selectRecording(recordedFile);

@@ -797,6 +797,8 @@ def transcribe_chunk_endpoint(file: UploadFile = File(...), whisper_model: Whisp
         raise HTTPException(413, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(503, 'Speech recognition is unavailable. Check the local Whisper model and FFmpeg installation.') from exc
 
 
 @app.get("/api/meetings")
@@ -1101,8 +1103,6 @@ def stream_chat_endpoint(payload: ChatMessageRequest):
                     ], expected_generation=record.chat_generation)
                     if not saved:
                         event = {'done': True, 'error': 'Meeting changed during this answer. Please ask again.', 'citations': []}
-                    else:
-                        event['chat_history'] = crud.get_chat_history(int(record.id)) or []
                 yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
         except Exception:
             yield 'data: ' + json.dumps({'done': True, 'error': 'Chat stream failed. Please retry.', 'citations': []}) + '\n\n'
