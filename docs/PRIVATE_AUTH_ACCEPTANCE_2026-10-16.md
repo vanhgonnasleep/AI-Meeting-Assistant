@@ -2,6 +2,8 @@
 
 This completes the implementation follow-up to the [stability audit](AUDIT_STABILITY_2026-10-16.md): private Google/GitHub sign-in, organized source folders, patched frontend tooling and actual Docker verification. Integration is local; no remote push or external account provisioning is included.
 
+Merged into local `main` as `9d0e7fa`. Verification on that merged tree again passed all 312 model-enabled backend tests and all 116 frontend tests, lint, production build and the complete npm audit (zero vulnerabilities). The backend emitted one upstream Starlette/AnyIO deprecation warning. Post-merge logs are `%TEMP%/clarion-main-backend.log` and `%TEMP%/clarion-main-frontend.log`.
+
 ## Delivered
 
 - Server-side Google/GitHub authorization-code flow with PKCE S256, fixed provider identity endpoints, browser-bound single-use state and opaque sessions. Google requests only identity/email/profile; GitHub requests profile/email. Provider access tokens are not persisted.

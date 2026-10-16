@@ -49,4 +49,6 @@
 ### 5. Verification and integration
 - [x] Run isolated Compose build/start, nginx/API/SSE/audio checks and persistence restart when Docker is available.
 - [x] Run full model-enabled backend, lightweight backend, frontend tests/lint/build/dependency audit and browser flows.
-- [ ] Review integration, fix validated findings, update benchmark/report and integrate locally. Report exact remaining owner/environment prerequisites.
+- [x] Review integration, fix validated findings, update benchmark/report and integrate locally. Report exact remaining owner/environment prerequisites.
+
+Completed locally on `main` through merge `9d0e7fa`. Post-merge verification: 312 backend tests passed with model integration, 116 frontend tests passed, lint/build succeeded and the complete npm audit reported zero vulnerabilities. See [the acceptance report](../../PRIVATE_AUTH_ACCEPTANCE_2026-10-16.md). Real external provider consent still requires owner-created OAuth clients configured through the private `.env`; no production bypass is provided.
