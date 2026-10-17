@@ -23,6 +23,7 @@ import requests
 from app.pipeline.mmr import MMRExtractor
 from app.fixtures.demo import demo_answer
 from app.pipeline.semantic_retrieval import hybrid_retrieve
+from database.transcript_quality import needs_review
 
 
 def _extract_query_tokens(text: str) -> List[str]:
@@ -67,7 +68,7 @@ def _source_chunks(
     # 1. Use timestamped segments if available
     if segments and len(segments) > 0:
         for idx, seg in enumerate(segments):
-            if not isinstance(seg, dict):
+            if not isinstance(seg, dict) or needs_review(seg):
                 continue
             text = str(seg.get("text") or "").strip()
             if not text:
@@ -84,7 +85,7 @@ def _source_chunks(
                 "end": seg.get("end"),
                 "text": text
             })
-    if not chunks and transcript and transcript.strip():
+    if not chunks and transcript and transcript.strip() and not any(needs_review(seg) for seg in segments or []):
         # Fallback to sentence split
         sentences = MMRExtractor.split_into_sentences(transcript)
         for idx, s in enumerate(sentences):

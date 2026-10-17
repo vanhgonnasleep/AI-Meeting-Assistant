@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { createServer } from 'vite';
 
-let server, dom, React, createRoot, App, AuthGate, Library, apiClient;
+let server, dom, React, createRoot, App, AuthGate, Library, apiClient, TranscriptReview, CommandCenter;
 const session = { mode: 'private', user: { id: 'fixture-a', name: 'Fixture A' }, csrf_token: 'fixture-csrf', providers: { google: true } };
 const meeting = { id: 14, filename: 'Fixture.wav', revision: 7, raw_transcript: 'Review the fixture.',
   executive_summary: 'Fixture summary', segments: [], insights: {}, chat_history: [],
@@ -41,6 +41,8 @@ before(async () => {
   ({ default: App } = await server.ssrLoadModule('/src/app/App.jsx'));
   ({ default: AuthGate } = await server.ssrLoadModule('/src/features/auth/AuthGate.jsx'));
   ({ default: Library } = await server.ssrLoadModule('/src/features/meetings/MeetingLibrary.jsx'));
+  ({ default: TranscriptReview } = await server.ssrLoadModule('/src/features/meetings/TranscriptReview.jsx'));
+  ({ default: CommandCenter } = await server.ssrLoadModule('/src/features/chat/CommandCenter.jsx'));
   ({ apiClient } = await server.ssrLoadModule('/src/features/auth/api-client.js'));
 });
 after(async () => { await server?.close(); dom?.window.close(); });
@@ -51,6 +53,33 @@ async function mount(Component, props = {}) {
   await React.act(async () => root.render(React.createElement(Component, props)));
   return { container, async close() { await React.act(async () => root.unmount()); container.remove(); } };
 }
+
+test('speech review exposes explicit confirmation and no-speech actions without mutating the source', async () => {
+  const segment = { text: 'ni '.repeat(40), start: 2, end: 5, timestamp: '[00:02 - 00:05]', quality: { status: 'needs_review', reasons: ['repetition'] } };
+  const calls = [];
+  const view = await mount(TranscriptReview, { segments: [segment], audioUrl: 'blob:fixture',
+    onReviewPassage: (...args) => calls.push(args), onSeekAudio: seconds => calls.push(['seek', seconds]) });
+  try {
+    const button = text => [...view.container.querySelectorAll('button')].find(item => item.textContent === text);
+    assert.equal(button('Save correction').disabled, true);
+    await click(button('Listen to passage'));
+    await click(button('Keep these words'));
+    await click(button('No speech here'));
+    assert.deepEqual(calls, [['seek', 2], [0, segment.text], [0, '']]);
+    assert.equal(segment.quality.status, 'needs_review');
+  } finally { await view.close(); }
+});
+
+test('closing the floating assistant restores focus to its launcher and makes no false online claim', async () => {
+  const view = await mount(CommandCenter);
+  try {
+    const launcher = view.container.querySelector('button[aria-label="Open AI assistant chat bubble"]');
+    await click(launcher);
+    await click(view.container.querySelector('[aria-label="Close chat window"]'));
+    assert.equal(document.activeElement === launcher, true, 'Focus should return to the chat launcher');
+    assert.equal(view.container.querySelector('[title="Online"]'), null);
+  } finally { await view.close(); }
+});
 
 test('sign-in retry has visible progress and disappears when sign-in becomes available', async () => {
   window.history.replaceState({}, '', '/#/signin');

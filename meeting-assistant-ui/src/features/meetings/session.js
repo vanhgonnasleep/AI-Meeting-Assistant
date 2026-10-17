@@ -15,9 +15,9 @@ export { createRequestGate } from '../../shared/lib/request-gate.js';
 // Topics come from the current source text, not unverified generated summaries/tasks.
 export function getSuggestedPrompts(result) {
   const segments = Array.isArray(result?.segments) ? result.segments : [];
-  let texts = segments.map(segment => typeof segment?.text === 'string' ? segment.text : '').filter(text => text.trim());
+  let texts = segments.filter(segment => !needsSpeechReview(segment)).map(segment => typeof segment?.text === 'string' ? segment.text : '').filter(text => text.trim());
   const fromSegments = texts.length > 0;
-  if (!texts.length && typeof result?.transcript === 'string') texts = [result.transcript];
+  if (!texts.length && !segments.some(needsSpeechReview) && typeof result?.transcript === 'string') texts = [result.transcript];
   const seen = new Set();
   const candidates = [];
   for (const text of texts) {
@@ -76,7 +76,7 @@ export function resultFromMeeting(meeting) {
     .filter(segment => segment && typeof segment === 'object').map(segment => ({ ...segment, text: String(segment.text ?? '') }));
   return {
     revision: meeting.revision || 0, review_status: meeting.review_status || 'draft', project_id: meeting.project_id ?? null,
-    transcript: text(meeting.raw_transcript), summary: text(meeting.executive_summary),
+    transcript: segments.some(needsSpeechReview) ? speechTranscript(segments) : text(meeting.raw_transcript), summary: text(meeting.executive_summary),
     action_items: Array.isArray(meeting.action_items) ? meeting.action_items.map(item => item && typeof item === 'object' && !Array.isArray(item)
       ? { ...item, task: text(item.task), assignee: text(item.assignee), deadline: text(item.deadline) } : { task: text(item), status: 'pending' }) : [],
     insights: { ...insights, ...Object.fromEntries(['decisions', 'risks', 'open_questions'].map(key => [key, objects(insights[key]).map(item => ({ ...item, text: text(item.text) }))])) },
@@ -110,8 +110,27 @@ export function editSpeakerAttribution(result, oldName, newName, segmentIndex = 
   const segments = (result.segments || []).map((segment, index) =>
     segment.speaker === oldName && (segmentIndex === null || index === segmentIndex) ? { ...segment, speaker: newName } : segment);
   return { ...result, segments, speakers: [...new Set(segments.map(segment => segment.speaker).filter(Boolean))],
-    transcript: segments.filter(segment => segment.text?.trim()).map(segment => `${segment.timestamp || ''} ${segment.speaker || 'Speaker'}: ${segment.text}`.trim()).join('\n'),
+    transcript: speechTranscript(segments),
     insights: Object.fromEntries(Object.entries(result.insights || {}).map(([key, items]) => [key, Array.isArray(items) ? items.map(evidence) : items])),
     chat_history: (result.chat_history || []).map(message => ({ ...message, citations: (message.citations || []).map(evidence) })),
   };
+}
+
+export const needsSpeechReview = segment => segment?.quality?.status === 'needs_review';
+export const speechDisplayText = segment => needsSpeechReview(segment) ? '[Unclear speech - review audio]' : String(segment?.text || '');
+export const speechTranscript = segments => segments.filter(segment => speechDisplayText(segment).trim())
+  .map(segment => `${segment.timestamp || ''} ${segment.speaker ? `${segment.speaker}: ` : ''}${speechDisplayText(segment)}`.trim()).join('\n');
+
+export function correctedSpeechSegment(segment, text) {
+  if (typeof text !== 'string' || text.length > 4000) throw new Error('A passage must contain at most 4000 characters.');
+  return { ...segment, text, ...(segment.quality ? {
+    quality: { ...segment.quality, status: 'reviewed', original_text: segment.quality.original_text ?? segment.text },
+  } : {}) };
+}
+
+export function reviewPassage(result, index, text) {
+  if (!needsSpeechReview(result?.segments?.[index])) throw new Error('This passage is no longer awaiting review.');
+  const segments = result.segments.map((segment, position) => position === index ? correctedSpeechSegment(segment, typeof text === 'string' ? text.trim() : text) : segment);
+  return { ...result, segments, transcript: speechTranscript(segments), summary: '', action_items: [],
+    insights: { decisions: [], risks: [], open_questions: [] }, chat_history: [], review_status: 'draft' };
 }

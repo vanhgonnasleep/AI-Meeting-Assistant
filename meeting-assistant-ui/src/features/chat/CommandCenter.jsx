@@ -1,6 +1,6 @@
 import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
 import { microphoneMessage } from '../../shared/lib/user-errors.js';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Mic, 
   Square, 
@@ -62,6 +62,8 @@ export default function CommandCenter({
   const onRecordedAudioRef = useRef(onRecordedAudio);
   const chatScrollRef = useRef(null);
   const inputRef = useRef(null);
+  const launcherRef = useRef(null);
+  const closeChat = useCallback(() => { setIsOpen(false); launcherRef.current?.focus(); }, []);
 
   // Auto-scroll chat to bottom on new messages
   useEffect(() => {
@@ -81,12 +83,12 @@ export default function CommandCenter({
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
+        closeChat();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, closeChat]);
 
   useEffect(() => { onRecordedAudioRef.current = onRecordedAudio; }, [onRecordedAudio]);
 
@@ -142,6 +144,7 @@ export default function CommandCenter({
         {/* Floating Chat Pop-up Window (Anchored above bubble on the right) */}
         {isOpen && (
           <div 
+            id="clarion-assistant-panel"
             className="clarion-chat-popup mb-3 w-[calc(100vw-32px)] sm:w-[410px] md:w-[430px] h-[550px] max-h-[calc(100dvh-125px)] bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-3xl shadow-2xl shadow-indigo-950/20 flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 origin-bottom-right"
           >
             {/* Header */}
@@ -153,7 +156,7 @@ export default function CommandCenter({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-xs font-bold text-slate-900 tracking-tight truncate">AI Meeting Assistant</h3>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" title="Online" />
+                    <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" aria-hidden="true" />
                   </div>
                   <p className="text-[11px] text-slate-500 truncate">
                     {isMeetingLoaded ? 'Grounded in meeting transcript' : 'Ready to record & analyze'}
@@ -176,7 +179,7 @@ export default function CommandCenter({
                 )}
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
+                  onClick={closeChat}
                   aria-label="Minimize chat bubble"
                   className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
                   title="Minimize (Esc)"
@@ -185,7 +188,7 @@ export default function CommandCenter({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
+                  onClick={closeChat}
                   aria-label="Close chat window"
                   className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
                   title="Close (Esc)"
@@ -429,15 +432,17 @@ export default function CommandCenter({
           {/* Subtle Hover Tooltip / Hint when closed */}
           {!isOpen && !isRecording && (
             <div className="pointer-events-none absolute right-full mr-3 whitespace-nowrap px-3 py-1.5 rounded-2xl bg-slate-900/90 backdrop-blur-md text-white text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5">
-              <span>Hỏi AI về cuộc họp</span>
+              <span>Ask about this meeting</span>
               <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
             </div>
           )}
 
           <button
+            ref={launcherRef}
             type="button"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => isOpen ? closeChat() : setIsOpen(true)}
             aria-expanded={isOpen}
+            aria-controls="clarion-assistant-panel"
             aria-label={isOpen ? "Close AI assistant" : "Open AI assistant chat bubble"}
             className={`clarion-chat-head w-14 h-14 sm:w-15 sm:h-15 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border-2 border-white/50 relative ${
               isRecording 
@@ -471,7 +476,7 @@ export default function CommandCenter({
 
             {/* Online Status Green Indicator Dot */}
             {!isOpen && !isRecording && (
-              <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow-xs" title="AI Ready" />
+              <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-indigo-300 border-2 border-white rounded-full shadow-xs" aria-hidden="true" />
             )}
 
             {/* Unread message count badge */}

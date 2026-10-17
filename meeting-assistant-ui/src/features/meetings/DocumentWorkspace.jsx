@@ -1,5 +1,7 @@
 // ─── 1. Imports & Style Constants ──────────────────────────────────────────
 import { useState } from 'react';
+import TranscriptReview from './TranscriptReview.jsx';
+import { speechDisplayText } from './session.js';
 import LazyPanel from '../../shared/ui/LazyPanel.jsx';
 import { 
   FileText, 
@@ -114,6 +116,8 @@ export default function DocumentWorkspace({
   updatingTasks = {},
   onToggleTask,
   onSeekAudio,
+  onReviewPassage,
+  onAttachReviewAudio,
   onCopyAll,
   isCopied,
   onCopySummary,
@@ -895,7 +899,7 @@ export default function DocumentWorkspace({
                       if (audioUrl && secs !== null) onSeekAudio(secs);
                     }}
                   >
-                    {seg.text}
+                    {speechDisplayText(seg)}
                   </p>
                 </div>
               </div>
@@ -1091,6 +1095,8 @@ export default function DocumentWorkspace({
         )}
 
         {/* Interactive Audio Sync Player */}
+        <TranscriptReview segments={result?.segments} audioUrl={audioUrl} onSeekAudio={onSeekAudio}
+          onReviewPassage={onReviewPassage} onAttachReviewAudio={onAttachReviewAudio} busy={isContentSaving} />
         {audioUrl && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 px-4 rounded-2xl bg-white/60 backdrop-blur-xl border border-slate-200 shadow-xs">
             <div className="flex items-center gap-2.5 w-full sm:w-auto">

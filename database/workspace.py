@@ -5,6 +5,7 @@ import sqlite3
 from .db import get_connection
 from .crud import row_to_meeting, action_items_to_json, _load_json_column
 from .models import empty_insights, INSIGHT_CATEGORIES
+from .transcript_quality import needs_review, transcript_from_segments
 
 
 class WorkspaceError(Exception):
@@ -31,14 +32,7 @@ def source_snapshot(meeting_id, expected_revision):
 
 
 def _transcript_from_segments(segments):
-    lines = []
-    for segment in segments:
-        text = segment.get("text", "")
-        timestamp = segment.get("timestamp") or ""
-        speaker = segment.get("speaker") or ""
-        prefix = " ".join(str(value).strip() for value in (timestamp, f"{speaker}:" if speaker else "") if value)
-        lines.append(f"{prefix} {text}".strip() if prefix else text)
-    return "\n".join(lines)
+    return transcript_from_segments(segments, attributed=True)
 
 
 def _edited_insights(value):
@@ -73,6 +67,8 @@ def review_meeting(meeting_id, expected_revision, review_status, **changes):
             record.insights = empty_insights()
             record.chat_history = []
             record.chat_generation += 1
+            record.executive_summary = ''
+            record.action_items = []
         if "executive_summary" in changes:
             record.executive_summary = changes["executive_summary"]
         if "action_items" in changes:
@@ -83,6 +79,8 @@ def review_meeting(meeting_id, expected_revision, review_status, **changes):
         after = record.to_dict()
         content_changed = source_changed or any(before[key] != after[key] for key in ("executive_summary", "action_items", "insights"))
         record.review_status = "draft" if content_changed else review_status
+        if record.review_status == 'reviewed' and any(needs_review(segment) for segment in record.segments):
+            raise WorkspaceError(422, 'Review uncertain transcript passages before marking this meeting reviewed.')
         if content_changed or record.review_status != before["review_status"]:
             connection.execute("""UPDATE meetings SET raw_transcript=?, segments=?, executive_summary=?, action_items=?,
                 insights=?, chat_history=?, chat_generation=?, revision=revision+1, review_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?""", (

@@ -112,6 +112,11 @@ export function microphoneMessage(error) {
 }
 
 export function warningMessage(warning) {
+  if (/audio needs review|language detection/i.test(String(warning))) {
+    return /language detection/i.test(String(warning))
+      ? 'The spoken language may have been detected incorrectly. Choose the language and process again if the words look wrong.'
+      : 'Some audio needs review. Check the highlighted passages before using or sharing the meeting notes.';
+  }
   if (/could not be saved|not.*saved|save.*failed/i.test(String(warning))) {
     return 'Your meeting notes are ready, but saving wasn’t confirmed. Export your notes before leaving this page.';
   }

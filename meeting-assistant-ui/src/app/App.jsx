@@ -7,7 +7,6 @@ import { PanelLeftOpen, PanelLeftClose, Play, Compass } from 'lucide-react';
 import Sidebar from './Sidebar.jsx';
 import CommandCenter from '../features/chat/CommandCenter.jsx';
 import LandingPage from '../features/landing/LandingPage.jsx';
-import MeetingLibrary from '../features/meetings/MeetingLibrary.jsx';
 import MeetingEditor from '../features/meetings/MeetingEditor.jsx';
 import Workspace, { WorkspaceDialog } from '../features/workspace/Workspace.jsx';
 import LazyPanel from '../shared/ui/LazyPanel.jsx';
@@ -32,6 +31,7 @@ import {
   buildChatPayload,
   getExportTasks
 } from '../features/meetings/session.js';
+import { reviewPassage, speechDisplayText } from '../features/meetings/session.js';
 import { buildMeetingSavePayload } from '../features/meetings/storage.js';
 import {
   DEFAULT_UPLOAD_LIMITS,
@@ -46,6 +46,7 @@ import { userMessage, warningMessage } from '../shared/lib/user-errors.js';
 import { useMobileViewport } from '../shared/hooks/mobile-viewport.js';
 
 const loadDocumentWorkspace = () => import('../features/meetings/DocumentWorkspace.jsx');
+const loadMeetingLibrary = () => import('../features/meetings/MeetingLibrary.jsx');
 const loadOverview = () => import('../features/overview/Overview.jsx');
 const workspaceLoading = <p role="status" className="p-6 text-sm text-slate-600">Loading workspace…</p>;
 
@@ -130,6 +131,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
   const [completedTasks, setCompletedTasks] = useState({});
   const [updatingTasks, setUpdatingTasks] = useState({});
   const [isSpeakerSaving, setIsSpeakerSaving] = useState(false);
+  const [isReviewSaving, setIsReviewSaving] = useState(false);
   const [speakerRename, setSpeakerRename] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
   const [summaryCopied, setSummaryCopied] = useState(false);
@@ -209,6 +211,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
 
   // ─── 9. Session Reset & File Selection ──────────────────────────────────────
   const invalidateSession = (preserveResultMetadata = false) => {
+    setIsReviewSaving(false);
     sessionVersion.current += 1;
     setRecordingSession(sessionVersion.current);
     processGate.current.cancel();
@@ -348,6 +351,49 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     setSpeakerFilter('all');
     setTranscriptView(updated.segments.length ? 'segments' : 'raw');
     setErrorMessage(null);
+    setWarnings([]);
+  };
+
+  const handleReviewPassage = async (index, text) => {
+    if (!result || isProcessing || isChatLoading || showEditor || speakerRename) return;
+    const release = contentMutations.current.tryAcquire();
+    if (!release) return;
+    const request = saveGate.current.begin();
+    setIsReviewSaving(true);
+    try {
+      const updated = reviewPassage(result, index, text);
+      if (currentMeetingId) {
+        const response = await apiFetch(`${API_BASE}/api/meetings/${currentMeetingId}/review`, {
+          method: 'PATCH', signal: request.signal, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_revision: result.revision || 0, review_status: 'draft', segments: updated.segments }),
+        });
+        const data = await response.json();
+        if (!request.isCurrent()) return;
+        handleUpdatedMeeting(data.meeting);
+      } else {
+        if (!request.isCurrent()) return;
+        invalidateSession(true);
+        setResult(updated);
+        setChatMessages(getDefaultChatGreeting(updated));
+        setCompletedTasks({}); setWarnings([]); setMmrTelemetry(null); setTranscriptView('segments');
+      }
+      notify('Passage reviewed. Outdated notes were cleared; regenerate the summary after checking the transcript.');
+    } catch (error) {
+      if (request.isCurrent()) notify(userMessage(error, 'save'), 'error');
+    } finally {
+      release(); setIsReviewSaving(false);
+    }
+  };
+
+  const handleAttachReviewAudio = recording => {
+    if (contentMutations.current.isLocked() || isProcessing) return;
+    const expectedName = file?.name || meetingTitle;
+    if (!recording?.size || (expectedName && recording.name !== expectedName)) {
+      notify('Choose this meeting’s original recording, with the same filename. It will stay on this device.', 'error');
+      return;
+    }
+    setAudioUrl(URL.createObjectURL(recording));
+    notify('Recording attached on this device. Check it matches the meeting before correcting words.');
   };
 
   const handleDeletePastMeeting = async (id, e) => {
@@ -758,7 +804,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     const items = result.action_items || [];
     let transcriptBlock = result.transcript || "";
     if (result.segments && result.segments.some(s => s.speaker)) {
-      transcriptBlock = result.segments.map(s => `**${s.speaker}** (${s.timestamp || ''}): ${s.text}`).join('\n\n');
+      transcriptBlock = result.segments.map(s => `**${s.speaker}** (${s.timestamp || ''}): ${speechDisplayText(s)}`).join('\n\n');
     }
 
     let insightsBlock = "";
@@ -986,7 +1032,7 @@ ${result.transcript || ""}
   };
 
   // ─── 16. Shell Composition & Page Rendering ────────────────────────────────
-  const isContentSaving = loadingMeetingId !== null || isSavingMeeting || isSpeakerSaving || Object.values(updatingTasks).some(Boolean);
+  const isContentSaving = loadingMeetingId !== null || isSavingMeeting || isSpeakerSaving || isReviewSaving || Object.values(updatingTasks).some(Boolean);
   const canOpenMeeting = canOpenAnotherMeeting({ processing: isProcessing, saving: isContentSaving, editing: showEditor || Boolean(speakerRename) });
 
   const handleNewMeeting = () => {
@@ -1137,7 +1183,8 @@ ${result.transcript || ""}
             />}
             </LazyPanel>
           ) : page === 'meetings' ? (
-            <MeetingLibrary
+            <LazyPanel key="library" load={loadMeetingLibrary} name="your meeting library" fallback={workspaceLoading}>
+            {MeetingLibrary => <MeetingLibrary
               apiBase={API_BASE}
               meetings={meetingsHistory}
               total={historyTotal}
@@ -1160,7 +1207,8 @@ ${result.transcript || ""}
                 setLoadingHistory(true);
                 setLibraryFilters(filters);
               }}
-            />
+            />}
+            </LazyPanel>
           ) : page === 'tasks' || page === 'projects' ? (
             <Workspace
               key={page}
@@ -1189,6 +1237,8 @@ ${result.transcript || ""}
               updatingTasks={updatingTasks}
               onToggleTask={toggleTask}
               onSeekAudio={handleSeekAudio}
+              onReviewPassage={handleReviewPassage}
+              onAttachReviewAudio={handleAttachReviewAudio}
               onCopyAll={handleCopyResult}
               isCopied={isCopied}
               onCopySummary={handleCopySummary}

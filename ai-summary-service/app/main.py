@@ -28,6 +28,7 @@ from app.pipeline.summarization import AIServiceError, generate_failsafe_summary
 from app.api.schemas.chat import ChatMessageRequest
 from app.api.schemas.meetings import MeetingUpdateRequest, SpeakerEditRequest, TaskStatusUpdateRequest
 from app.api.schemas.identifiers import StoredId, SQLITE_MAX_INTEGER
+from database.transcript_quality import needs_review, trusted_transcript
 
 # Dynamic Integration with Team Modules (Plug-and-Play)
 try:
@@ -518,6 +519,7 @@ def process_audio(
         segments = []
         speakers = []
         stt_error = None
+        stt_warnings = []
         stt_model_name = whisper_model or ("tiny" if not has_gpu else "base")
 
         if transcribe_audio_detailed is not None:
@@ -535,6 +537,8 @@ def process_audio(
                 transcript = detailed_res.get("text", "")
                 duration = detailed_res.get("duration", 0.0)
                 detected_language = detailed_res.get("language", "auto")
+                if not language and detected_language not in {'en', 'vi', 'auto', None, ''}:
+                    stt_warnings.append('Automatic language detection may need checking. Choose the spoken language and process again if the transcript looks incorrect.')
                 segments = detailed_res.get("segments", [])
                 speakers = detailed_res.get("speakers", [])
                 if diarize and detailed_res.get("diarized_transcript"):
@@ -573,12 +577,20 @@ def process_audio(
                 detail="No clear speech could be transcribed from the uploaded audio file. Please check the file audio."
             )
 
+        # Recognition evidence stays available for review, while generated
+        # outputs use only source passages that do not require review.
+        analysis_transcript = trusted_transcript(transcript, segments)
+        trusted_segments = [segment for segment in segments if not needs_review(segment)]
+        recognition_warnings = stt_warnings
+        if len(trusted_segments) != len(segments):
+            recognition_warnings.append('Some audio needs review. Meeting notes may be incomplete until those passages are checked.')
+
         # 1.5. ALGORITHMIC PHASE: Maximal Marginal Relevance (MMR) Redundancy Filter
         mmr_telemetry = None
-        condensed_transcript = transcript
-        if enable_mmr and filter_meeting_transcript is not None:
+        condensed_transcript = analysis_transcript
+        if analysis_transcript.strip() and enable_mmr and filter_meeting_transcript is not None:
             condensed_transcript, mmr_telemetry = filter_meeting_transcript(
-                transcript,
+                analysis_transcript,
                 target_ratio=mmr_ratio,
                 lambda_param=mmr_lambda
             )
@@ -588,12 +600,16 @@ def process_audio(
         # 2. AGENT 2: Summarization (Lương Việt Anh - Core Llama 3 Map-Reduce)
         word_count = len(condensed_transcript.split())
         print(f"Agent 2 is summarizing {word_count} words via {selected_model} (Language: {detected_language})...")
-        warnings = []
+        warnings = recognition_warnings
         summary_mode = "llm"
         try:
-            summary = summarize_with_llama(condensed_transcript, model_name=selected_model, has_gpu=has_gpu, language=detected_language)
+            if not analysis_transcript.strip():
+                summary = ''
+                summary_mode = 'needs_review'
+            else:
+                summary = summarize_with_llama(condensed_transcript, model_name=selected_model, has_gpu=has_gpu, language=detected_language)
         except AIServiceError:
-            summary = generate_failsafe_summary(transcript)
+            summary = generate_failsafe_summary(analysis_transcript)
             summary_mode = "transcript_excerpt"
             warnings.append("AI summary unavailable. Showing a transcript excerpt; verify it before use.")
 
@@ -601,10 +617,10 @@ def process_audio(
         action_items = None
         if extract_action_items is not None and summary_mode == "llm":
             try:
-                agent3_context = f"Executive Meeting Summary:\n{summary}\n\nTranscript Excerpt:\n{' '.join(transcript.split()[:2000])}"
+                agent3_context = f"Executive Meeting Summary:\n{summary}\n\nTranscript Excerpt:\n{' '.join(analysis_transcript.split()[:2000])}"
                 action_items = extract_action_items(agent3_context, model_name=selected_model)
             except TypeError:
-                action_items = extract_action_items(transcript)
+                action_items = extract_action_items(analysis_transcript)
             except NotImplementedError:
                 print("[Info] Agent 3 is under development by Nguyễn Quang Minh.")
             except Exception as e:
@@ -613,7 +629,7 @@ def process_audio(
         # Fallback to deterministic heuristic extractor if LLM produced no items
         if not action_items and extract_action_items_heuristic is not None:
             try:
-                action_items = extract_action_items_heuristic(transcript)
+                action_items = extract_action_items_heuristic(analysis_transcript)
             except Exception as e:
                 print(f"[Warning] Heuristic action item extraction fallback error: {e}")
 
@@ -623,13 +639,13 @@ def process_audio(
         # 3.5. AGENT 5: Key Decisions & Risk Intelligence (Lương Việt Anh)
         insights = {"decisions": [], "risks": [], "open_questions": []}
         if summary_mode != "llm" and extract_insights_heuristic is not None:
-            insights = extract_insights_heuristic(transcript, segments=segments)
-        elif extract_insights is not None:
+            insights = extract_insights_heuristic(analysis_transcript, segments=trusted_segments)
+        elif extract_insights is not None and analysis_transcript.strip():
             try:
                 insights = extract_insights(
-                    transcript,
+                    analysis_transcript,
                     summary=summary,
-                    segments=segments,
+                    segments=trusted_segments,
                     model_name=selected_model,
                     has_gpu=has_gpu,
                     language=detected_language or "en"
@@ -637,7 +653,7 @@ def process_audio(
             except Exception as e:
                 print(f"[Warning] Insights extraction error: {e}")
                 if extract_insights_heuristic is not None:
-                    insights = extract_insights_heuristic(transcript, summary=summary, segments=segments)
+                    insights = extract_insights_heuristic(analysis_transcript, summary=summary, segments=trusted_segments)
 
         # 4. DATABASE: Persist Meeting Record to SQLite (Đoàn Hoàng Long)
         saved_meeting_id = None

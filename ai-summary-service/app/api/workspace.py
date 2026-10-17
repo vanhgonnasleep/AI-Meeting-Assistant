@@ -11,6 +11,7 @@ from app.api.schemas.workspace import (
 )
 
 from database import workspace
+from database.transcript_quality import trusted_transcript
 from app.api.schemas.identifiers import StoredId, SQLITE_MAX_INTEGER
 
 
@@ -46,7 +47,8 @@ def create_workspace_router(summary_function, model_resolver=None, hardware_dete
     @router.post("/meetings/{meeting_id}/regenerate-summary")
     def regenerate(meeting_id: StoredId, payload: RegenerateRequest):
         snapshot = _call(workspace.source_snapshot, meeting_id, payload.expected_revision)
-        if not snapshot.raw_transcript.strip():
+        source = trusted_transcript(snapshot.raw_transcript, snapshot.segments)
+        if not source.strip():
             raise HTTPException(422, "This meeting has no transcript to summarize.")
         if len(snapshot.raw_transcript) > 1_000_000:
             raise HTTPException(422, "Transcript exceeds the summary input limit.")
@@ -54,7 +56,7 @@ def create_workspace_router(summary_function, model_resolver=None, hardware_dete
             hardware = hardware_detector() if hardware_detector else None
             has_gpu = bool(hardware[1]) if isinstance(hardware, tuple) else bool(hardware)
             selected_model = model_resolver(payload.model, has_gpu=has_gpu) if model_resolver else ("llama3" if payload.model == "auto" else payload.model)
-            summary = summary_function(snapshot.raw_transcript, model_name=selected_model, has_gpu=has_gpu, language=snapshot.language or "en")
+            summary = summary_function(source, model_name=selected_model, has_gpu=has_gpu, language=snapshot.language or "en")
         except Exception as exc:
             raise HTTPException(503, "Summary generation is unavailable. Your saved meeting was preserved.") from exc
         if not isinstance(summary, str) or not summary.strip() or len(summary) > 50_000:

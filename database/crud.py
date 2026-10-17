@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from .db import get_connection, init_db
 from .models import MeetingRecord, ActionItem, INSIGHT_CATEGORIES, empty_insights
 from .deadlines import normalize_deadline_to_iso
+from .transcript_quality import mark_recognition
 from .voiceprints import upsert_speaker_profile, get_speaker_profiles, match_speaker_profile, normalized_embedding, _upsert_speaker_profile
 
 
@@ -96,6 +97,12 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
     except Exception:
         pass
 
+    segments = _load_json_column(row, 'segments', [])
+    # Derive review annotations for legacy draft recordings without migrating or
+    # replacing their stored text. Human-reviewed source remains authoritative.
+    if 'review_status' not in row.keys() or row['review_status'] != 'reviewed':
+        segments = [mark_recognition(segment) if isinstance(segment, dict) and not segment.get('quality') else segment
+                    for segment in segments]
     return MeetingRecord(
         filename=row["filename"],
         raw_transcript=row["raw_transcript"] or "",
@@ -106,7 +113,7 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
         language=language,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
-        segments=_load_json_column(row, "segments", []),
+        segments=segments,
         insights=_load_json_column(row, "insights", {}),
         chat_history=_load_json_column(row, "chat_history", []),
         chat_generation=row["chat_generation"] if "chat_generation" in row.keys() else 0,

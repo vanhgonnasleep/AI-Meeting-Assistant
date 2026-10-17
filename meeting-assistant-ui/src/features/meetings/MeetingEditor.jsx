@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRequestGate } from '../../shared/lib/request-gate.js';
 import { applyEditorResponse, buildReviewPayload, buildReviewStatusPayload, workspaceRequest } from '../workspace/workspace.js';
 import { WorkspaceDialog } from '../workspace/Workspace.jsx';
+import { correctedSpeechSegment } from './session.js';
 
 const inputStyle = 'w-full rounded-xl bg-slate-50 border border-slate-300 p-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-400';
 const buttonStyle = 'rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-800 hover:bg-slate-200 disabled:opacity-40';
@@ -59,7 +60,8 @@ export default function MeetingEditor({ apiBase, meetingId, model = 'auto', onCl
     } catch (failure) { if (request.isCurrent()) setState(previous => applyEditorResponse(previous, { error: failure })); }
   };
   const change = (field, value) => { setNotice(''); setState(previous => ({ ...previous, draft: { ...previous.draft, [field]: value } })); };
-  const changeItem = (field, index, key, value) => change(field, draft[field].map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
+  const changeItem = (field, index, key, value) => change(field, draft[field].map((item, itemIndex) => itemIndex === index
+    ? field === 'segments' && key === 'text' ? correctedSpeechSegment(item, value) : { ...item, [key]: value } : item));
   const changeInsight = (kind, index, key, value) => change('insights', { ...draft.insights,
     [kind]: draft.insights[kind].map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) });
   const save = event => { event.preventDefault(); if (!busy && !conflict && dirty) mutate('review', savePayload, 'Changes saved as draft. Review the corrected record separately.'); };

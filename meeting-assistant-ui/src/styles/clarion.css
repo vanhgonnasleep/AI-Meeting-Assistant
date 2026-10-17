@@ -177,3 +177,16 @@ dialog::backdrop { background: rgb(44 57 91 / .24); backdrop-filter: blur(6px); 
   .clarion-app, .clarion-landing { background: white; }.clarion-sidebar, .workspace-toolbar, .overview-hero-visual { display: none; }
   .clarion-app > div { margin-left: 0; }.workspace-main { padding: 0; }
 }
+
+.speech-review-panel { animation: review-arrive .24s ease-out both; }
+.speech-review-button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px;
+  border: 1px solid #cbd2e3; border-radius: 10px; background: #fff; color: #303c63;
+  padding: 9px 13px; font-size: 13px; font-weight: 550; transition: background .16s, transform .16s, box-shadow .16s; }
+.speech-review-button:hover { background: #f0f2fc; box-shadow: 0 3px 10px #303c6310; }
+.speech-review-button:active { transform: translateY(1px); }
+.speech-review-button:focus-visible, .speech-review-button:focus-within { outline: 2px solid #6370ce; outline-offset: 3px; }
+.speech-review-primary { background: #303c63; color: white; border-color: #303c63; }
+.speech-review-primary:hover { background: #40507b; }
+.speech-review-button:disabled { opacity: .45; cursor: default; box-shadow: none; transform: none; }
+@keyframes review-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .speech-review-panel { animation: none; } .speech-review-button { transition: none; } }

@@ -19,6 +19,7 @@ from fastapi import UploadFile
 from app.pipeline.audio_preparation import PreparedAudio, MediaLimitError, SAMPLE_RATE, ffmpeg_executable
 from app.core.runtime_config import MAX_AUDIO_DURATION_SECONDS, AUDIO_CHUNK_SECONDS
 from database.voiceprints import match_speaker_profile
+from database.transcript_quality import mark_recognition, display_text, transcript_from_segments
 
 CHUNK_OVERLAP_SECONDS = 3.0
 MAX_TRANSCRIPT_SEGMENTS = 20000
@@ -456,7 +457,9 @@ def diarize_segments(
 
         # Step 3: Conversational semantic turn disambiguation via local LLM
         if use_llm_refinement:
-            segments = refine_speakers_with_llm(segments, model_name=llm_model)
+            trusted = [segment for segment in segments if display_text(segment) == segment.get('text', '').strip()]
+            if trusted:
+                refine_speakers_with_llm(trusted, model_name=llm_model)
 
         for segment, embedding in zip(segments, embeddings):
             # A later single-turn correction must enroll that turn's voice,
@@ -525,7 +528,7 @@ def format_diarized_transcript(
 
     if not merge_consecutive:
         lines = [
-            f"{seg.get('timestamp', '')} {seg.get('speaker', 'Speaker 1')}: {seg.get('text', '').strip()}"
+            f"{seg.get('timestamp', '')} {seg.get('speaker', 'Speaker 1')}: {display_text(seg)}"
             for seg in segments
             if seg.get("text", "").strip()
         ]
@@ -535,7 +538,7 @@ def format_diarized_transcript(
     current_turn = None
 
     for seg in segments:
-        text = seg.get("text", "").strip()
+        text = display_text(seg)
         if not text:
             continue
         speaker = seg.get("speaker", "Speaker 1")
@@ -710,12 +713,10 @@ def transcribe_audio_detailed(
                 # Prevents cascading repetition loops ("ni ni ni…") by forcing
                 # each chunk to decode independently with no prior context bleed.
                 "condition_on_previous_text": False,
-                # Drop segments where Whisper itself signals no real speech.
+                # Preserve Whisper's joint silence/fallback decisions. These
+                # decoder thresholds are not independent deletion rules.
                 "no_speech_threshold": 0.6,
-                # Drop segments whose token stream is suspiciously repetitive
-                # (compression_ratio > threshold ≈ "ni ni ni" territory).
                 "compression_ratio_threshold": 2.4,
-                # Drop low-confidence segments (avg log-probability below threshold).
                 "logprob_threshold": -1.0,
                 # ──────────────────────────────────────────────────────────────
                 **whisper_kwargs,
@@ -724,6 +725,7 @@ def transcribe_audio_detailed(
                 transcribe_options["language"] = language
             detected_language = transcribe_options.get("language") or ""
             segments = []
+            detected_languages = []
             short_text = ""
             total_source_segments = 0
             clip_ranges = None
@@ -754,11 +756,11 @@ def transcribe_audio_detailed(
                     options["clip_timestamps"] = local_clips
                 audio = pcm.read_samples(padded_start, padded_end)
                 result = model.transcribe(audio, **options)
-                if not detected_language:
-                    detected_language = result.get("language", "")
-                    # Use the first detected language for all subsequent chunks.
-                    if detected_language:
-                        transcribe_options.setdefault("language", detected_language)
+                observed_language = language or result.get('language', '')
+                if observed_language and observed_language not in detected_languages:
+                    detected_languages.append(observed_language)
+                if not language:
+                    detected_language = 'mixed' if len(detected_languages) > 1 else observed_language
                 if pcm.duration <= AUDIO_CHUNK_SECONDS:
                     short_text = result.get("text", "").strip()
                 source_segments = result.get("segments", [])
@@ -785,32 +787,17 @@ def transcribe_audio_detailed(
                             "start": max(0.0, min(pcm.duration, offset + float(word.get("start", 0)))),
                             "end": max(0.0, min(pcm.duration, offset + float(word.get("end", 0)))),
                         } for word in source["words"]]
-                    # ── Per-segment hallucination guard ────────────────────────
-                    # Whisper's chunk-level thresholds already discard the worst
-                    # offenders, but some hallucinated segments survive inside
-                    # otherwise acceptable chunks.  Drop segments that show any
-                    # of the three canonical hallucination signatures:
-                    #   1. High no-speech probability (segment is silence/music)
-                    #   2. Very high compression ratio (token loop: "ni ni ni…")
-                    #   3. Very low average log-probability (unreliable decode)
-                    if (float(segment.get("no_speech_prob", 0.0)) > 0.6 or
-                            float(segment.get("compression_ratio", 0.0)) > 2.4 or
-                            float(segment.get("avg_logprob", 0.0)) < -1.0):
-                        print(
-                            f"[Agent 1 STT] Dropping hallucinated segment "
-                            f"[{format_timestamp(start)} - {format_timestamp(end)}]: "
-                            f"no_speech={segment.get('no_speech_prob', 0):.2f}, "
-                            f"compression={segment.get('compression_ratio', 0):.2f}, "
-                            f"logprob={segment.get('avg_logprob', 0):.2f}"
-                        )
-                        continue
-                    # ───────────────────────────────────────────────────────────
-                    segments.append(segment)
+                    segments.append(mark_recognition(segment))
                 del audio, result
 
             speakers: List[str] = []
             diarized_transcript = ""
-            text = short_text if pcm.duration <= AUDIO_CHUNK_SECONDS else " ".join(s["text"] for s in segments if s["text"])
+            # Build both short and long text from the same reviewed source.
+            # Text-only model adapters still receive the same quality policy.
+            if not segments and short_text and total_source_segments == 0:
+                segments = [mark_recognition({'id': 0, 'start': 0, 'end': pcm.duration,
+                                              'text': short_text, 'timing_precision': 'window'})]
+            text = transcript_from_segments(segments)
             if diarize and segments:
                 segments, speakers = diarize_segments(
                     segments=segments, audio_path=temp_path, num_speakers=num_speakers,
@@ -818,7 +805,7 @@ def transcribe_audio_detailed(
                     prepared_audio=pcm,
                 )
                 diarized_transcript = format_diarized_transcript(segments)
-            return {"text": text, "language": detected_language, "duration": pcm.duration,
+            return {"text": text, "language": detected_language, "detected_languages": detected_languages, "duration": pcm.duration,
                     "segments": segments, "speakers": speakers, "diarized_transcript": diarized_transcript}
     except MediaLimitError:
         raise
@@ -865,8 +852,12 @@ def transcribe_audio_chunk(data: bytes, model_name=None, language=None):
     if language:
         options['language'] = language
     result = model.transcribe(audio, **options)
-    return {'text': str(result.get('text') or '').strip(), 'language': result.get('language') or language or '',
-            'duration': duration}
+    segments = [mark_recognition(dict(segment)) for segment in result.get('segments', [])]
+    if not segments and str(result.get('text') or '').strip():
+        segments = [mark_recognition({'text': str(result['text']).strip(), 'start': 0, 'end': duration,
+                                     'timing_precision': 'window'})]
+    return {'text': transcript_from_segments(segments), 'language': result.get('language') or language or '',
+            'duration': duration, 'segments': segments}
 
 
 def transcribe_audio(
