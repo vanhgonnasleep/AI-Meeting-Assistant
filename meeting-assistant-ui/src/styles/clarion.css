@@ -111,8 +111,12 @@
 }
 dialog::backdrop { background: rgb(44 57 91 / .24); backdrop-filter: blur(6px); }
 .clarion-app [role='dialog'] { color: var(--ink); }
-.clarion-app audio { color-scheme: light; border-radius: 12px; }
-.clarion-dock { left: calc(50% + var(--sidebar-width) / 2); width: min(650px, calc(100% - var(--sidebar-width) - 48px)); }
+.clarion-chat-popup {
+  box-shadow: 0 24px 70px -15px rgba(28, 39, 76, 0.22), 0 0 0 1px rgba(222, 228, 243, 0.9);
+}
+.clarion-chat-head {
+  box-shadow: 0 12px 30px -6px rgba(79, 91, 213, 0.42), 0 4px 10px -2px rgba(79, 91, 213, 0.25);
+}
 .clarion-app .workspace-page { padding: 26px; background: rgb(255 255 255 / .78); border: 1px solid var(--line); border-radius: 22px; }
 .clarion-app .workspace-data-panel > button { box-shadow: 0 2px 6px rgb(65 81 135 / .03); }
 .clarion-app .shell-hint { color: var(--muted); }
@@ -146,11 +150,9 @@ dialog::backdrop { background: rgb(44 57 91 / .24); backdrop-filter: blur(6px); 
 @media (max-width: 767px) {
   .clarion-sidebar { max-width: calc(100vw - 48px); }
   .clarion-sidebar[class~='w-0'] { visibility: hidden; }
-  .clarion-dock { left: 50%; width: calc(100% - 28px); bottom: max(14px, env(safe-area-inset-bottom)); }
-  .clarion-dock .command-input { flex-basis: 120px; }
-  .clarion-dock .chat-drawer { max-height: min(460px, calc(100dvh - 160px)); }
-  .clarion-dock .command-controls button { min-width: 36px; min-height: 36px; }
-  .clarion-dock [role='log'] { overscroll-behavior: contain; }
+  .clarion-chat-popup { width: calc(100vw - 28px); right: 14px; bottom: max(80px, calc(env(safe-area-inset-bottom) + 80px)); max-height: min(520px, calc(100dvh - 100px)); }
+  .clarion-chat-head { bottom: max(14px, env(safe-area-inset-bottom)); right: 14px; }
+  .clarion-chat-popup [role='log'] { overscroll-behavior: contain; }
 }
 @media (max-width: 520px) {
   .workspace-toolbar { padding-inline: 15px; gap: 10px; }
