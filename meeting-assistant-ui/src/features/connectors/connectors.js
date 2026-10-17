@@ -243,7 +243,7 @@ export function formatEmailMinutes(meetingData = {}, { template = 'brief' } = {}
 }
 
 /**
- * Direct GitHub REST API dispatch when user configures a Personal Access Token in localStorage
+ * Direct GitHub REST API dispatch with an explicitly supplied token held in dialog memory.
  * @param {object} options
  * @param {string} options.repo - "owner/repo"
  * @param {string} options.token - GitHub PAT

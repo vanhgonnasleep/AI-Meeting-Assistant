@@ -16,7 +16,7 @@ from threading import Lock
 from pathlib import Path
 from typing import Union, Optional, Dict, Any, List, BinaryIO, Tuple
 from fastapi import UploadFile
-from app.pipeline.audio_preparation import PreparedAudio, MediaLimitError, SAMPLE_RATE, ffmpeg_executable
+from app.pipeline.audio_preparation import PreparedAudio, MediaLimitError, SAMPLE_RATE, ffmpeg_executable, MEDIA_FORMAT_WHITELIST
 from app.core.runtime_config import MAX_AUDIO_DURATION_SECONDS, AUDIO_CHUNK_SECONDS
 from database.voiceprints import match_speaker_profile
 from database.transcript_quality import mark_recognition, display_text, transcript_from_segments
@@ -831,7 +831,9 @@ def transcribe_audio_chunk(data: bytes, model_name=None, language=None):
     if len(data) > MAX_CHUNK_BYTES:
         raise MediaLimitError('Audio chunk exceeds 8 MiB')
     command = [ffmpeg_executable(), '-nostdin', '-hide_banner', '-loglevel', 'error',
-               '-threads', '1', '-i', 'pipe:0', '-vn', '-t', str(MAX_CHUNK_SECONDS + 0.01),
+               '-threads', '1', '-protocol_whitelist', 'pipe',
+               '-format_whitelist', MEDIA_FORMAT_WHITELIST,
+               '-i', 'pipe:0', '-vn', '-t', str(MAX_CHUNK_SECONDS + 0.01),
                '-f', 'f32le', '-ac', '1', '-ar', str(SAMPLE_RATE), 'pipe:1']
     try:
         result = subprocess.run(command, input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)

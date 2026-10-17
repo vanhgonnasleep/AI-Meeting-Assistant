@@ -9,6 +9,7 @@ from app.core.runtime_config import MediaLimitError
 
 SAMPLE_RATE = 16000
 DECODE_TIMEOUT_SECONDS = 120
+MEDIA_FORMAT_WHITELIST = 'mp3,wav,mov,ogg,flac,matroska,webm'
 
 
 def ffmpeg_executable():
@@ -45,7 +46,7 @@ class PreparedAudio:
                 "-y", "-protocol_whitelist", "file,pipe",
                 # Reject reference/playlist demuxers even when disguised with
                 # an allowed extension: decode only the uploaded media itself.
-                "-format_whitelist", "mp3,wav,mov,ogg,flac,matroska,webm",
+                "-format_whitelist", MEDIA_FORMAT_WHITELIST,
                 "-i", self.source_path,
                 "-map", "0:a:0", "-vn", "-sn", "-dn", "-threads", "1",
                 "-t", str(self.max_duration_seconds + 1), "-ac", "1", "-ar", str(SAMPLE_RATE),

@@ -4,7 +4,7 @@ Clarion Workspace & Database Management Utility
 Author: Clarion Engineering Team (Lead)
 
 Provides safe, deterministic database hygiene:
-  - Backup: Creates timestamped backups in database/backups/
+  - Backup: Creates timestamped backups in the selected database's parent/backups/
   - Clean: Empties test records for a pristine fresh-user experience
   - Seed: Populates realistic, boardroom-grade demo meetings & projects
   - Reset-Demo: Backs up current DB, cleans, and seeds demo records

@@ -26,6 +26,47 @@ def install_model(monkeypatch, callback):
     monkeypatch.setattr(stt, "get_whisper_model", lambda **kw: SimpleNamespace(transcribe=callback))
 
 
+def test_chunk_decoder_explicitly_restricts_input_before_autodetection(monkeypatch):
+    commands = []
+    def decode(command, **options):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout=np.zeros(1600, dtype='<f4').tobytes())
+    monkeypatch.setattr(stt.subprocess, 'run', decode)
+    monkeypatch.setattr(stt, 'get_whisper_model', lambda **kw: pytest.fail('Silent fixture loaded a model'))
+    stt.transcribe_audio_chunk(b'synthetic container')
+    command = commands[0]
+    assert '-protocol_whitelist' in command, 'Pipe input must explicitly exclude file/network protocols'
+    assert command[command.index('-protocol_whitelist') + 1] == 'pipe'
+    assert '-format_whitelist' in command, 'Reference demuxers must be excluded before probing'
+    assert command.index('-format_whitelist') < command.index('-i')
+    assert command.index('-protocol_whitelist') < command.index('-i')
+
+
+@pytest.mark.parametrize('extension,codec', [('wav', 'pcm_s16le'), ('webm', 'libopus')])
+def test_recording_chunk_supported_containers_decode_without_model_load(tmp_path, monkeypatch, extension, codec):
+    from app.pipeline.audio_preparation import ffmpeg_executable
+    source = tmp_path / 'source.wav'
+    source.write_bytes(wav_bytes())
+    encoded = tmp_path / f'recording.{extension}'
+    subprocess.run([ffmpeg_executable(), '-nostdin', '-loglevel', 'error', '-i', str(source),
+                    '-c:a', codec, str(encoded)], check=True, timeout=15, capture_output=True)
+    monkeypatch.setattr(stt, 'get_whisper_model', lambda **kw: pytest.fail('Silent fixture loaded a model'))
+    result = stt.transcribe_audio_chunk(encoded.read_bytes())
+    assert result['text'] == '' and 0 < result['duration'] < 1
+
+
+@pytest.mark.parametrize('manifest', [
+    'ffconcat version 1.0\nfile {source}\n',
+    '#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:0.25,\n{source}\n#EXT-X-ENDLIST\n',
+])
+def test_recording_chunk_rejects_reference_manifests(tmp_path, monkeypatch, manifest):
+    source = tmp_path / 'sibling.wav'
+    source.write_bytes(wav_bytes())
+    monkeypatch.setattr(stt, 'get_whisper_model', lambda **kw: pytest.fail('A reference manifest reached inference'))
+    with pytest.raises(ValueError, match='decode audio chunk'):
+        stt.transcribe_audio_chunk(manifest.format(source=source.as_posix()).encode())
+
+
 def test_disguised_playlist_cannot_decode_a_sibling_local_file(tmp_path):
     from app.pipeline.audio_preparation import PreparedAudio
     (tmp_path / 'private.wav').write_bytes(wav_bytes())
