@@ -1,7 +1,7 @@
 import { ArrowUpRight, ArrowRight } from 'lucide-react';
 import { ClarionMark } from '../../../shared/ui/BrandMarks.jsx';
 
-export default function LandingHeader({ onLaunchApp, onPreview, onScrollTo }) {
+export default function LandingHeader({ isLoggedIn = false, onLaunchApp, onPreview, onScrollTo }) {
   return (
     <header className="visual-nav">
       <a className="visual-wordmark" href="#/landing" aria-label="Clarion home">
@@ -17,10 +17,12 @@ export default function LandingHeader({ onLaunchApp, onPreview, onScrollTo }) {
         <button type="button" onClick={() => onScrollTo('your-tools')}>
           Your tools
         </button>
-        <button type="button" onClick={onPreview}>
-          Preview workspace
-          <ArrowRight size={13} />
-        </button>
+        {!isLoggedIn && (
+          <button type="button" onClick={onPreview}>
+            Preview workspace
+            <ArrowRight size={13} />
+          </button>
+        )}
       </nav>
       <button
         type="button"

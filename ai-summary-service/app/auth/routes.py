@@ -16,7 +16,8 @@ def current_session(request: Request):
     session = getattr(request.state, 'account', None)
     return {'mode': config.mode, 'providers': config.providers(),
             'user': {key: session[key] for key in ('id', 'name', 'email', 'provider')} if session else None,
-            'csrf_token': session['csrf'] if session else None}
+            'csrf_token': session['csrf'] if session else None,
+            'authenticated': bool(session)}
 
 
 @router.get('/{provider}/login')

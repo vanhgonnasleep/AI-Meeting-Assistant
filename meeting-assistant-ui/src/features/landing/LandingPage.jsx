@@ -7,11 +7,11 @@ import { buildGitHubIssuePayload } from '../connectors/connectors.js';
 import LandingHeader from './components/LandingHeader.jsx';
 import { navigateEntry } from '../../app/entry-navigation.js';
 
-export default function LandingPage({ onLaunchApp, onPreview = () => navigateEntry('preview') }) {
+export default function LandingPage({ account = null, isLoggedIn = Boolean(account), onLaunchApp, onPreview = () => navigateEntry('preview') }) {
   const scrollTo = section => document.getElementById(section)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   const issue = buildGitHubIssuePayload(DEMO_SAMPLE.task, { title: DEMO_SAMPLE.title, date: 'Recorded sample' });
   return <div className="clarion-landing visual-landing">
-    <LandingHeader onLaunchApp={onLaunchApp} onPreview={onPreview} onScrollTo={scrollTo} />
+    <LandingHeader isLoggedIn={isLoggedIn} onLaunchApp={onLaunchApp} onPreview={onPreview} onScrollTo={scrollTo} />
 
     <main>
       <section className="visual-hero" aria-labelledby="visual-hero-title">
@@ -19,7 +19,22 @@ export default function LandingPage({ onLaunchApp, onPreview = () => navigateEnt
           <span className="visual-eyebrow"><i />A little less meeting. A lot more doing.</span>
           <h1 id="visual-hero-title">Let the ideas<br />keep <span className="hero-moving-word">moving.<svg viewBox="0 0 300 17" aria-hidden="true"><path d="M3 12Q127 0 296 9" /></svg></span></h1>
           <p>Your conversation, turned into clear notes and next steps. All on your computer.</p>
-          <div className="visual-hero-actions"><button type="button" className="visual-button button-periwinkle" onClick={onPreview}>Preview workspace<ArrowRight size={16} /></button><button type="button" className="visual-demo-link" onClick={onLaunchApp}>Sign in for your recordings<ArrowUpRight size={14} /></button></div>
+          <div className="visual-hero-actions">
+            {isLoggedIn ? (
+              <button type="button" className="visual-button button-periwinkle" onClick={onLaunchApp}>
+                Open your workspace<ArrowUpRight size={16} />
+              </button>
+            ) : (
+              <>
+                <button type="button" className="visual-button button-periwinkle" onClick={onPreview}>
+                  Preview workspace<ArrowRight size={16} />
+                </button>
+                <button type="button" className="visual-demo-link" onClick={onLaunchApp}>
+                  Sign in for your recordings<ArrowUpRight size={14} />
+                </button>
+              </>
+            )}
+          </div>
           <div className="hero-file-note"><AudioLines size={14} /><span>Audio & video in.</span><FileText size={14} /><span>Clarity out.</span></div>
         </div>
         <div id="sample-demo" className="visual-hero-demo"><span className="demo-margin-note">A real recording. A little clarity.<svg viewBox="0 0 72 36" aria-hidden="true"><path d="M2 3Q15 36 62 22m-9-7 10 7-10 8" /></svg></span><InteractiveDemo /></div>
@@ -42,12 +57,23 @@ export default function LandingPage({ onLaunchApp, onPreview = () => navigateEnt
             <div className="handoff-destination"><code>mail.google.com / compose</code><span>You choose who gets it</span></div>
           </section>
         </div>
-        <div className="handoff-footnote"><span>Sample drafts above. Your meeting supplies the real content.</span><button type="button" onClick={onLaunchApp}>Use with your meeting<ArrowRight size={14} /></button></div>
+        <div className="handoff-footnote"><span>Sample drafts above. Your meeting supplies the real content.</span><button type="button" onClick={onLaunchApp}>{isLoggedIn ? 'Open your workspace' : 'Use with your meeting'}<ArrowRight size={14} /></button></div>
       </section>
 
       <section className="visual-local-panel" aria-labelledby="local-panel-title">
         <div className="local-device-art" aria-hidden="true"><div className="local-device-orbit" /><span className="local-file-chip"><AudioLines size={18} /><i /><i /><i /></span><div className="local-device"><div><ClarionMark size={36} /><span>Working locally</span><i /></div><span /></div><span className="local-note-chip"><CircleNote /><Check size={14} /></span><span className="local-lock"><LockKeyhole size={17} /></span></div>
-        <div><span className="visual-eyebrow">Room to think. Space to keep it yours.</span><h2 id="local-panel-title">Your meeting.<br /><span>Your machine.</span></h2><p>Whisper and Ollama do the thinking locally.<br />Explore the sample freely. Sign in for your private library.</p><div className="local-panel-facts"><span><Laptop size={14} />Local processing</span><span><LockKeyhole size={14} />Preview without sign-in</span></div></div>
+        <div>
+          <span className="visual-eyebrow">Room to think. Space to keep it yours.</span>
+          <h2 id="local-panel-title">Your meeting.<br /><span>Your machine.</span></h2>
+          <p>
+            Whisper and Ollama do the thinking locally.<br />
+            {isLoggedIn ? 'Your private library is active on this machine.' : 'Explore the sample freely. Sign in for your private library.'}
+          </p>
+          <div className="local-panel-facts">
+            <span><Laptop size={14} />Local processing</span>
+            <span><LockKeyhole size={14} />{isLoggedIn ? 'Authenticated session' : 'Preview without sign-in'}</span>
+          </div>
+        </div>
       </section>
 
       <section className="visual-final-cta"><div><span className="visual-eyebrow">Give your next conversation somewhere to go.</span><h2>More present.<br /><span>Less catching up.</span></h2></div><button type="button" className="visual-button button-ink" onClick={onLaunchApp}>Open your workspace<ArrowUpRight size={17} /></button></section>

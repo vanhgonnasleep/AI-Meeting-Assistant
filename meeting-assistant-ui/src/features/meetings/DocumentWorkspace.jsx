@@ -208,7 +208,7 @@ export default function DocumentWorkspace({
           </div>
 
           <div className="flex items-center gap-3 text-xs text-slate-700">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-300 font-mono text-[11px] text-indigo-700">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-300 font-mono text-xs text-indigo-700">
               <Clock className="w-3 h-3" /> Elapsed: {elapsedTime}s
             </span>
             <div className="flex items-center gap-1 h-3" aria-hidden="true">
@@ -313,7 +313,7 @@ export default function DocumentWorkspace({
               title="Maximal Marginal Relevance (Redundancy Filter)"
             >
               <span>MMR Filter</span>
-              <span className={`text-[10px] px-1 rounded-sm font-mono font-bold ${enableMmr ? 'text-[#4854b8]' : 'text-slate-500'}`}>
+              <span className={`text-xs px-1 rounded-sm font-mono font-bold ${enableMmr ? 'text-[#4854b8]' : 'text-slate-500'}`}>
                 {enableMmr ? 'ON' : 'OFF'}
               </span>
             </button>
@@ -395,7 +395,7 @@ export default function DocumentWorkspace({
               onChange={(e) => setMmrLambda(parseFloat(e.target.value))}
               className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-500"
             />
-            <p className="text-[11px] text-slate-600">
+            <p className="text-xs text-slate-600">
               Higher λ preserves sentences closest to the central theme; lower λ penalizes repetition and extracts broader conversational variety.
             </p>
           </div>
@@ -455,7 +455,7 @@ export default function DocumentWorkspace({
 
                 <div className="flex flex-wrap justify-center gap-1.5 mt-1">
                   {['.MP3', '.WAV', '.M4A', '.OGG', '.FLAC', '.MP4', '.WEBM'].map((ext) => (
-                    <span key={ext} className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-slate-100 text-slate-700 border border-slate-300/60">
+                    <span key={ext} className="text-xs font-mono px-2 py-0.5 rounded-sm bg-slate-100 text-slate-700 border border-slate-300/60">
                       {ext}
                     </span>
                   ))}
@@ -473,7 +473,7 @@ export default function DocumentWorkspace({
             </div>
             <div>
               <p className="font-semibold text-[#2b3559]">Want to test right away without an audio file?</p>
-              <p className="text-[11px] text-slate-500">Load a pre-packaged Q3 product and budget review audio sample.</p>
+              <p className="text-xs text-slate-500">Load a pre-packaged Q3 product and budget review audio sample.</p>
             </div>
           </div>
           <button
@@ -509,13 +509,13 @@ export default function DocumentWorkspace({
             {summaryCopied ? <Check className="w-3 h-3 text-emerald-700" /> : <Copy className="w-3 h-3" />}
             <span>{summaryCopied ? 'Copied' : 'Copy'}</span>
           </button>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
+          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
             {metaInfo?.model || 'Local Model'}
           </span>
         </div>
       </div>
 
-      <div className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-sans">
+      <div className="text-base text-slate-800 leading-relaxed whitespace-pre-wrap font-sans">
         {result?.summary}
       </div>
     </article>
@@ -533,7 +533,7 @@ export default function DocumentWorkspace({
         <div className="flex items-center gap-2 text-xs font-mono">
           <span className="text-slate-600">{completedCount} of {totalTasks} completed</span>
           {currentMeetingId && (
-            <span className="text-[10px] text-emerald-700 bg-emerald-500/10 px-1.5 py-0.2 rounded-sm border border-emerald-500/20">
+            <span className="text-xs text-emerald-700 bg-emerald-500/10 px-1.5 py-0.2 rounded-sm border border-emerald-500/20">
               Saved to your library
             </span>
           )}
@@ -576,10 +576,10 @@ export default function DocumentWorkspace({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium leading-snug ${isDone ? 'line-through text-slate-500' : 'text-slate-900'}`}>
+                  <p className={`text-sm font-medium leading-snug ${isDone ? 'line-through text-slate-500' : 'text-slate-900'}`}>
                     {typeof item === 'object' ? item.task : String(item)}
                   </p>
-                  <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px]">
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
                     <span className="flex items-center gap-1 font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-700 border border-indigo-500/30">
                       <Users className="w-2.5 h-2.5 text-indigo-700" />
                       {(typeof item === 'object' ? item.assignee : null) || 'Unassigned'}
@@ -608,10 +608,10 @@ export default function DocumentWorkspace({
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-900 tracking-tight">Key Decisions & Risk Matrix</h2>
-            <p className="text-[10px] text-slate-600">3-pillar governance intelligence with click-to-seek audio evidence</p>
+            <p className="text-xs text-slate-600">3-pillar governance intelligence with click-to-seek audio evidence</p>
           </div>
         </div>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
+        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
           Agent 5 Governance
         </span>
       </div>
@@ -624,7 +624,7 @@ export default function DocumentWorkspace({
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Decisions</span>
             </div>
-            <span className="text-[10px] font-mono text-slate-600 font-bold">
+            <span className="text-xs font-mono text-slate-600 font-bold">
               {(result?.insights?.decisions || []).length}
             </span>
           </div>
@@ -635,7 +635,7 @@ export default function DocumentWorkspace({
               result.insights.decisions.map((dec, idx) => (
                 <div key={idx} className="p-2.5 rounded-xl bg-white/60 border border-slate-200/80 space-y-1.5 group">
                   <p className="text-xs text-slate-800 leading-snug">{dec.text}</p>
-                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-xs">
                     {dec.speaker && (
                       <span className={`px-1.5 py-0.2 rounded-sm border ${getSpeakerBadgeStyle(dec.speaker)}`}>
                         {dec.speaker}
@@ -667,7 +667,7 @@ export default function DocumentWorkspace({
               <AlertTriangle className="w-3.5 h-3.5" />
               <span>Risks & Blockers</span>
             </div>
-            <span className="text-[10px] font-mono text-slate-600 font-bold">
+            <span className="text-xs font-mono text-slate-600 font-bold">
               {(result?.insights?.risks || []).length}
             </span>
           </div>
@@ -678,7 +678,7 @@ export default function DocumentWorkspace({
               result.insights.risks.map((risk, idx) => (
                 <div key={idx} className="p-2.5 rounded-xl bg-white/60 border border-slate-200/80 space-y-1.5 group">
                   <p className="text-xs text-slate-800 leading-snug">{risk.text}</p>
-                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-xs">
                     {risk.speaker && (
                       <span className={`px-1.5 py-0.2 rounded-sm border ${getSpeakerBadgeStyle(risk.speaker)}`}>
                         {risk.speaker}
@@ -710,7 +710,7 @@ export default function DocumentWorkspace({
               <HelpCircle className="w-3.5 h-3.5" />
               <span>Open Questions</span>
             </div>
-            <span className="text-[10px] font-mono text-slate-600 font-bold">
+            <span className="text-xs font-mono text-slate-600 font-bold">
               {(result?.insights?.open_questions || []).length}
             </span>
           </div>
@@ -721,7 +721,7 @@ export default function DocumentWorkspace({
               result.insights.open_questions.map((q, idx) => (
                 <div key={idx} className="p-2.5 rounded-xl bg-white/60 border border-slate-200/80 space-y-1.5 group">
                   <p className="text-xs text-slate-800 leading-snug">{q.text}</p>
-                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                  <div className="flex flex-wrap items-center gap-1 pt-0.5 text-xs">
                     {q.speaker && (
                       <span className={`px-1.5 py-0.2 rounded-sm border ${getSpeakerBadgeStyle(q.speaker)}`}>
                         {q.speaker}
@@ -760,7 +760,7 @@ export default function DocumentWorkspace({
         </div>
 
         {/* View Sub-Toggle (Raw / Segments / MMR) */}
-        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200 text-[11px]">
+        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200 text-xs">
           <button
             type="button"
             onClick={() => setTranscriptView('raw')}
@@ -797,8 +797,8 @@ export default function DocumentWorkspace({
 
       {/* Speaker Filter Pills */}
       {transcriptView === 'segments' && result?.segments && (
-        <div className="flex flex-wrap items-center gap-1.5 pb-2 text-[11px]">
-          <span className="text-slate-500 font-mono text-[10px] mr-1">Filter Speaker:</span>
+        <div className="flex flex-wrap items-center gap-1.5 pb-2 text-xs">
+          <span className="text-slate-500 font-mono text-xs mr-1">Filter Speaker:</span>
           <button
             type="button"
             onClick={() => setSpeakerFilter('all')}
@@ -859,14 +859,14 @@ export default function DocumentWorkspace({
                 </div>
 
                 <div className="flex-1 min-w-0 space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-900 tracking-tight">{seg.speaker || 'Speaker'}</span>
                       <button
                         type="button"
                         disabled={!audioUrl || normalizeCitation(seg).seconds === null}
                         onClick={() => onSeekAudio(normalizeCitation(seg).seconds)}
-                        className="inline-flex items-center gap-1 font-mono text-[10px] text-teal-700 hover:text-teal-700 px-1.5 py-0.5 rounded-md bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 transition-all cursor-pointer disabled:opacity-40"
+                        className="inline-flex items-center gap-1 font-mono text-xs text-teal-700 hover:text-teal-700 px-1.5 py-0.5 rounded-md bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 transition-all cursor-pointer disabled:opacity-40"
                         title={`Seek audio to ${seg.timestamp}`}
                       >
                         <Play className="w-2.5 h-2.5 fill-teal-400" />
@@ -880,16 +880,16 @@ export default function DocumentWorkspace({
                         onClick={() => onCycleSpeaker(originalIdx)}
                         disabled={isContentSaving}
                         title="Click to cycle speaker attribution"
-                        className={`px-2 py-0.5 rounded-md font-semibold text-[10px] border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
+                        className={`px-2 py-0.5 rounded-md font-semibold text-xs border flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer ${getSpeakerBadgeStyle(seg.speaker)}`}
                       >
                         <span>{seg.speaker}</span>
-                        <span className="text-[9px] opacity-60">⇄</span>
+                        <span className="text-xs opacity-60">⇄</span>
                       </button>
                     )}
                   </div>
 
                   <p 
-                    className="text-xs text-slate-800 leading-relaxed font-sans cursor-pointer hover:text-slate-900 transition-colors"
+                    className="text-sm text-slate-800 leading-relaxed font-sans cursor-pointer hover:text-slate-900 transition-colors"
                     onClick={() => {
                       const secs = normalizeCitation(seg).seconds;
                       if (audioUrl && secs !== null) onSeekAudio(secs);
@@ -926,7 +926,7 @@ export default function DocumentWorkspace({
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 truncate" title={file?.name || meetingTitle}>
                 {file?.name || meetingTitle || (isDemoResult ? 'Q3 Product & Budget Review' : 'Executive Meeting Document')}
               </h1>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${
+              <span className={`px-2 py-0.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider border ${
                 isDemoResult 
                   ? 'bg-amber-500/15 text-amber-700 border-amber-500/30'
                   : result?.review_status === 'reviewed' 
@@ -1099,7 +1099,7 @@ export default function DocumentWorkspace({
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-900">Audio Sync Player</p>
-                <p className="text-[10px] text-slate-600">Click any dialogue or citation to jump audio position</p>
+                <p className="text-xs text-slate-600">Click any dialogue or citation to jump audio position</p>
               </div>
             </div>
 
@@ -1107,7 +1107,7 @@ export default function DocumentWorkspace({
               <button
                 type="button"
                 onClick={() => handleSkipAudio(-5)}
-                className="p-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all flex items-center gap-1 text-[10px] font-mono cursor-pointer active:scale-95"
+                className="p-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all flex items-center gap-1 text-xs font-mono cursor-pointer active:scale-95"
                 title="Rewind 5 seconds"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -1117,7 +1117,7 @@ export default function DocumentWorkspace({
               <button
                 type="button"
                 onClick={() => handleSkipAudio(5)}
-                className="p-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all flex items-center gap-1 text-[10px] font-mono cursor-pointer active:scale-95"
+                className="p-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all flex items-center gap-1 text-xs font-mono cursor-pointer active:scale-95"
                 title="Forward 5 seconds"
               >
                 <RotateCw className="w-3 h-3" />
@@ -1127,7 +1127,7 @@ export default function DocumentWorkspace({
               <button
                 type="button"
                 onClick={handleTogglePlaybackSpeed}
-                className="px-2.5 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-700 hover:text-slate-900 border border-indigo-500/40 text-[10px] font-mono font-semibold transition-all cursor-pointer active:scale-95"
+                className="px-2.5 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-700 hover:text-slate-900 border border-indigo-500/40 text-xs font-mono font-semibold transition-all cursor-pointer active:scale-95"
                 title="Cycle playback speed (1.0x, 1.25x, 1.5x, 2.0x)"
               >
                 {playbackSpeed.toFixed(2).replace(/\.00$/, '.0')}x
@@ -1176,7 +1176,7 @@ export default function DocumentWorkspace({
             >
               <span>Action Items</span>
               {totalTasks > 0 && (
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700">
+                <span className="text-xs font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700">
                   {completedCount}/{totalTasks}
                 </span>
               )}

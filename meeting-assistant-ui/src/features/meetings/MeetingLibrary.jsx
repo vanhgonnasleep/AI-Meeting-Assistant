@@ -24,17 +24,17 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
         </span>
 
         <span className="flex-1 min-w-0">
-          <strong className="block text-xs font-semibold text-slate-800 group-hover:text-slate-900 truncate">
+          <strong className="block text-sm font-semibold text-slate-800 group-hover:text-slate-900 truncate">
             {meeting.filename || 'Untitled Meeting'}
           </strong>
 
           {!compact && meeting.executive_summary && (
-            <span className="block text-[11px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+            <span className="block text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
               {meeting.executive_summary}
             </span>
           )}
 
-          <span className="flex flex-wrap items-center gap-2.5 mt-1.5 text-[10px] text-slate-500 font-mono">
+          <span className="flex flex-wrap items-center gap-2.5 mt-1.5 text-xs text-slate-500 font-mono">
             <span>{meeting.created_at && Number.isFinite(new Date(meeting.created_at).getTime()) ? new Date(meeting.created_at).toLocaleDateString() : 'Saved meeting'}</span>
             <span>•</span>
             <span className="flex items-center gap-1">
@@ -44,7 +44,7 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
             <span>•</span>
             <span>{meeting.action_item_count || 0} tasks</span>
             {meeting.language && (
-              <span className="px-1.5 py-0.2 rounded-sm bg-slate-100 text-slate-700 uppercase font-semibold text-[9px]">
+              <span className="px-1.5 py-0.2 rounded-sm bg-slate-100 text-slate-700 uppercase font-semibold text-xs">
                 {meeting.language}
               </span>
             )}

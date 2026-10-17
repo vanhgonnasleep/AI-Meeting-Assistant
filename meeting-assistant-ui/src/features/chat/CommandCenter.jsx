@@ -134,7 +134,7 @@ export default function CommandCenter({
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-slate-900">Ask about this meeting</h3>
-                <p className="text-[10px] text-slate-600">Answers include links to the transcript</p>
+                <p className="text-xs text-slate-600">Answers include links to the transcript</p>
               </div>
             </div>
 
@@ -186,7 +186,7 @@ export default function CommandCenter({
                     key={idx}
                     className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
                   >
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 px-1 font-mono">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 px-1 font-mono">
                       <span>{isUser ? 'You' : 'Meeting Assistant AI'}</span>
                       {msg.mode && (
                         <span className="px-1.5 py-0.2 rounded-sm bg-slate-100 text-slate-600 border border-slate-300">
@@ -195,7 +195,7 @@ export default function CommandCenter({
                       )}
                     </div>
                     <div
-                      className={`p-3.5 rounded-2xl max-w-[88%] text-xs leading-relaxed shadow-xs ${
+                      className={`p-3.5 rounded-2xl max-w-[88%] text-sm leading-relaxed shadow-xs ${
                         isUser
                           ? 'bg-indigo-600 text-white rounded-tr-none'
                           : 'bg-slate-50/90 text-slate-800 border border-slate-200/80 rounded-tl-none'
@@ -209,7 +209,7 @@ export default function CommandCenter({
                       {/* Source Citations with Click-to-Seek */}
                       {!isUser && msg.citations && msg.citations.length > 0 && (
                         <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5">
-                          <span className="text-[10px] text-slate-600 font-mono flex items-center gap-1">
+                          <span className="text-xs text-slate-600 font-mono flex items-center gap-1">
                             <Play className="w-2.5 h-2.5 text-indigo-700" /> Sources:
                           </span>
                           {msg.citations.map((cit, cIdx) => {
@@ -220,7 +220,7 @@ export default function CommandCenter({
                                 type="button"
                                 disabled={!audioUrl || citation.seconds === null}
                                 onClick={() => onSeekAudio && onSeekAudio(citation.seconds)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-700 border border-indigo-500/40 text-[10px] font-mono transition-all active:scale-95 cursor-pointer disabled:opacity-40"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-700 border border-indigo-500/40 text-xs font-mono transition-all active:scale-95 cursor-pointer disabled:opacity-40"
                                 title={citation.seconds === null ? 'No audio timestamp' : `Jump audio to ${citation.label}`}
                               >
                                 <Play className="w-2 h-2 fill-indigo-300" />
@@ -249,7 +249,7 @@ export default function CommandCenter({
       {/* Suggested Prompts Pills Carousel (Above Dock) */}
       {isMeetingLoaded && suggestedPrompts.length > 0 && (
         <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider shrink-0 flex items-center gap-1 px-1">
+          <span className="text-xs text-slate-600 font-mono uppercase tracking-wider shrink-0 flex items-center gap-1 px-1">
             <Sparkles className="w-3 h-3 text-indigo-700" /> Suggestions:
           </span>
           {suggestedPrompts.slice(0, 3).map((prompt, pIdx) => (

@@ -200,6 +200,13 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     return () => { if (audioUrl?.startsWith('blob:')) URL.revokeObjectURL(audioUrl); };
   }, [audioUrl]);
 
+  // Navigate directly to overview if authenticated user lands without explicit page hash
+  useEffect(() => {
+    if (account && (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/')) {
+      navigateTo('overview');
+    }
+  }, [account]);
+
   // ─── 9. Session Reset & File Selection ──────────────────────────────────────
   const invalidateSession = (preserveResultMetadata = false) => {
     sessionVersion.current += 1;
@@ -991,6 +998,8 @@ ${result.transcript || ""}
   if (page === 'landing') {
     return (
       <LandingPage
+        account={account}
+        isLoggedIn={Boolean(account)}
         onLaunchApp={() => navigateTo('studio')}
         onOpenDashboard={() => navigateTo('overview')}
       />

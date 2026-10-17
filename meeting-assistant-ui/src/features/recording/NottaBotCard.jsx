@@ -74,7 +74,7 @@ export default function NottaBotCard({ disabled }) {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 tracking-tight">AI Meeting Bot</h3>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 font-mono text-[10px] font-semibold">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 font-mono text-xs font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Standby Ready
                   </span>
@@ -87,10 +87,10 @@ export default function NottaBotCard({ disabled }) {
 
             {/* Platform Badges */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 font-mono text-[10px]">Google Meet</span>
-              <span className="px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-700 font-mono text-[10px]">Zoom</span>
-              <span className="px-2 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-700 font-mono text-[10px]">Teams</span>
-              <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-700 font-mono text-[10px]">YouTube</span>
+              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 font-mono text-xs">Google Meet</span>
+              <span className="px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-700 font-mono text-xs">Zoom</span>
+              <span className="px-2 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-700 font-mono text-xs">Teams</span>
+              <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-700 font-mono text-xs">YouTube</span>
             </div>
           </div>
 
@@ -113,7 +113,7 @@ export default function NottaBotCard({ disabled }) {
               {/* Right inside badge: Detected platform pill */}
               <div className="absolute right-2 flex items-center gap-1.5">
                 {platformInfo && (
-                  <span className={`px-2 py-1 rounded-xl font-mono text-[10px] font-semibold border ${platformInfo.badgeClass}`}>
+                  <span className={`px-2 py-1 rounded-xl font-mono text-xs font-semibold border ${platformInfo.badgeClass}`}>
                     {platformInfo.label}
                   </span>
                 )}
