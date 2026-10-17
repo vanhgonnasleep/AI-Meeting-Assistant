@@ -1,5 +1,7 @@
 # Finalization verification — 16 October 2026
 
+For the final speech review release (428 backend and 161 frontend tests), see [17 October speech review validation](../releases/speech-review/README.md). This document retains the historical finalization evidence.
+
 For the subsequent backend correctness fixes and current regression evidence, see the [17 October backend audit](../backend/final-audit.md).
 
 The subsequent [final sign-in audit](../ui/signin-final/README.md) raises frontend coverage to 152 tests and fixes the healthy-page recovery link, bounded retries, local-draft preservation and sibling key collisions. The results below record the preceding finalization stage.

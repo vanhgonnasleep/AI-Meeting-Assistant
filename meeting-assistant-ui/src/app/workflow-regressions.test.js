@@ -81,6 +81,30 @@ test('closing the floating assistant restores focus to its launcher and makes no
   } finally { await view.close(); }
 });
 
+test('speech correction drafts follow their source passage and reset for another review session', async () => {
+  const segment = text => ({ text, start: 2, end: 5, quality: { status: 'needs_review' } });
+  let segments = [segment('ni '.repeat(40)), segment('yes '.repeat(40))];
+  const container = document.createElement('div'); document.body.append(container);
+  const root = createRoot(container);
+  const render = async key => React.act(async () => root.render(React.createElement(TranscriptReview, { key, segments })));
+  const type = async (index, text) => React.act(async () => {
+    const input = container.querySelectorAll('textarea')[index];
+    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(input, text);
+    input.dispatchEvent(new window.Event('input', { bubbles: true }));
+  });
+  try {
+    await render('meeting-a');
+    await type(0, 'Draft for A'); await type(1, 'Other passage draft');
+    assert.equal(container.querySelector('textarea').value, 'Draft for A');
+    segments = [segment('new source '.repeat(20)), segments[1]];
+    await render('meeting-a');
+    assert.equal(container.querySelector('textarea').value, '', 'Changed source cannot inherit an old correction');
+    assert.equal(container.querySelectorAll('textarea')[1].value, 'Other passage draft', 'Sibling edits survive');
+    await render('meeting-b');
+    assert.equal(container.querySelectorAll('textarea')[1].value, '', 'Another meeting starts with no drafts');
+  } finally { await React.act(async () => root.unmount()); container.remove(); }
+});
+
 test('sign-in retry has visible progress and disappears when sign-in becomes available', async () => {
   window.history.replaceState({}, '', '/#/signin');
   let count = 0;
@@ -123,14 +147,16 @@ test('a temporary session-check failure preserves the explicit local workspace a
   } finally { await view.close(); apiClient.configureSession(null); }
 });
 
-async function openFixtureMeeting(fetchTask) {
+async function openFixtureMeeting(fetchTask, source = meeting, fetchReview, otherMeeting) {
   apiClient.configureSession(null);
   globalThis.fetch = async (input, options = {}) => {
     const path = new URL(input, location.origin).pathname;
     if (path.endsWith('/tasks/0')) return fetchTask(options);
+    if (path.endsWith('/review')) return fetchReview(options);
     if (path === '/api/health') return json({ ollama_online: true });
-    if (path === '/api/meetings/14') return json({ meeting });
-    if (path === '/api/meetings') return json({ meetings: [meeting], total: 1 });
+    if (path === '/api/meetings/14') return json({ meeting: source });
+    if (otherMeeting && path === `/api/meetings/${otherMeeting.id}`) return json({ meeting: otherMeeting });
+    if (path === '/api/meetings') return json({ meetings: otherMeeting ? [source, otherMeeting] : [source], total: otherMeeting ? 2 : 1 });
     throw new Error(`Unexpected fixture request ${path}`);
   };
   const view = await mount(App);
@@ -140,6 +166,59 @@ async function openFixtureMeeting(fetchTask) {
   await React.act(async () => { await server.ssrLoadModule('/src/features/meetings/DocumentWorkspace.jsx'); });
   return view;
 }
+
+test('opening another sidebar meeting resets correction drafts even for identical recognition', async () => {
+  const source = { ...meeting, segments: [{ text: 'ni '.repeat(40), start: 0, end: 1, quality: { status: 'needs_review' } }] };
+  const other = { ...source, id: 15, filename: 'Another.wav' };
+  const view = await openFixtureMeeting(null, source, null, other);
+  try {
+    await React.act(async () => {
+      const input = view.container.querySelector('[aria-label="Transcript review"] textarea');
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(input, 'Belongs only to the first meeting');
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    await click(view.container.querySelector('button[title="Another.wav"]'));
+    assert.equal(view.container.querySelector('[aria-label="Transcript review"] textarea').value, '');
+  } finally { await view.close(); }
+});
+
+test('saving a speech review uses the current revision, clears stale notes and preserves sibling drafts', async () => {
+  const source = { ...meeting, segments: [0, 1].map(start => ({ text: 'ni '.repeat(40), start, end: start + 1,
+    quality: { status: 'needs_review', reasons: ['repetition'] } })) };
+  const submitted = [];
+  const view = await openFixtureMeeting(null, source, async options => {
+    const body = JSON.parse(options.body); submitted.push(body);
+    return json({ meeting: { ...source, revision: 8, segments: body.segments, executive_summary: '', action_items: [] } });
+  });
+  try {
+    await React.act(async () => {
+      const input = view.container.querySelectorAll('[aria-label="Transcript review"] textarea')[1];
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(input, 'Unsaved sibling correction');
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    await click([...view.container.querySelectorAll('button')].find(button => button.textContent === 'Keep these words'));
+    assert.equal(submitted[0].expected_revision, 7);
+    assert.equal(submitted[0].segments[0].quality.status, 'reviewed');
+    assert.equal(view.container.querySelector('[aria-label="Transcript review"] textarea').value, 'Unsaved sibling correction');
+    assert.doesNotMatch(view.container.textContent, /Fixture summary/);
+  } finally { await view.close(); }
+});
+
+test('a conflicting speech correction keeps the source and draft available for recovery', async () => {
+  const source = { ...meeting, segments: [{ text: 'ni '.repeat(40), start: 0, end: 1, quality: { status: 'needs_review' } }] };
+  const view = await openFixtureMeeting(null, source, async () => json({ detail: 'Meeting changed. Reload the latest version before saving.' }, 409));
+  try {
+    await React.act(async () => {
+      const input = view.container.querySelector('[aria-label="Transcript review"] textarea');
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(input, 'Corrected words');
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    await click([...view.container.querySelectorAll('button')].find(button => button.textContent === 'Save correction'));
+    assert.equal(view.container.querySelector('[aria-label="Transcript review"] textarea').value, 'Corrected words');
+    assert.match(view.container.textContent, /changed elsewhere|latest version/);
+    assert.match(view.container.textContent, /Fixture summary/);
+  } finally { await view.close(); }
+});
 
 test('the real JSON export button downloads the current meeting and task statuses', async () => {
   const view = await openFixtureMeeting();

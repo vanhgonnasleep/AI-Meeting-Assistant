@@ -154,3 +154,29 @@ def test_microphone_chunks_share_the_review_policy(monkeypatch):
     result = stt.transcribe_audio_chunk(b'fixture audio')
     assert 'ni ni' not in result['text']
     assert result['segments'][0]['quality']['status'] == 'needs_review'
+
+
+@pytest.mark.parametrize('edit', ['summary', 'regenerate', 'task', 'speaker', 'legacy_update'])
+def test_legacy_reviewed_source_stays_confirmed_after_note_edits(edit):
+    from database import workspace
+    from database.db import get_connection
+    source = 'thank you ' * 12
+    mid = crud.create_meeting('legacy.wav', raw_transcript=source,
+        segments=[{'text': source, 'start': 0, 'end': 10, 'speaker': 'Speaker 1'}],
+        action_items=[{'task': 'Send minutes'}])
+    with get_connection() as connection:
+        connection.execute("UPDATE meetings SET review_status='reviewed' WHERE id=?", (mid,))
+    if edit == 'summary':
+        workspace.review_meeting(mid, 0, 'draft', executive_summary='Human notes')
+    elif edit == 'regenerate':
+        workspace.save_regenerated_summary(mid, 0, 'New generated notes')
+    elif edit == 'task':
+        crud.update_action_item_status(mid, 0, 'completed', expected_revision=0)
+    elif edit == 'speaker':
+        crud.edit_meeting_speaker(mid, 'Speaker 1', 'Alex')
+    else:
+        crud.update_meeting(mid, executive_summary='Updated notes')
+    record = crud.get_meeting(mid)
+    assert record.review_status == 'draft'
+    assert record.segments[0]['quality']['status'] == 'reviewed'
+    assert workspace.review_meeting(mid, record.revision, 'reviewed').review_status == 'reviewed'

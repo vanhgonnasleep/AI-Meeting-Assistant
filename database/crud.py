@@ -100,7 +100,13 @@ def row_to_meeting(row) -> Optional[MeetingRecord]:
     segments = _load_json_column(row, 'segments', [])
     # Derive review annotations for legacy draft recordings without migrating or
     # replacing their stored text. Human-reviewed source remains authoritative.
-    if 'review_status' not in row.keys() or row['review_status'] != 'reviewed':
+    if 'review_status' in row.keys() and row['review_status'] == 'reviewed':
+        # Carry the legacy human decision with the source. A later task/notes
+        # edit can make the meeting draft without undoing speech confirmation.
+        segments = [{**segment, 'quality': {'status': 'reviewed'}}
+                    if isinstance(segment, dict) and not segment.get('quality') else segment
+                    for segment in segments]
+    else:
         segments = [mark_recognition(segment) if isinstance(segment, dict) and not segment.get('quality') else segment
                     for segment in segments]
     return MeetingRecord(
@@ -600,10 +606,10 @@ def update_action_item_status(meeting_id: int, item_idx: int, status: str, *, ex
         cursor = connection.execute(
             """
             UPDATE meetings
-            SET action_items = ?, revision = revision + 1, review_status = 'draft', updated_at = CURRENT_TIMESTAMP
+            SET action_items = ?, segments = ?, revision = revision + 1, review_status = 'draft', updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
-            (action_items_to_json(meeting.action_items), meeting_id),
+            (action_items_to_json(meeting.action_items), segments_to_json(meeting.segments), meeting_id),
         )
         connection.commit()
         return cursor.rowcount > 0

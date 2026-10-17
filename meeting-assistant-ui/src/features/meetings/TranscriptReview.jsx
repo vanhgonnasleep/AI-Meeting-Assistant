@@ -5,7 +5,7 @@ const reasonLabels = { repetition: 'Repeated words', uncertain_recognition: 'Wor
 
 export default function TranscriptReview({ segments = [], audioUrl, onSeekAudio, onReviewPassage, onAttachReviewAudio, busy = false }) {
   const [drafts, setDrafts] = useState({});
-  const passages = segments.map((segment, index) => ({ segment, index })).filter(({ segment }) => needsSpeechReview(segment));
+  const passages = segments.map((segment, index) => ({ segment, index, draftKey: JSON.stringify([index, segment.id, segment.start, segment.end, segment.text]) })).filter(({ segment }) => needsSpeechReview(segment));
   if (!passages.length) return null;
   return <section aria-label="Transcript review" className="speech-review-panel rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5 space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -18,18 +18,18 @@ export default function TranscriptReview({ segments = [], audioUrl, onSeekAudio,
       </label>}
     </div>
     {!audioUrl && <p className="text-xs text-slate-600">Use this meeting’s original recording. Audio stays on this device and is not uploaded by this attachment.</p>}
-    {passages.map(({ segment, index }, position) => <details key={index} open={position === 0} className="rounded-xl border border-amber-200/70 bg-white/85 p-3">
+    {passages.map(({ segment, index, draftKey }, position) => <details key={index} open={position === 0} className="rounded-xl border border-amber-200/70 bg-white/85 p-3">
       <summary className="cursor-pointer text-sm font-medium text-slate-800">{segment.timestamp || `Passage ${index + 1}`} · {(segment.quality.reasons || []).map(reason => reasonLabels[reason]).filter(Boolean).join(', ') || 'Check against audio'}</summary>
       <div className="mt-3 space-y-3">
         <div><p className="text-xs font-medium text-slate-600">Original recognition</p><p className="mt-1 text-sm max-h-24 overflow-y-auto whitespace-pre-wrap break-words text-slate-700">{segment.text}</p></div>
         <label className="block text-sm text-slate-800">Corrected words
-          <textarea maxLength={4000} rows={3} value={drafts[index] ?? ''} disabled={busy}
-            onChange={event => setDrafts(previous => ({ ...previous, [index]: event.target.value }))}
+          <textarea maxLength={4000} rows={3} value={drafts[draftKey] ?? ''} disabled={busy}
+            onChange={event => setDrafts(previous => ({ ...previous, [draftKey]: event.target.value }))}
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
         </label>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="speech-review-button" disabled={!audioUrl || !Number.isFinite(segment.start) || busy} onClick={() => onSeekAudio?.(segment.start)}>Listen to passage</button>
-          <button type="button" className="speech-review-button speech-review-primary" disabled={busy || !onReviewPassage || !drafts[index]?.trim()} onClick={() => onReviewPassage(index, drafts[index])}>Save correction</button>
+          <button type="button" className="speech-review-button speech-review-primary" disabled={busy || !onReviewPassage || !drafts[draftKey]?.trim()} onClick={() => onReviewPassage(index, drafts[draftKey])}>Save correction</button>
           <button type="button" className="speech-review-button" disabled={busy || !onReviewPassage} onClick={() => onReviewPassage(index, segment.text)}>Keep these words</button>
           <button type="button" className="speech-review-button" disabled={busy || !onReviewPassage} onClick={() => onReviewPassage(index, '')}>No speech here</button>
         </div>

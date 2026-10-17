@@ -1,5 +1,7 @@
 # Release and defense handoff
 
+Use the [technical project report](PROJECT_REPORT.md) as the written account of the system. These notes are rehearsal material; the department decides which documents must be submitted.
+
 ## Lead's checklist
 
 1. Finish regression checks and record the exact submitted commit in `MANIFEST.json`.
@@ -42,3 +44,7 @@ Use this sequence to prepare their own slides:
 If sign-in is unavailable, open the public preview and label it as prepared data. If inference is unavailable, show the existing saved/exported example and the frozen evaluation report. If the connection fails during a write, check the library before repeating it. Never claim the fallback was a successful live AI run.
 
 Older defense documents contain historical module names and stronger claims than the current evidence supports. Use this handoff, the current source map and measured pilot artifacts as the authority for the final defense.
+
+## Speech review demonstration
+
+For a known English meeting, select English explicitly. Show a flagged passage, attach the original recording locally if needed, listen and correct or confirm it. Explain that flags request human review rather than quantify accuracy. Saving a correction clears outdated generated notes and answers; regenerate the summary afterward. Never claim that a repetition detector understands every accent or that the new release has a measured full-meeting WER. The frozen Vietnamese pilot is a separate experiment at its original inference revision.

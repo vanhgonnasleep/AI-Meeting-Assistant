@@ -132,6 +132,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
   const [updatingTasks, setUpdatingTasks] = useState({});
   const [isSpeakerSaving, setIsSpeakerSaving] = useState(false);
   const [isReviewSaving, setIsReviewSaving] = useState(false);
+  const [reviewSession, setReviewSession] = useState(0);
   const [speakerRename, setSpeakerRename] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
   const [summaryCopied, setSummaryCopied] = useState(false);
@@ -230,7 +231,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     setIsProcessing(false);
     setIsChatLoading(false);
     setUpdatingTasks({});
-    if (!preserveResultMetadata) { setWarnings([]); setIsDemoResult(false); }
+    if (!preserveResultMetadata) { setWarnings([]); setIsDemoResult(false); setReviewSession(value => value + 1); }
   };
 
   const selectRecording = recording => {
@@ -313,6 +314,7 @@ function App({ account, onLogout, signingOut = false, accountError = '' }) {
     setWarnings([]);
     setIsDemoResult(false);
     const loadedResult = resultFromMeeting(item);
+    setReviewSession(value => value + 1);
     setResult(loadedResult);
     const loadedChat = loadedResult.chat_history.length > 0 ? loadedResult.chat_history : getDefaultChatGreeting(loadedResult);
     setChatMessages(loadedChat);
@@ -1223,6 +1225,7 @@ ${result.transcript || ""}
             /* Default: Document Workspace */
             <LazyPanel key="studio" load={loadDocumentWorkspace} name="the workspace" fallback={workspaceLoading}>
             {DocumentWorkspace => <DocumentWorkspace
+              reviewSession={reviewSession}
               result={result}
               isProcessing={isProcessing}
               elapsedTime={elapsedTime}

@@ -23,6 +23,8 @@
 
 **Submitting or handing over the project?** Start with the English [submission guide](docs/submission/README.md) and [team handoff](docs/submission/HANDOFF.md). They identify the source package, setup steps, code map and claims supported by the final evidence. The presenting team prepares its own slides.
 
+**Submission freeze:** Read the English [project report](docs/submission/PROJECT_REPORT.md) and [speech review validation](docs/releases/speech-review/README.md). Uncertain passages retain original recognition for human correction and are excluded from new AI notes/answers until resolved.
+
 **Explore before signing in.** Clarion includes a public product tour and an interactive workspace with prepared meeting, task and project samples. Your private library still requires Google/GitHub sign-in. [See the interface and validation notes](docs/ui/public-preview/README.md).
 
 ![Clarion public workspace preview](docs/ui/public-preview/overview.png)

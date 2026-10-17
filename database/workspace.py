@@ -102,8 +102,9 @@ def save_regenerated_summary(meeting_id, expected_revision, summary):
     connection = get_connection()
     try:
         connection.execute("BEGIN IMMEDIATE")
-        _guard_record(connection, meeting_id, expected_revision)
-        connection.execute("UPDATE meetings SET executive_summary=?, revision=revision+1, review_status='draft', updated_at=CURRENT_TIMESTAMP WHERE id=?", (summary, meeting_id))
+        record = _guard_record(connection, meeting_id, expected_revision)
+        connection.execute("UPDATE meetings SET executive_summary=?, segments=?, revision=revision+1, review_status='draft', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                           (summary, json.dumps(record.segments, ensure_ascii=False), meeting_id))
         result = row_to_meeting(connection.execute("SELECT * FROM meetings WHERE id=?", (meeting_id,)).fetchone())
         connection.commit()
         return result

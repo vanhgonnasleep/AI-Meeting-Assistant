@@ -117,6 +117,7 @@ export default function DocumentWorkspace({
   onToggleTask,
   onSeekAudio,
   onReviewPassage,
+  reviewSession,
   onAttachReviewAudio,
   onCopyAll,
   isCopied,
@@ -1095,7 +1096,7 @@ export default function DocumentWorkspace({
         )}
 
         {/* Interactive Audio Sync Player */}
-        <TranscriptReview segments={result?.segments} audioUrl={audioUrl} onSeekAudio={onSeekAudio}
+        <TranscriptReview key={reviewSession} segments={result?.segments} audioUrl={audioUrl} onSeekAudio={onSeekAudio}
           onReviewPassage={onReviewPassage} onAttachReviewAudio={onAttachReviewAudio} busy={isContentSaving} />
         {audioUrl && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 px-4 rounded-2xl bg-white/60 backdrop-blur-xl border border-slate-200 shadow-xs">

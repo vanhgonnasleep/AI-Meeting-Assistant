@@ -2,6 +2,8 @@
 
 This is the starting point for handing in the code. Presentation slides belong to the presenting team; this package supplies source, run instructions and evidence.
 
+The current English [technical project report](PROJECT_REPORT.md) explains the functions, architecture, speech review, experiments and limitations. See the [speech review release validation](../releases/speech-review/README.md) for the latest tested scope.
+
 ## What to submit
 
 | Deliverable | Contents | Purpose |

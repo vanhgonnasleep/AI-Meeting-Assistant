@@ -17,6 +17,7 @@ ai-summary-service/
   tests/                        API, algorithm, account-isolation and model regressions
   requirements*.txt
 database/                       shared storage implementation: schema, CRUD, dates, profiles
+  transcript_quality.py         evidence-preserving review policy shared by AI and storage
 meeting-assistant-ui/
   src/
     main.jsx                    browser entry
@@ -57,3 +58,5 @@ The storage package is source code; generated account data belongs in ignored da
 Public experience: `/` introduces the product, `#/preview/overview` explores sample data, and `#/signin` opens provider sign-in. A fresh preview does not mount the private application, including for an already signed-in visitor. If the visitor explicitly opened a private workspace first, that account's App remains mounted and hidden while previewing so recordings, requests and unsaved results survive; sign-out/account changes remove it. The preview itself reads only its fixtures. Private page names and API authorization are unchanged. Preview state lives only in its mounted component; entering the real workspace never imports sample meetings into an account. Preview/auth styles are colocated with their features; shared product styles remain in `src/styles/`.
 
 Tailwind 4 uses `@tailwindcss/vite`; compatibility styles preserve the existing palette and control defaults. Before integrating changes, run backend regressions, `npm test`, `npm run lint`, `npm run build`, and the complete `npm audit`, including development tooling.
+
+Speech review lives in `features/meetings/TranscriptReview.jsx` and the meeting session helpers. The shared `database/transcript_quality.py` policy keeps recognition, storage and AI evidence handling consistent. Source corrections invalidate stale generated output; notes/task edits preserve passage-level human confirmation. See [release validation](releases/speech-review/README.md).
