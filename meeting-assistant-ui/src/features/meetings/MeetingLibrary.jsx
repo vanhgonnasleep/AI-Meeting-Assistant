@@ -107,7 +107,7 @@ export default function MeetingLibrary({
   }, [loadProjects]);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto py-4">
+    <div className="space-y-6 max-w-[1400px] mx-auto py-2">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
         <div>
@@ -118,7 +118,9 @@ export default function MeetingLibrary({
           type="button"
           onClick={onNewMeeting}
           disabled={!canOpen}
-          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-2 shadow-xs shadow-indigo-600/20 transition-all shrink-0 cursor-pointer"
+          aria-label="Start new meeting"
+          title="Start new meeting"
+          className="px-4 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-95 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer"
         >
           <Plus size={16} />
           <span>New Meeting</span>

@@ -28,7 +28,8 @@ import {
   Target,
   Columns,
   RotateCcw,
-  RotateCw
+  RotateCw,
+  FolderOpen
 } from 'lucide-react';
 import { formatMeetingDuration } from '../../app/navigation.js';
 import { normalizeCitation } from './session.js';
@@ -959,6 +960,15 @@ export default function DocumentWorkspace({
                 <>
                   <span>•</span>
                   <span className="text-slate-500">Record #{currentMeetingId}</span>
+                  {result?.project_id && (
+                    <>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-sans font-medium text-[11px]">
+                        <FolderOpen className="w-3 h-3" />
+                        Project #{result.project_id}
+                      </span>
+                    </>
+                  )}
                 </>
               )}
             </div>

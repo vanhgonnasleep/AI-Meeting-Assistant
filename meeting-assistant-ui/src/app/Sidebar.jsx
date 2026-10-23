@@ -429,18 +429,20 @@ export default function Sidebar({
               </button>
             )}
 
-            {/* Primary Action: + New Meeting */}
-            <button
-              type="button"
-              onClick={onNewMeeting}
-              disabled={!canStartNew}
-              aria-label="Start new meeting"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-[0.98] disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
-              title="Start a new meeting"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="hidden sm:inline">New Meeting</span>
-            </button>
+            {/* Primary Action: + New Meeting (Hidden on Overview & Meeting Library where dedicated page toolbars have + New Meeting) */}
+            {activePage !== 'overview' && activePage !== 'meetings' && (
+              <button
+                type="button"
+                onClick={onNewMeeting}
+                disabled={!canStartNew}
+                aria-label="Start new meeting"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-[0.98] disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                title="Start a new meeting"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span className="hidden sm:inline">New Meeting</span>
+              </button>
+            )}
 
             {/* User Profile Pill & Dropdown Menu (Redline Reference Style) */}
             <div className="relative" ref={userMenuRef}>
