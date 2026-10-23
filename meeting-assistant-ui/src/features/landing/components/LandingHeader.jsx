@@ -18,9 +18,9 @@ export default function LandingHeader({ isLoggedIn = false, onLaunchApp, onPrevi
           Your tools
         </button>
         {!isLoggedIn && (
-          <button type="button" onClick={onPreview}>
+          <button type="button" onClick={onPreview} className="inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:text-[#4b59b4] transition-colors">
             Preview workspace
-            <ArrowRight size={13} />
+            <ArrowRight size={13} className="shrink-0" />
           </button>
         )}
       </nav>
