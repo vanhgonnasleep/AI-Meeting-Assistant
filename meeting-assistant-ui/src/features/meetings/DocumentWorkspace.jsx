@@ -261,7 +261,7 @@ export default function DocumentWorkspace({
   // ─── 4. State 2: Upload Dropzone & AI Configuration Hero ────────────────────
   if (!result) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto py-6">
+      <div className="space-y-6 max-w-4xl mx-auto pt-2 pb-6">
         {/* Page Heading */}
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -921,7 +921,7 @@ export default function DocumentWorkspace({
 
   // ─── 6. State 3: Main Workspace Composition & Multi-View Studio ────────────
   return (
-    <div className={`space-y-6 ${viewMode === 'split' ? 'max-w-7xl' : 'max-w-4xl'} mx-auto py-4 select-text transition-all duration-300`}>
+    <div className={`space-y-6 ${viewMode === 'split' ? 'max-w-7xl' : 'max-w-4xl'} mx-auto pt-2 pb-6 select-text transition-all duration-300`}>
       
       {/* Document Header & Metadata */}
       <header className="pb-6 border-b border-slate-200/80 space-y-3">

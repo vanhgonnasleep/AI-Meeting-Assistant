@@ -1,4 +1,6 @@
 """Public status reveals availability, never provider credentials."""
+import re
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Request, HTTPException, Query
 from starlette.responses import RedirectResponse, JSONResponse
 from .config import settings
@@ -8,6 +10,48 @@ from . import store
 
 router = APIRouter(prefix='/api/auth', tags=['authentication'])
 LOGIN_COOKIE = 'clarion_login'
+EMAIL_PATTERN = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+
+
+class RegisterPayload(BaseModel):
+    name: str = Field(default='', max_length=120)
+    email: str = Field(..., max_length=254)
+    password: str = Field(..., max_length=256)
+
+
+class LoginPayload(BaseModel):
+    email: str = Field(..., max_length=254)
+    password: str = Field(..., max_length=256)
+
+
+class AccountUpdatePayload(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    current_password: str | None = Field(default=None, max_length=256)
+    new_password: str | None = Field(default=None, max_length=256)
+
+
+def _session_response(config, token: str, session: dict, status_code: int = 200) -> JSONResponse:
+    response = JSONResponse(
+        {
+            'mode': config.mode,
+            'providers': config.providers(),
+            'user': {key: session[key] for key in ('id', 'name', 'email', 'provider')},
+            'csrf_token': session['csrf'],
+            'authenticated': True,
+        },
+        status_code=status_code,
+        headers={'X-Clarion-Account': session['id']},
+    )
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=store.SESSION_SECONDS,
+        httponly=True,
+        secure=config.secure_cookie,
+        samesite='lax',
+        path='/',
+    )
+    return response
 
 
 @router.get('/session')
@@ -18,6 +62,64 @@ def current_session(request: Request):
             'user': {key: session[key] for key in ('id', 'name', 'email', 'provider')} if session else None,
             'csrf_token': session['csrf'] if session else None,
             'authenticated': bool(session)}
+
+
+@router.post('/register')
+def register_local(payload: RegisterPayload, request: Request):
+    config = settings()
+    if config.mode != 'private':
+        raise HTTPException(409, 'Registration is available in private workspace mode.')
+    email = payload.email.strip().lower()
+    if not EMAIL_PATTERN.match(email):
+        raise HTTPException(400, 'Please enter a valid email address.')
+    if len(payload.password) < 8:
+        raise HTTPException(400, 'Password must be at least 8 characters long.')
+    name = payload.name.strip() or email.split('@')[0]
+    try:
+        token, session = store.register_local_user(name=name, email=email, password=payload.password)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    store.revoke_session(request.cookies.get(SESSION_COOKIE))
+    return _session_response(config, token, session, status_code=201)
+
+
+@router.post('/login')
+def login_local(payload: LoginPayload, request: Request):
+    config = settings()
+    if config.mode != 'private':
+        raise HTTPException(409, 'Sign-in is available in private workspace mode.')
+    email = payload.email.strip().lower()
+    if not email or not payload.password:
+        raise HTTPException(400, 'Enter both your email and password.')
+    authenticated = store.authenticate_local_user(email=email, password=payload.password)
+    if not authenticated:
+        raise HTTPException(401, 'Invalid email or password. Please check your credentials and try again.')
+    token, session = authenticated
+    store.revoke_session(request.cookies.get(SESSION_COOKIE))
+    return _session_response(config, token, session, status_code=200)
+
+
+@router.patch('/account')
+def update_account(payload: AccountUpdatePayload, request: Request):
+    session = getattr(request.state, 'account', None)
+    if not session:
+        raise HTTPException(401, 'Sign in to manage your account.')
+    if payload.name is not None and not payload.name.strip():
+        raise HTTPException(400, 'Display name cannot be empty.')
+    if payload.new_password is not None and payload.new_password != '' and len(payload.new_password) < 8:
+        raise HTTPException(400, 'New password must be at least 8 characters long.')
+    try:
+        updated = store.update_user_account(
+            user_id=session['id'],
+            name=payload.name.strip() if payload.name is not None else None,
+            current_password=payload.current_password,
+            new_password=payload.new_password if payload.new_password else None,
+        )
+    except PermissionError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {'user': updated, 'status': 'updated'}
 
 
 @router.get('/{provider}/login')

@@ -34,3 +34,23 @@ test('the account gate initially mounts no meeting workspace before checking the
   assert.match(markup, /Checking your session/);
   assert.doesNotMatch(markup, /meeting-sidebar|Command Center|Meeting History/);
 });
+
+
+test('sign-in includes local account form with autofill best-practice attributes and top navbar renders profile menu', async () => {
+  const markup = renderToStaticMarkup(createElement(SignIn, { providers: { google: true, github: true } }));
+  assert.match(markup, /Register Account/);
+  assert.match(markup, /autocomplete="username"/i);
+  assert.match(markup, /autocomplete="current-password"/i);
+
+  const { default: Sidebar } = await server.ssrLoadModule('/src/app/Sidebar.jsx');
+  const navMarkup = renderToStaticMarkup(createElement(Sidebar, {
+    account: { id: 'u1', name: 'Luồng Nguyễn', email: 'luong@example.com', provider: 'local' },
+    activePage: 'overview',
+  }));
+  assert.match(navMarkup, /Luồng Nguyễn/);
+  assert.match(navMarkup, /Open account menu/);
+  assert.match(navMarkup, /Meeting studio/);
+  assert.match(navMarkup, /Meeting library/);
+  assert.match(navMarkup, /Action items/);
+  assert.match(navMarkup, /Projects/);
+});

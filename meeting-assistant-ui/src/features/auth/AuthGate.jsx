@@ -22,6 +22,28 @@ export default function AuthGate() {
   const request = useRef(null);
   const sessionNotice = useRef('');
 
+  const applyAuthenticatedSession = useCallback((session) => {
+    const nextOwner = session.user?.id || (session.mode === 'local' ? 'local' : null);
+    setWorkspaceOwner(previous => previous === nextOwner ? previous : null);
+    if (session.user && (!window.location.hash || window.location.hash === '#/signin')) navigateTo('overview');
+    apiClient.configureSession(session);
+    if (session.user || session.mode === 'local') sessionNotice.current = '';
+    setState({ phase: 'ready', session, error: sessionNotice.current });
+  }, []);
+
+  const handleAccountUpdated = useCallback((updatedUser) => {
+    setState(previous => {
+      if (!previous.session) return previous;
+      return {
+        ...previous,
+        session: {
+          ...previous.session,
+          user: { ...previous.session.user, ...updatedUser },
+        },
+      };
+    });
+  }, []);
+
   const refresh = useCallback(async () => {
     if (logoutPending.current) return;
     request.current?.abort();
@@ -30,18 +52,13 @@ export default function AuthGate() {
     try {
       const session = await fetchSession(`${API_BASE}/api/auth/session`, { signal: controller.signal });
       if (controller.signal.aborted) return;
-      const nextOwner = session.user?.id || (session.mode === 'local' ? 'local' : null);
-      setWorkspaceOwner(previous => previous === nextOwner ? previous : null);
-      if (session.user && (!window.location.hash || window.location.hash === '#/signin')) navigateTo('overview');
-      apiClient.configureSession(session);
-      if (session.user || session.mode === 'local') sessionNotice.current = '';
-      setState({ phase: 'ready', session, error: sessionNotice.current });
+      applyAuthenticatedSession(session);
     } catch (error) {
       if (controller.signal.aborted) return;
       setState(previous => previous.phase === 'ready' && (previous.session?.user || previous.session?.mode === 'local') ? previous
         : { phase: 'error', session: null, error: userMessage(error, 'session') });
     }
-  }, []);
+  }, [applyAuthenticatedSession]);
 
   const retrySignIn = () => {
     sessionNotice.current = '';
@@ -112,7 +129,7 @@ export default function AuthGate() {
   }
   if (!canEnter) {
     return <SignIn providers={state.session?.providers} error={state.error} checking={state.phase === 'checking'}
-      canRetry={state.phase === 'error'} onRetry={retrySignIn}
+      canRetry={state.phase === 'error'} onRetry={retrySignIn} onAuthenticated={applyAuthenticatedSession}
       onHome={() => navigateEntry('landing')} onPreview={() => navigateEntry('preview')} />;
   }
   // A fresh preview never mounts the private App. Once explicitly opened, keep it
@@ -121,7 +138,7 @@ export default function AuthGate() {
   return <>
     <div hidden={isPreview} ref={keepWorkspace ? markWorkspaceMounted : null}>
       {keepWorkspace && <App key={workspaceIdentity} account={state.session.user} onLogout={logout}
-        signingOut={signingOut} accountError={state.error} />}
+        onAccountUpdated={handleAccountUpdated} signingOut={signingOut} accountError={state.error} />}
     </div>
     {preview}
   </>;

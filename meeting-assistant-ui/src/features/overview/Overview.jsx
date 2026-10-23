@@ -1,95 +1,95 @@
-import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
-import { userMessage } from '../../shared/lib/user-errors.js';
-import { apiFetch } from '../auth/api-client.js';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowUpRight,
   AudioLines,
-  FolderOpen,
-  ListTodo,
-  Plus,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   LayoutGrid,
   List,
-  Activity
+  Plus,
+  Search,
+  X,
+  FileAudio,
 } from 'lucide-react';
-import { appPageHref } from '../../app/navigation.js';
+import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
+import { userMessage } from '../../shared/lib/user-errors.js';
+import { apiFetch } from '../auth/api-client.js';
 import { MeetingRow } from '../meetings/MeetingLibrary.jsx';
 import { createRequestGate } from '../meetings/session.js';
 import {
   calculateCompletionRate,
   formatMeetingPreview,
-  getCarouselScrollOffset
 } from './overview-utils.js';
-import FeatureShowcase from '../landing/FeatureShowcase.jsx';
 
 /**
- * Interactive Recent Meeting Card for Swipe Carousel
+ * Clean, Scientific Meeting Card (Redline Reference Architecture)
  */
-function RecentMeetingCard({ meeting, onOpen, disabled }) {
+function RedlineMeetingCard({ meeting, onOpen, disabled }) {
   const preview = formatMeetingPreview(meeting);
+  const initials = (preview.title || 'ME')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 2)
+    .toUpperCase() || 'ME';
 
   return (
     <motion.div
-      whileHover={{ y: -4, scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className="snap-start min-w-[280px] sm:min-w-[310px] max-w-[320px] shrink-0"
+      whileHover={{ y: -3, scale: 1.005 }}
+      whileTap={{ scale: 0.995 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      className="h-full"
     >
       <button
         type="button"
         onClick={() => onOpen(meeting)}
         disabled={disabled}
         aria-label={`Open meeting ${preview.title}`}
-        className="w-full h-full p-5 rounded-3xl bg-white/50 hover:bg-white/80 backdrop-blur-xl border border-slate-200/80 hover:border-indigo-500/50 shadow-panel hover:shadow-glass hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col justify-between group cursor-pointer text-left relative overflow-hidden"
+        title={preview.title}
+        className="w-full h-full p-5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/90 border-t-4 border-t-[#3c4999] shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between text-left cursor-pointer group relative"
       >
-        {/* Subtle glass gradient corner accent */}
-        <div className="absolute top-0 right-0 w-24 h-24 bg-linear-to-bl from-indigo-500/10 via-transparent to-transparent pointer-events-none rounded-tr-3xl" />
-
-        {/* Card Header: Date & Duration Badges */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
-            <span className="font-mono text-slate-600">{preview.dateText}</span>
-            <div className="flex items-center gap-1.5">
-              {preview.language && (
-                <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 border border-indigo-500/30 font-mono text-xs font-bold uppercase tracking-wider">
-                  {preview.language}
-                </span>
-              )}
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100/80 border border-slate-300/60 font-mono text-xs text-slate-700">
-                <Clock className="w-3 h-3 text-slate-600" />
-                {preview.durationText}
-              </span>
+        <div className="space-y-3 w-full">
+          {/* Header Row: Initials Avatar + Title & Time */}
+          <div className="flex items-start gap-3">
+            <span className="w-9 h-9 rounded-xl bg-[#e8ecfe] text-[#3c4999] font-bold text-xs flex items-center justify-center shrink-0 border border-[#d5dcf8]">
+              {initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3
+                className="text-sm font-semibold text-slate-900 group-hover:text-[#3c4999] transition-colors truncate tracking-tight"
+                title={preview.title}
+              >
+                {preview.title}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                {preview.dateText}
+              </p>
             </div>
+            {preview.language && (
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px] font-bold uppercase tracking-wider shrink-0">
+                {preview.language}
+              </span>
+            )}
           </div>
 
-          {/* Title & Summary */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors line-clamp-1 tracking-tight">
-              {preview.title}
-            </h3>
-            <p className="text-xs text-slate-600 line-clamp-2 mt-1.5 leading-relaxed font-normal">
-              {preview.summary}
-            </p>
-          </div>
+          {/* Executive Summary Snippet */}
+          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+            {preview.summary}
+          </p>
         </div>
 
-        {/* Card Footer: Audio Indicator, Tasks, Action Pill */}
-        <div className="pt-4 mt-4 border-t border-slate-200/80 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-slate-100 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-              <AudioLines className="w-3.5 h-3.5" />
+        {/* Footer: Duration, Task Count & Open Action */}
+        <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 w-full">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1 font-mono text-[11px]">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              {preview.durationText}
             </span>
-            <span className="text-[11px] font-mono text-slate-600 font-medium">
-              {preview.taskCount} tasks
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">
+              {preview.taskCount} {preview.taskCount === 1 ? 'task' : 'tasks'}
             </span>
           </div>
 
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 group-hover:text-indigo-700 group-hover:translate-x-0.5 transition-all">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3c4999] group-hover:translate-x-0.5 transition-all">
             <span>Open</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </span>
@@ -100,17 +100,25 @@ function RecentMeetingCard({ meeting, onOpen, disabled }) {
 }
 
 /**
- * Modernized Overview Dashboard with Apple Dynamic Glass & Swipe Carousel
+ * Modernized Workspace Dashboard (Redline Reference Style)
  */
-export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMeeting, processing }) {
+export default function Overview({
+  account = null,
+  apiBase,
+  refreshKey,
+  onOpen,
+  canOpen,
+  onNewMeeting,
+  processing = false,
+}) {
   const [data, setData] = useState({ meetings: [], analytics: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retry, setRetry] = useState(0);
-  const [viewMode, setViewMode] = useState('carousel'); // 'carousel' | 'list'
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [searchQuery, setSearchQuery] = useState('');
 
   const gate = useRef(createRequestGate());
-  const carouselRef = useRef(null);
 
   useEffect(() => {
     const currentGate = gate.current;
@@ -118,14 +126,22 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
     const load = async () => {
       try {
         const [records, stats] = await Promise.all([
-          apiFetch(`${apiBase}/api/meetings?limit=8&offset=0&compact=true`, { signal: request.signal }),
-          apiFetch(`${apiBase}/api/analytics`, { signal: request.signal }).catch(() => null),
+          apiFetch(`${apiBase}/api/meetings?limit=12&offset=0&compact=true`, {
+            signal: request.signal,
+          }),
+          apiFetch(`${apiBase}/api/analytics`, {
+            signal: request.signal,
+          }).catch(() => null),
         ]);
-        if (!records.ok) throw new Error('Unable to load recent meetings. Please retry.');
+        if (!records.ok)
+          throw new Error('Unable to load recent meetings. Please retry.');
         const recordsData = await records.json();
         const statsData = stats?.ok ? await stats.json() : null;
         if (request.isCurrent()) {
-          setData({ meetings: recordsData.meetings || [], analytics: statsData?.analytics || null });
+          setData({
+            meetings: recordsData.meetings || [],
+            analytics: statsData?.analytics || null,
+          });
           setError(null);
         }
       } catch (failure) {
@@ -139,280 +155,293 @@ export default function Overview({ apiBase, refreshKey, onOpen, canOpen, onNewMe
   }, [apiBase, refreshKey, retry]);
 
   const { meetings, analytics } = data;
-  const onRetry = () => { setLoading(true); setRetry(value => value + 1); };
-  const metric = value => Number.isFinite(value) ? value.toLocaleString() : '—';
+  const onRetry = () => {
+    setLoading(true);
+    setRetry((value) => value + 1);
+  };
+  const metric = (value) =>
+    Number.isFinite(value) ? value.toLocaleString() : '—';
 
   const completionRate = calculateCompletionRate(
     analytics?.completed_action_items,
-    analytics?.pending_action_items
+    analytics?.pending_action_items,
   );
 
-  const handleScrollCarousel = useCallback((direction) => {
-    if (!carouselRef.current) return;
-    const offset = getCarouselScrollOffset(direction, 320);
-    carouselRef.current.scrollBy({ left: offset, behavior: 'smooth' });
-  }, []);
+  // Time-of-day greeting & user display name
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const displayName = account?.name || 'there';
+
+  // Filtered meetings by local search query
+  const filteredMeetings = useMemo(() => {
+    if (!searchQuery.trim()) return meetings;
+    const q = searchQuery.toLowerCase();
+    return meetings.filter(
+      (m) =>
+        (m.title && m.title.toLowerCase().includes(q)) ||
+        (m.filename && m.filename.toLowerCase().includes(q)) ||
+        (m.executive_summary && m.executive_summary.toLowerCase().includes(q)),
+    );
+  }, [meetings, searchQuery]);
 
   return (
-    <div className="clarion-overview relative space-y-7 mx-auto">
-      <div className="overview-intro">
+    <div className="clarion-overview relative space-y-7 max-w-[1400px] mx-auto">
+      {/* 1. Header Greeting (Redline Style) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1">
         <div>
-          <div className="workspace-eyebrow">Your workspace</div>
-          <h1>Pick up the thread.</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            {greeting}, <span className="text-[#3c4999]">{displayName}</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            You have{' '}
+            <strong className="text-slate-800">
+              {metric(analytics?.total_meetings ?? meetings.length)}
+            </strong>{' '}
+            saved meetings and{' '}
+            <strong className="text-slate-800">
+              {metric(analytics?.pending_action_items ?? 0)}
+            </strong>{' '}
+            pending action items in your workspace.
+          </p>
         </div>
-        <span className="workspace-context"><Activity />Your local workspace</span>
+
+        {processing && (
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-semibold text-[#3c4999]">
+            <span className="w-2 h-2 rounded-full bg-[#3c4999] animate-pulse" />
+            <span>AI Engine is processing audio…</span>
+          </div>
+        )}
       </div>
 
-      <section className="overview-hero" aria-label="Start a meeting">
-        <div>
-          <div className="workspace-eyebrow">From conversation to action</div>
-          <h2>{processing ? 'Your notes are on their way.' : 'One recording. A clear next step.'}</h2>
-          <p>{processing ? 'Processing locally. Your library is still ready to browse.' : 'Bring the audio. Leave with notes, owners and deadlines.'}</p>
-          <div className="overview-hero-action">
-            {processing ? <a href={appPageHref('studio')} className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-semibold inline-flex items-center gap-2">View processing<ArrowUpRight size={15} /></a>
-              : <motion.button whileHover={{ y: -1 }} whileTap={{ scale: .98 }} type="button" disabled={!canOpen} onClick={onNewMeeting}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold inline-flex items-center gap-2 disabled:opacity-40"><Plus size={15} />New meeting</motion.button>}
-            <small>Audio & video welcome</small>
-          </div>
-        </div>
-        <div className="overview-hero-visual" aria-hidden="true">
-          <div className="meeting-miniature">
-            <div className="meeting-miniature-header"><AudioLines size={14} />A conversation, made clear<span>00:32</span></div>
-            <div className="meeting-spectrum">{[8,12,18,13,25,34,20,12,29,38,26,17,30,42,33,19,12,26,36,22,14,29,40,31,18,11,24,32,21,13,18,10].map((height, index) => <i key={index} style={{ '--bar-height': `${height}px`, '--bar-delay': `${index * -.07}s` }} />)}</div>
-            <div className="meeting-miniature-line" /><div className="meeting-miniature-line" />
-          </div>
-          <div className="meeting-miniature-note"><CheckCircle2 /><span>One less thing to keep in your head.</span></div>
-        </div>
-      </section>
-
-      {/* Key Metric Highlights with Dynamic Glow & Progress Indicator */}
-      <div className="overview-metrics-grid grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Saved Meetings */}
+      {/* 2. Three Horizontal KPI Cards (Redline Reference Style) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Card 1: Saved Meetings */}
         <motion.div
-          whileHover={{ y: -3 }}
+          whileHover={{ y: -2 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="p-5 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-indigo-500/40 shadow-xs transition-all space-y-2 relative overflow-hidden"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all"
         >
-          <div className="flex items-center justify-between text-slate-600">
-            <span className="text-xs font-semibold uppercase tracking-wider font-mono">Saved Meetings</span>
-            <AudioLines className="w-4 h-4 text-indigo-700" />
+          <div className="w-12 h-12 rounded-xl bg-[#e8ecfe] border border-[#d5dcf8] flex items-center justify-center shrink-0 text-[#3c4999]">
+            <AudioLines className="w-6 h-6" />
           </div>
-          <p className="text-2xl font-bold text-slate-900 tracking-tight">{metric(analytics?.total_meetings)}</p>
-          <p className="text-xs text-slate-500">Persisted in local database</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-bold text-slate-900 tracking-tight">
+              {metric(analytics?.total_meetings ?? meetings.length)}
+            </p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
+              Saved Meetings
+            </p>
+          </div>
         </motion.div>
 
-        {/* Pending Action Items */}
+        {/* Card 2: Pending Tasks */}
         <motion.div
-          whileHover={{ y: -3 }}
+          whileHover={{ y: -2 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="p-5 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-amber-500/40 shadow-xs transition-all space-y-2 relative overflow-hidden"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all"
         >
-          <div className="flex items-center justify-between text-slate-600">
-            <span className="text-xs font-semibold uppercase tracking-wider font-mono">Pending Tasks</span>
-            <ListTodo className="w-4 h-4 text-amber-700" />
+          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center shrink-0 text-amber-600">
+            <Clock className="w-6 h-6" />
           </div>
-          <p className="text-2xl font-bold text-amber-700 tracking-tight">{metric(analytics?.pending_action_items)}</p>
-          <p className="text-xs text-slate-500">Deliverables awaiting execution</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-bold text-amber-700 tracking-tight">
+              {metric(analytics?.pending_action_items ?? 0)}
+            </p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
+              Pending Tasks
+            </p>
+          </div>
         </motion.div>
 
-        {/* Completed Action Items with Progress Bar */}
+        {/* Card 3: Completed Tasks */}
         <motion.div
-          whileHover={{ y: -3 }}
+          whileHover={{ y: -2 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="p-5 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-emerald-500/40 shadow-xs transition-all space-y-2 relative overflow-hidden"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all"
         >
-          <div className="flex items-center justify-between text-slate-600">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider font-mono">Completed Tasks</span>
-              <span className="text-xs font-mono text-emerald-700 font-bold">({completionRate}%)</span>
-            </div>
-            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center shrink-0 text-emerald-600">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
-          <p className="text-2xl font-bold text-emerald-700 tracking-tight">{metric(analytics?.completed_action_items)}</p>
-          <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden mt-1">
-            <div
-              className="bg-emerald-400 h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, Math.max(0, completionRate))}%` }}
-            />
-          </div>
-        </motion.div>
-      </div>
-
-      {/* 2-Column Split: Recent Meetings & Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-
-        {/* Left Column: Recent Meetings (8 Cols) with Swipe Carousel */}
-        <div className="md:col-span-8 space-y-3">
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">Recent Meetings</h2>
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-300/60 font-mono text-xs text-slate-600">
-                {meetings.length} records
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-1.5">
+              <p className="text-2xl font-bold text-emerald-700 tracking-tight">
+                {metric(analytics?.completed_action_items ?? 0)}
+              </p>
+              <span className="text-xs font-semibold text-emerald-700 font-mono">
+                ({completionRate}%)
               </span>
             </div>
-
-            <div className="flex items-center gap-2">
-              {/* Carousel vs List View Mode Toggle */}
-              <div className="inline-flex rounded-xl bg-slate-100/80 p-0.5 border border-slate-300/60 text-slate-600 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('carousel')}
-                  className={`p-1 rounded-lg transition-colors cursor-pointer ${viewMode === 'carousel' ? 'bg-indigo-600 text-white' : 'hover:text-slate-900'}`}
-                  title="Carousel swipe view"
-                  aria-label="Carousel swipe view"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className={`p-1 rounded-lg transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'hover:text-slate-900'}`}
-                  title="List view"
-                  aria-label="List view"
-                >
-                  <List className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Carousel navigation arrows */}
-              {viewMode === 'carousel' && meetings.length > 2 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleScrollCarousel('left')}
-                    aria-label="Scroll carousel left"
-                    className="p-1 rounded-lg bg-slate-100/80 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-colors cursor-pointer"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleScrollCarousel('right')}
-                    aria-label="Scroll carousel right"
-                    className="p-1 rounded-lg bg-slate-100/80 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-colors cursor-pointer"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              <a
-                href={appPageHref('meetings')}
-                className="text-xs text-indigo-700 hover:text-indigo-700 flex items-center gap-1 font-medium transition-colors ml-1"
-              >
-                <span>View library</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
+              Completed Tasks
+            </p>
           </div>
-
-          {error && <FeedbackNotice key={error} title="Recent meetings couldn’t be loaded" onRetry={onRetry}>{error}</FeedbackNotice>}
-
-          {loading ? (
-            <div className="py-12 flex flex-col items-center justify-center space-y-2 text-slate-500 text-xs">
-              <span className="w-5 h-5 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-              <p>Loading recent meetings…</p>
-            </div>
-          ) : error ? <div className="library-recovery">
-            <p>Recent meetings haven’t loaded yet.</p>
-            <button type="button" onClick={onRetry}>Reload recent meetings</button>
-          </div> : meetings.length ? (
-            viewMode === 'carousel' ? (
-              /* Swipe Carousel View with Scroll Snap */
-              <div
-                ref={carouselRef}
-                tabIndex={0}
-                role="region"
-                aria-label="Recent meetings carousel"
-                className="flex gap-4 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x snap-mandatory focus:outline-hidden"
-                style={{ scrollSnapType: 'x mandatory' }}
-              >
-                {meetings.map(meeting => (
-                  <RecentMeetingCard
-                    key={meeting.id}
-                    meeting={meeting}
-                    onOpen={onOpen}
-                    disabled={!canOpen}
-                  />
-                ))}
-              </div>
-            ) : (
-              /* Classic List View */
-              <div className="space-y-2">
-                {meetings.slice(0, 4).map(meeting => (
-                  <MeetingRow
-                    key={meeting.id}
-                    meeting={meeting}
-                    onOpen={onOpen}
-                    disabled={!canOpen}
-                    compact
-                  />
-                ))}
-              </div>
-            )
-          ) : (
-            <div className="py-12 text-center space-y-2 bg-white/30 border border-dashed border-slate-200 rounded-3xl p-6">
-              <AudioLines className="w-8 h-8 mx-auto text-slate-500" />
-              <p className="text-xs text-slate-600">Processed recordings will appear here.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Keep the Work Moving (4 Cols) */}
-        <div className="md:col-span-4 space-y-3">
-          <h2 className="text-sm font-bold text-slate-900 tracking-tight pb-1">Keep Work Moving</h2>
-
-          <div className="space-y-2.5">
-            <a
-              href={appPageHref('tasks')}
-              className="p-4 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-slate-300/80 transition-all flex items-start gap-3 group"
-            >
-              <div className="p-2 rounded-2xl bg-indigo-500/15 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
-                <ListTodo className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <strong className="text-xs font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">Action Items</strong>
-                  <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-900 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-                </div>
-                <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                  Track owners, deadlines, and unfinished deliverables.
-                </p>
-              </div>
-            </a>
-
-            <a
-              href={appPageHref('projects')}
-              className="p-4 rounded-3xl bg-white/40 hover:bg-white/70 backdrop-blur-xl border border-slate-200/80 hover:border-slate-300/80 transition-all flex items-start gap-3 group"
-            >
-              <div className="p-2 rounded-2xl bg-purple-500/15 text-purple-700 group-hover:bg-purple-600 group-hover:text-white transition-colors shrink-0">
-                <FolderOpen className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <strong className="text-xs font-semibold text-slate-900 group-hover:text-purple-700 transition-colors">Projects & Decisions</strong>
-                  <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-900 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-                </div>
-                <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                  Trace governance decisions across related meetings.
-                </p>
-              </div>
-            </a>
-          </div>
-
-          <div className="p-4 rounded-3xl bg-indigo-50/20 border border-indigo-500/20 text-[11px] text-slate-600 leading-relaxed flex items-center gap-2.5">
-            <Activity className="w-4 h-4 text-indigo-700 shrink-0" />
-            <span>All AI-extracted notes and decisions are grounded against the source audio and transcript.</span>
-          </div>
-        </div>
-
+        </motion.div>
       </div>
 
-      <details className="overview-explore">
-        <summary><span>Try the interactive sample<small>29 seconds, from audio to follow-up</small></span><span aria-hidden="true">+</span></summary>
-        <div><FeatureShowcase onExploreDemo={onNewMeeting} /></div>
-      </details>
+      {/* 3. Section Toolbar: Meeting List + Search + View Toggle + New Meeting */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+            Meeting List
+          </h2>
+          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-mono">
+            {filteredMeetings.length}{' '}
+            {filteredMeetings.length === 1 ? 'record' : 'records'}
+          </span>
+        </div>
 
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Inline Meeting Search */}
+          <div className="relative flex items-center bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 text-xs text-slate-800 shadow-2xs focus-within:border-indigo-500 transition-all w-48 sm:w-60">
+            <Search className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search meetings..."
+              className="w-full bg-transparent outline-hidden text-xs text-slate-800 placeholder-slate-400"
+              aria-label="Search meetings in list"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-slate-400 hover:text-slate-600 ml-1"
+                aria-label="Clear meeting search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* View Mode Toggle: Grid vs List */}
+          <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200 text-slate-600 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-[#3c4999] text-white shadow-2xs'
+                  : 'hover:text-slate-900'
+              }`}
+              title="Grid view"
+              aria-label="Grid view"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-[#3c4999] text-white shadow-2xs'
+                  : 'hover:text-slate-900'
+              }`}
+              title="List view"
+              aria-label="List view"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Primary CTA Button: + New Meeting */}
+          <button
+            type="button"
+            onClick={onNewMeeting}
+            disabled={!canOpen}
+            aria-label="Start new meeting"
+            title="Start new meeting"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] text-white text-xs font-semibold shadow-xs transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>New Meeting</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 4. Main Meeting Cards / List Area */}
+      {error && (
+        <FeedbackNotice
+          key={error}
+          title="Recent meetings couldn’t be loaded"
+          onRetry={onRetry}
+        >
+          {error}
+        </FeedbackNotice>
+      )}
+
+      {loading ? (
+        <div className="py-16 flex flex-col items-center justify-center space-y-2 text-slate-500 text-xs">
+          <span className="w-6 h-6 border-2 border-indigo-500/30 border-t-[#3c4999] rounded-full animate-spin" />
+          <p>Loading meetings…</p>
+        </div>
+      ) : error ? (
+        <div className="library-recovery p-6 text-center bg-white rounded-2xl border border-slate-200">
+          <p className="text-sm text-slate-700 mb-3">
+            Recent meetings haven’t loaded yet.
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="px-4 py-2 rounded-xl bg-[#3c4999] hover:bg-[#303c7e] text-white text-xs font-semibold"
+          >
+            Reload recent meetings
+          </button>
+        </div>
+      ) : filteredMeetings.length ? (
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredMeetings.map((meeting) => (
+              <RedlineMeetingCard
+                key={meeting.id}
+                meeting={meeting}
+                onOpen={onOpen}
+                disabled={!canOpen}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredMeetings.map((meeting) => (
+              <MeetingRow
+                key={meeting.id}
+                meeting={meeting}
+                onOpen={onOpen}
+                disabled={!canOpen}
+                compact
+              />
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="py-14 text-center space-y-3 bg-white/60 border border-dashed border-slate-200 rounded-3xl p-8">
+          <FileAudio className="w-10 h-10 mx-auto text-slate-400" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-slate-800">
+              {searchQuery
+                ? 'No meetings match your search query.'
+                : 'No recorded meetings yet.'}
+            </p>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              {searchQuery
+                ? 'Try a different search term or clear the filter.'
+                : 'Click + New Meeting to record or upload an audio file and generate structured notes.'}
+            </p>
+          </div>
+          {!searchQuery && (
+            <button
+              type="button"
+              onClick={onNewMeeting}
+              disabled={!canOpen}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3c4999] text-white text-xs font-semibold shadow-xs hover:bg-[#303c7e] transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Record or Upload Audio</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

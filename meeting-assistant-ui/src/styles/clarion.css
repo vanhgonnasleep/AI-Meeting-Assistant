@@ -59,7 +59,7 @@
 }
 .workspace-toolbar > div:first-child, .workspace-toolbar > div:first-child > div { min-width: 0; }
 .workspace-main { padding-top: 38px; }
-.clarion-overview { max-width: 1120px; padding-top: 0; }
+.clarion-overview { max-width: 1400px; padding-top: 0; }
 .overview-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .overview-intro h1 { font-size: clamp(28px, 2.6vw, 35px); line-height: 1.18; font-weight: 600; letter-spacing: -1.2px; }
 .overview-intro h1 span { color: #8792b0; font-weight: 400; }

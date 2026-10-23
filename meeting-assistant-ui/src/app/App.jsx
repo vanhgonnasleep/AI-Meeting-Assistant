@@ -1,7 +1,7 @@
 // ─── 1. Core React & Libraries ───────────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { PanelLeftOpen, PanelLeftClose, Play, Compass } from 'lucide-react';
+import { Play } from 'lucide-react';
 
 // ─── 2. Application Shell & Features ─────────────────────────────────────────
 import Sidebar from './Sidebar.jsx';
@@ -82,11 +82,11 @@ const getDefaultChatGreeting = (currResult) => {
  *    - Command Center: Floating frosted-glass dock at bottom with live audio recording and RAG chat.
  * 4. WCAG AA Accessibility: Explicit focus-visible ring-3 offsets, ARIA roles, and high contrast ratios.
  */
-function App({ account, onLogout, signingOut = false, accountError = '' }) {
+function App({ account, onLogout, onAccountUpdated, signingOut = false, accountError = '' }) {
   // ─── 1. Navigation & Shell Layout State ─────────────────────────────────────
   const page = useSyncExternalStore(subscribeToNavigation, getNavigationPage, () => 'landing');
   const isMobile = useMobileViewport();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const toggleSidebar = useCallback(() => setIsSidebarCollapsed(value => !value), []);
   const [notice, setNotice] = useState(null);
   const noticeId = useRef(0);
@@ -1055,22 +1055,18 @@ ${result.transcript || ""}
   }
 
   return (
-    <div className="clarion-app min-h-screen bg-canvas text-slate-900 flex font-sans antialiased selection:bg-indigo-500/30 selection:text-white"
-      style={{ '--sidebar-width': isSidebarCollapsed ? '64px' : '288px' }}>
-      
-      {/* 1. COLLAPSIBLE SIDEBAR */}
+    <div className="clarion-app min-h-screen bg-canvas text-slate-900 flex flex-col font-sans antialiased selection:bg-indigo-500/30 selection:text-white">
+      {/* 1. TOP HORIZONTAL NAVIGATION BAR */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={toggleSidebar}
         meetings={meetingsHistory}
         currentMeetingId={currentMeetingId}
         onSelectMeeting={meeting => {
-          if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarCollapsed(true);
           handleLoadPastMeeting(meeting);
         }}
         onDeleteMeeting={handleDeletePastMeeting}
         onNewMeeting={() => {
-          if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarCollapsed(true);
           handleNewMeeting();
         }}
         canStartNew={canOpenMeeting}
@@ -1081,101 +1077,32 @@ ${result.transcript || ""}
         healthStatus={healthStatus}
         activePage={page}
         onNavigate={destination => {
-          if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarCollapsed(true);
           navigateTo(destination);
         }}
+        account={account}
+        onLogout={onLogout}
+        signingOut={signingOut}
+        onAccountUpdated={onAccountUpdated}
+        onNotify={notify}
+        file={file}
+        result={result}
+        isProcessing={isProcessing}
+        uploadError={uploadError}
+        isContentSaving={isContentSaving}
+        onProcessAudio={handleProcessAudio}
       />
 
       {/* 2. MAIN APPLICATION CONTENT AREA */}
       <div
         inert={isMobile && !isSidebarCollapsed}
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-250 ease-out ${
-          isSidebarCollapsed ? 'md:ml-16 ml-0' : 'md:ml-72 ml-0'
-        }`}
+        className="flex-1 flex flex-col min-w-0 w-full max-w-[1440px] mx-auto"
       >
-        {/* Top Navbar */}
-        <header className="workspace-toolbar h-16 px-4 md:px-8 border-b border-slate-200/80 flex items-center justify-between bg-white/80 backdrop-blur-xl sticky top-0 z-20 shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              aria-label={isSidebarCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
-              aria-controls="meeting-sidebar"
-              aria-expanded={!isSidebarCollapsed}
-              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 border border-slate-200 transition-all active:scale-95 cursor-pointer"
-              title="Toggle sidebar (Ctrl+B)"
-            >
-              {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-            </button>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-600 capitalize">
-                {page === 'studio' ? 'Studio' : page === 'overview' ? 'Overview' : page === 'meetings' ? 'Library' : page === 'tasks' ? 'Tasks' : 'Projects'}
-              </span>
-              <span className="text-slate-500">/</span>
-              <span className="font-semibold text-slate-800 truncate max-w-xs" title={file?.name || meetingTitle}>
-                {page === 'overview'
-                  ? 'Dashboard'
-                  : page === 'tasks'
-                    ? 'Action Items'
-                    : page === 'projects'
-                      ? 'Projects & Decisions'
-                      : page === 'meetings'
-                        ? 'Meeting History'
-                        : file?.name || meetingTitle || (isDemoResult ? 'Q3 Demo Meeting' : 'Studio Workspace')}
-              </span>
-            </div>
-          </div>
-
-          {/* Quick Actions in Navbar */}
-          <div className="flex items-center gap-2">
-            {account && <div className="flex items-center gap-2 shrink-0">
-              <span className="hidden lg:inline text-xs text-slate-600 max-w-32 truncate" title={account.name}>{account.name}</span>
-              <button type="button" onClick={onLogout} disabled={signingOut} aria-label={`Sign out ${account.name}`}
-                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-50">
-                {signingOut ? 'Signing out…' : 'Sign out'}
-              </button>
-            </div>}
-            <button
-              type="button"
-              onClick={() => navigateTo('landing')}
-              className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-medium transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
-              title="View Outside Product Tour & Landing Page"
-            >
-              <Compass className="w-3.5 h-3.5 text-[#6370ce]" />
-              <span className="hidden sm:inline">Product Tour</span>
-            </button>
-
-            {file && !result && !isProcessing && (
-              <button
-                type="button"
-                onClick={handleProcessAudio}
-                disabled={Boolean(uploadError) || isProcessing || isContentSaving}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-95 disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 fill-white" />
-                <span>Start Processing</span>
-              </button>
-            )}
-
-            {result && !isProcessing && (
-              <button
-                type="button"
-                onClick={handleNewMeeting}
-                disabled={!canOpenMeeting}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/60 text-slate-800 hover:text-slate-900 text-xs font-medium transition-all active:scale-95 cursor-pointer"
-              >
-                New Meeting
-              </button>
-            )}
-          </div>
-        </header>
-
         {/* Dynamic Page Content */}
-        <main className="workspace-main flex-1 p-4 md:p-8 pb-32 overflow-y-auto">
+        <main className="workspace-main flex-1 px-4 md:px-8 pt-4 pb-32 overflow-y-auto">
           {page === 'overview' ? (
             <LazyPanel key="overview" load={loadOverview} name="the dashboard" fallback={workspaceLoading}>
             {Overview => <Overview
+              account={account}
               apiBase={API_BASE}
               refreshKey={currentMeetingId}
               onOpen={handleLoadPastMeeting}

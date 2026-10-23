@@ -13,7 +13,7 @@ from .config import settings
 from .store import find_session
 
 SESSION_COOKIE = 'clarion_session'
-PUBLIC_PATHS = {'/api/health', '/api/version', '/api/auth/session'}
+PUBLIC_PATHS = {'/api/health', '/api/version', '/api/auth/session', '/api/auth/login', '/api/auth/register'}
 LOGIN_PATHS = {f'/api/auth/{provider}/{action}' for provider in ('google', 'github') for action in ('login', 'callback')}
 _ready = set()
 _schema_lock = Lock()
@@ -41,7 +41,8 @@ class PrivateWorkspaceMiddleware:
         async def uncached_send(message):
             if message['type'] == 'http.response.start':
                 headers = [(key, value) for key, value in message.get('headers', []) if key.lower() != b'cache-control']
-                if session:
+                has_account_header = any(key.lower() == b'x-clarion-account' for key, _ in headers)
+                if session and not has_account_header:
                     headers.append((b'x-clarion-account', session['id'].encode('ascii')))
                 message = {**message, 'headers': headers + [(b'cache-control', b'no-store')]}
             await original_send(message)
@@ -56,7 +57,7 @@ class PrivateWorkspaceMiddleware:
         public = path in PUBLIC_PATHS or path in LOGIN_PATHS or scope['method'] == 'OPTIONS'
         if not public and not session:
             return await JSONResponse({'detail': 'Sign in to access your private workspace.'}, status_code=401)(scope, receive, send)
-        if session and scope['method'] not in {'GET', 'HEAD', 'OPTIONS'}:
+        if session and path not in {'/api/auth/login', '/api/auth/register'} and scope['method'] not in {'GET', 'HEAD', 'OPTIONS'}:
             headers = Headers(scope=scope)
             csrf = headers.get('x-csrf-token', '')
             if (headers.get('origin') != config.frontend_url

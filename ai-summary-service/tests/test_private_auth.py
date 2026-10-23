@@ -262,3 +262,60 @@ def test_provider_adapter_uses_fixed_identity_endpoints_and_pkce(private, monkey
     assert calls[0][1]['code_verifier'] == 'verifier'
     assert calls[0][1]['timeout'] == 15
     assert all(url.startswith('https://') for url, _ in calls)
+
+
+
+def test_local_account_registration_login_and_password_change(private):
+    client = TestClient(main.app)
+    reg = client.post('/api/auth/register', json={
+        'name': 'Luong Nguyen',
+        'email': 'luong@example.com',
+        'password': 'StrongPassword123!',
+    })
+    assert reg.status_code == 201, reg.text
+    body = reg.json()
+    assert body['authenticated'] is True
+    assert body['user']['name'] == 'Luong Nguyen'
+    assert body['user']['email'] == 'luong@example.com'
+    assert body['user']['provider'] == 'local'
+
+    # Duplicate email registration is rejected
+    dup = client.post('/api/auth/register', json={
+        'name': 'Other',
+        'email': 'LUONG@example.com',
+        'password': 'AnotherPassword123!',
+    })
+    assert dup.status_code == 409
+
+    # Update display name and password via /api/auth/account
+    wrong_pw = client.patch('/api/auth/account', headers=mutation_headers(client), json={
+        'name': 'Luong Updated',
+        'current_password': 'WrongPassword',
+        'new_password': 'NewStrongPassword456!',
+    })
+    assert wrong_pw.status_code == 400
+
+    updated = client.patch('/api/auth/account', headers=mutation_headers(client), json={
+        'name': 'Luong Updated',
+        'current_password': 'StrongPassword123!',
+        'new_password': 'NewStrongPassword456!',
+    })
+    assert updated.status_code == 200, updated.text
+    assert updated.json()['user']['name'] == 'Luong Updated'
+
+    # Logout and sign back in with new password
+    client.post('/api/auth/logout', headers=mutation_headers(client))
+    assert client.get('/api/auth/session').json()['user'] is None
+
+    old_login = client.post('/api/auth/login', json={
+        'email': 'luong@example.com',
+        'password': 'StrongPassword123!',
+    })
+    assert old_login.status_code == 401
+
+    new_login = client.post('/api/auth/login', json={
+        'email': 'luong@example.com',
+        'password': 'NewStrongPassword456!',
+    })
+    assert new_login.status_code == 200
+    assert new_login.json()['user']['name'] == 'Luong Updated'

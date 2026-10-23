@@ -38,3 +38,9 @@ database/backups/
 /data/
 /.evaluation-data/
 /.evaluation-runs/
+# Private Defense & Scripts (Keep strictly local)
+docs/private-defense/
+*private-defense*
+*defense-script*
+*DEFENSE*
+
