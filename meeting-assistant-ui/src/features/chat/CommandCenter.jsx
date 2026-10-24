@@ -10,12 +10,22 @@ import {
   Loader2, 
   Play, 
   Trash2,
-  ChevronDown,
-  MessageSquare,
-  Bot
 } from 'lucide-react';
+import { ClarionMark } from '../../shared/ui/BrandMarks.jsx';
 import { shouldSubmitChat, normalizeCitation } from '../meetings/session.js';
 import { createAudioRecording } from '../recording/recording.js';
+
+/**
+ * Friendly label for retrieval mode badge (Anti-AI-slop: avoid raw rag_llm jargon)
+ */
+const formatModeBadge = (mode) => {
+  if (!mode || mode === 'assistant') return null;
+  if (mode === 'rag_llm') return 'From transcript';
+  if (mode === 'cached') return 'Saved answer';
+  if (mode === 'no_matching_context') return 'No match found';
+  if (mode === 'demo') return 'Sample';
+  return mode;
+};
 
 /**
  * Format seconds into MM:SS display
@@ -27,11 +37,11 @@ const formatRecordingTime = (secs) => {
 };
 
 /**
- * Android Messenger-style Floating AI Chat Bubble & Pop-up Window
+ * Unified Clarion Assistant - Floating Chat Bubble & Pop-up Window
  * 
  * UX Decisions:
- * 1. Floating Chat Head Bubble: Anchored at bottom-right corner, freeing up the bottom workspace.
- * 2. Pop-up Window: Smoothly pops up above the bubble with frosted glass aesthetics.
+ * 1. Unified Clarion Brand: Employs ClarionMark and periwinkle/slate palette across launcher, header, and avatars.
+ * 2. Grounded Follow-ups: Contextual "Related questions" appear directly under the latest AI answer.
  * 3. Multimodal Voice & Text: Integrated voice recorder with live soundwave equalizer and quick prompts.
  * 4. Keyboard Shortcuts: Esc to close popup, Enter to submit query.
  */
@@ -44,11 +54,13 @@ export default function CommandCenter({
   onClearChat,
   onRecordedAudio,
   suggestedPrompts = [],
+  followUpPrompts = [],
+  suggestionItems = [],
   audioUrl = null,
   onSeekAudio,
   isMeetingLoaded = false,
   semanticChat = false,
-  onToggleSemantic,
+  onToggleSemantic = () => {},
   renderFormattedChatText,
 }) {
   const [chatInput, setChatInput] = useState('');
@@ -64,6 +76,14 @@ export default function CommandCenter({
   const inputRef = useRef(null);
   const launcherRef = useRef(null);
   const closeChat = useCallback(() => { setIsOpen(false); launcherRef.current?.focus(); }, []);
+
+  // Compute latest assistant message index for attaching related follow-up chips
+  const lastAssistantIdx = (() => {
+    for (let i = chatMessages.length - 1; i >= 0; i--) {
+      if (chatMessages[i]?.role === 'assistant') return i;
+    }
+    return -1;
+  })();
 
   // Auto-scroll chat to bottom on new messages
   useEffect(() => {
@@ -147,19 +167,18 @@ export default function CommandCenter({
             id="clarion-assistant-panel"
             className="clarion-chat-popup mb-3 w-[calc(100vw-32px)] sm:w-[410px] md:w-[430px] h-[550px] max-h-[calc(100dvh-125px)] bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-3xl shadow-2xl shadow-indigo-950/20 flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 origin-bottom-right"
           >
-            {/* Header */}
+            {/* Header: Unified Clarion Assistant */}
             <div className="px-4 py-3 bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border-b border-slate-200/80 flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#4654c6] to-[#7a88ef] text-white flex items-center justify-center shadow-xs shrink-0">
-                  <Sparkles className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-[#5867ce] text-white flex items-center justify-center shadow-xs shrink-0">
+                  <ClarionMark size={18} />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-xs font-bold text-slate-900 tracking-tight truncate">AI Meeting Assistant</h3>
-                    <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" aria-hidden="true" />
+                    <h3 className="text-xs font-bold text-slate-900 tracking-tight truncate">Clarion Assistant</h3>
                   </div>
                   <p className="text-[11px] text-slate-500 truncate">
-                    {isMeetingLoaded ? 'Grounded in meeting transcript' : 'Ready to record & analyze'}
+                    {isMeetingLoaded ? "Answers cite this meeting's transcript" : 'Ready to record & analyze'}
                   </p>
                 </div>
               </div>
@@ -177,15 +196,6 @@ export default function CommandCenter({
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={closeChat}
-                  aria-label="Minimize chat bubble"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                  title="Minimize (Esc)"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </button>
                 <button
                   type="button"
                   onClick={closeChat}
@@ -208,11 +218,11 @@ export default function CommandCenter({
             >
               {chatMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-4 space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs">
-                    <Bot className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-2xl bg-[#eef1fc] border border-[#d9dff8] text-[#5867ce] flex items-center justify-center shadow-xs">
+                    <ClarionMark size={26} />
                   </div>
                   <div className="space-y-1">
-                    <p className="font-semibold text-slate-800 text-sm">Ask about this meeting</p>
+                    <p className="font-semibold text-slate-800 text-sm">Ask Clarion about this meeting</p>
                     <p className="text-xs text-slate-500 max-w-xs">
                       Answers include clickable citations to jump straight to exact audio timestamps.
                     </p>
@@ -223,19 +233,19 @@ export default function CommandCenter({
                     <div className="w-full pt-2 space-y-1.5 text-left">
                       <p className="text-[11px] font-mono text-slate-500 uppercase tracking-wider px-1">Suggested questions:</p>
                       <div className="space-y-1.5">
-                        {(suggestedPrompts.length > 0 ? suggestedPrompts.slice(0, 3) : [
-                          'What were the key decisions made?',
-                          'List all extracted action items and owners',
-                          'Were there any delivery risks or blockers?'
-                        ]).map((prompt, pIdx) => (
+                        {(suggestionItems.length > 0 ? suggestionItems : (suggestedPrompts.length > 0 ? suggestedPrompts.map(p => ({ label: p, question: p })) : [
+                          { label: 'Key decisions', question: 'What were the key decisions made?' },
+                          { label: 'Action items & owners', question: 'List all extracted action items and owners' },
+                          { label: 'Risks & blockers', question: 'Were there any delivery risks or blockers?' }
+                        ])).slice(0, 3).map((item, pIdx) => (
                           <button
                             key={pIdx}
                             type="button"
-                            onClick={() => handleSend(prompt)}
+                            onClick={() => handleSend(item.question)}
                             disabled={isChatLoading || isBusy}
-                            className="w-full text-left p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/80 hover:border-indigo-200 text-slate-700 hover:text-indigo-900 text-xs transition-all active:scale-98 cursor-pointer shadow-2xs flex items-center justify-between group"
+                            className="w-full text-left p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/80 hover:border-indigo-200 text-slate-700 hover:text-indigo-900 text-xs transition-all active:scale-[0.98] cursor-pointer shadow-2xs flex items-center justify-between group"
                           >
-                            <span className="truncate pr-2">{prompt}</span>
+                            <span className="truncate pr-2">{item.label}</span>
                             <Sparkles className="w-3 h-3 text-indigo-400 group-hover:text-indigo-600 shrink-0" />
                           </button>
                         ))}
@@ -252,17 +262,17 @@ export default function CommandCenter({
                       className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
                     >
                       <div className="flex items-center gap-1.5 text-xs text-slate-500 px-1 font-mono">
-                        <span>{isUser ? 'You' : 'Meeting Assistant AI'}</span>
-                        {msg.mode && (
+                        <span>{isUser ? 'You' : 'Clarion'}</span>
+                        {formatModeBadge(msg.mode) && (
                           <span className="px-1.5 py-0.2 rounded-sm bg-slate-100 text-slate-600 border border-slate-300">
-                            {msg.mode}
+                            {formatModeBadge(msg.mode)}
                           </span>
                         )}
                       </div>
                       <div
                         className={`p-3.5 rounded-2xl max-w-[90%] text-sm leading-relaxed shadow-xs ${
                           isUser
-                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-tr-none'
+                            ? 'bg-[#3c4999] text-white rounded-tr-none'
                             : 'bg-slate-50/90 text-slate-800 border border-slate-200/80 rounded-tl-none'
                         }`}
                       >
@@ -295,6 +305,33 @@ export default function CommandCenter({
                             })}
                           </div>
                         )}
+
+                        {/* Related questions follow-up chips attached directly under latest answer */}
+                        {!isUser && idx === lastAssistantIdx && !msg.streaming && followUpPrompts && followUpPrompts.length > 0 && (
+                          <div
+                            aria-label="Related questions"
+                            className="mt-3 pt-2.5 border-t border-slate-200/80 space-y-1.5"
+                          >
+                            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                              <Sparkles className="w-2.5 h-2.5 text-indigo-600" /> Related questions:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {followUpPrompts.map((item, fIdx) => (
+                                <button
+                                  key={fIdx}
+                                  type="button"
+                                  disabled={isChatLoading || isBusy}
+                                  onClick={() => handleSend(item.question)}
+                                  title={item.question}
+                                  className="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50/80 border border-slate-200/90 hover:border-indigo-300 text-slate-700 hover:text-indigo-900 text-xs text-left transition-all active:scale-[0.98] shadow-2xs cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <span>{item.label}</span>
+                                  <span className="text-indigo-400 text-xs">→</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -309,31 +346,10 @@ export default function CommandCenter({
               )}
             </div>
 
-            {/* Suggested Prompts Pills Carousel (Above Input) */}
-            {chatMessages.length > 0 && isMeetingLoaded && suggestedPrompts.length > 0 && (
-              <div className="px-3 py-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-slate-50/60 border-t border-slate-100 shrink-0">
-                <span className="text-[11px] text-slate-500 font-mono shrink-0 flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 text-indigo-600" /> Suggestions:
-                </span>
-                {suggestedPrompts.slice(0, 3).map((prompt, pIdx) => (
-                  <button
-                    key={pIdx}
-                    type="button"
-                    onClick={() => handleSend(prompt)}
-                    disabled={isChatLoading || isBusy}
-                    className="px-2 py-0.5 rounded-lg bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-slate-700 text-[11px] whitespace-nowrap transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
-                    title={prompt}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* Pre-input options */}
             {isMeetingLoaded && (
               <div className="px-3.5 py-1 bg-slate-50/70 border-t border-slate-100 text-[11px] text-slate-600 shrink-0">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer" title="Enable semantic embedding retrieval for deeper context search">
                   <input 
                     type="checkbox" 
                     checked={semanticChat} 
@@ -341,7 +357,7 @@ export default function CommandCenter({
                     disabled={isChatLoading || isBusy} 
                     className="accent-indigo-600 rounded cursor-pointer" 
                   />
-                  <span>Hybrid retrieval (local embedding model)</span>
+                  <span>Deeper search (local embedding model)</span>
                 </label>
               </div>
             )}
@@ -427,7 +443,7 @@ export default function CommandCenter({
           </div>
         )}
 
-        {/* Floating Chat Bubble Button (Android Messenger Chat Head Style) */}
+        {/* Floating Chat Bubble Button: Unified ClarionMark with tactile active state */}
         <div className="relative flex items-center justify-end group">
           {/* Subtle Hover Tooltip / Hint when closed */}
           {!isOpen && !isRecording && (
@@ -444,12 +460,12 @@ export default function CommandCenter({
             aria-expanded={isOpen}
             aria-controls="clarion-assistant-panel"
             aria-label={isOpen ? "Close AI assistant" : "Open AI assistant chat bubble"}
-            className={`clarion-chat-head w-14 h-14 sm:w-15 sm:h-15 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer border-2 border-white/50 relative ${
+            className={`clarion-chat-head w-14 h-14 sm:w-15 sm:h-15 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer border-2 border-white/60 relative ${
               isRecording 
                 ? 'bg-gradient-to-tr from-rose-600 to-rose-500 shadow-rose-600/40 ring-4 ring-rose-500/20' 
-                : 'bg-gradient-to-tr from-[#4654c6] via-[#5c6be2] to-[#7a88ef] shadow-indigo-600/35 ring-4 ring-indigo-500/10'
+                : 'bg-[#303c63] hover:bg-[#3c4999] shadow-indigo-950/30 ring-4 ring-[#303c63]/10'
             }`}
-            title={isOpen ? "Close chat (Esc)" : "Ask AI Assistant"}
+            title={isOpen ? "Close chat (Esc)" : "Clarion Assistant"}
           >
             {/* Ping wave animation when recording */}
             {isRecording && (
@@ -459,7 +475,7 @@ export default function CommandCenter({
               </>
             )}
 
-            {/* Icon Inside Bubble */}
+            {/* Icon Inside Bubble: ClarionMark when idle, Timer when recording, X when open */}
             {isOpen ? (
               <X className="w-6 h-6 text-white transition-transform duration-200 hover:rotate-90" />
             ) : isRecording ? (
@@ -468,15 +484,9 @@ export default function CommandCenter({
                 <span className="text-[9px] font-mono tabular-nums font-bold mt-0.5">{formatRecordingTime(recordingDuration)}</span>
               </div>
             ) : (
-              <div className="relative">
-                <MessageSquare className="w-6 h-6 fill-white/20 stroke-[2.2]" />
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 absolute -top-1 -right-1 animate-pulse" />
+              <div className="flex items-center justify-center text-white">
+                <ClarionMark size={22} />
               </div>
-            )}
-
-            {/* Online Status Green Indicator Dot */}
-            {!isOpen && !isRecording && (
-              <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-indigo-300 border-2 border-white rounded-full shadow-xs" aria-hidden="true" />
             )}
 
             {/* Unread message count badge */}

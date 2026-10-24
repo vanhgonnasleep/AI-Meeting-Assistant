@@ -13,7 +13,22 @@ export function normalizeCitation(citation) {
 export { createRequestGate } from '../../shared/lib/request-gate.js';
 
 // Topics come from the current source text, not unverified generated summaries/tasks.
-export function getSuggestedPrompts(result) {
+const TOPIC_ORDER = ['decision', 'follow-up', 'risk', 'question', 'topic'];
+const VIETNAMESE_TEXT = /[ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/iu;
+const TOPIC_LABELS = {
+  en: { decision: 'Decision', 'follow-up': 'Follow-up', risk: 'Risk', question: 'Open question', topic: 'Topic' },
+  vi: { decision: 'Quyết định', 'follow-up': 'Việc tiếp theo', risk: 'Rủi ro', question: 'Câu hỏi mở', topic: 'Chủ đề' },
+};
+const normalizeQuestion = text => String(text || '').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+const shortText = (text, max) => {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max - 1);
+  return (cut.replace(/\s+\S*$/u, '') || cut) + '…';
+};
+const isVietnamese = (result, text) => result?.language === 'vi' || VIETNAMESE_TEXT.test(text);
+
+function collectTopics(result) {
   const segments = Array.isArray(result?.segments) ? result.segments : [];
   let texts = segments.filter(segment => !needsSpeechReview(segment)).map(segment => typeof segment?.text === 'string' ? segment.text : '').filter(text => text.trim());
   const fromSegments = texts.length > 0;
@@ -43,23 +58,92 @@ export function getSuggestedPrompts(result) {
       candidates.push({ excerpt: shortened, category });
     }
   }
-  // Prefer distinct categories before filling with other transcript excerpts.
+  return candidates;
+}
+
+// Prefer distinct categories before filling with other transcript excerpts.
+function selectTopics(candidates, limit, skip = () => false) {
+  const pool = candidates.filter(candidate => !skip(candidate));
   const selected = [];
-  for (const category of ['decision', 'follow-up', 'risk', 'question', 'topic']) {
-    const candidate = candidates.find(item => item.category === category);
-    if (candidate && selected.length < 4) selected.push(candidate);
+  for (const category of TOPIC_ORDER) {
+    const candidate = pool.find(item => item.category === category);
+    if (candidate && selected.length < limit) selected.push(candidate);
   }
-  for (const candidate of candidates) {
-    if (selected.length >= 4) break;
+  for (const candidate of pool) {
+    if (selected.length >= limit) break;
     if (!selected.includes(candidate)) selected.push(candidate);
   }
-  return selected.map(({ excerpt, category }) => {
-    if (category === 'decision') return `What decision, if any, is discussed in “${excerpt}”?`;
-    if (category === 'follow-up') return `What follow-up, if any, is discussed in “${excerpt}”?`;
-    if (category === 'risk') return `What does the meeting say about the concern in “${excerpt}”?`;
-    return `What does the meeting say about “${excerpt}”?`;
-  });
+  return selected;
 }
+
+function topicItem({ excerpt, category }, result) {
+  const vi = isVietnamese(result, excerpt);
+  const label = `${TOPIC_LABELS[vi ? 'vi' : 'en'][category]}: ${shortText(excerpt, 30)}`;
+  if (vi) {
+    if (category === 'decision') return { category, label, question: `Cuộc họp đã quyết định gì về “${excerpt}”?` };
+    if (category === 'follow-up') return { category, label, question: `Việc cần làm tiếp theo liên quan đến “${excerpt}” là gì?` };
+    if (category === 'risk') return { category, label, question: `Cuộc họp nói gì về rủi ro trong “${excerpt}”?` };
+    return { category, label, question: `Cuộc họp nói gì về “${excerpt}”?` };
+  }
+  if (category === 'decision') return { category, label, question: `What decision, if any, is discussed in “${excerpt}”?` };
+  if (category === 'follow-up') return { category, label, question: `What follow-up, if any, is discussed in “${excerpt}”?` };
+  if (category === 'risk') return { category, label, question: `What does the meeting say about the concern in “${excerpt}”?` };
+  return { category, label, question: `What does the meeting say about “${excerpt}”?` };
+}
+
+/** Starter questions: a short chip label plus the full, transcript-grounded question that is sent. */
+export function getSuggestionItems(result, limit = 4) {
+  return selectTopics(collectTopics(result), limit).map(topic => topicItem(topic, result));
+}
+
+export function getSuggestedPrompts(result) {
+  return getSuggestionItems(result).map(item => item.question);
+}
+
+// Questions are self-contained because chat requests do not carry conversation history.
+function citedPassageItem(text, index, result) {
+  const excerpt = shortText(text, 90);
+  const vi = isVietnamese(result, text);
+  if (index === 0) {
+    return vi
+      ? { category: 'owner', label: `Người phụ trách: ${shortText(text, 28)}`, question: `Ai phụ trách “${excerpt}” và hạn chót là khi nào?` }
+      : { category: 'owner', label: `Owner & deadline: ${shortText(text, 26)}`, question: `Who is responsible for “${excerpt}”, and by when?` };
+  }
+  return vi
+    ? { category: 'context', label: `Thêm bối cảnh: ${shortText(text, 30)}`, question: `Cuộc họp còn nói gì thêm về “${excerpt}”?` }
+    : { category: 'context', label: `More context: ${shortText(text, 30)}`, question: `What else does the meeting say about “${excerpt}”?` };
+}
+
+/**
+ * Related questions shown under the latest answer: first grounded in the passages it cited,
+ * then filled with transcript topics that have not been asked yet. Never repeats a question.
+ */
+export function getFollowUpPrompts({ result, chatMessages = [], limit = 3 } = {}) {
+  const messages = Array.isArray(chatMessages) ? chatMessages : [];
+  const latest = [...messages].reverse().find(message => message?.role === 'assistant' && !message.streaming);
+  if (!result || !latest) return [];
+  const asked = messages.filter(message => message?.role === 'user').map(message => normalizeQuestion(message.content));
+  const blocked = new Set(asked);
+  const items = [];
+  const push = item => {
+    const key = normalizeQuestion(item.question);
+    if (blocked.has(key) || items.length >= limit) return;
+    blocked.add(key);
+    items.push(item);
+  };
+  const cited = (Array.isArray(latest.citations) ? latest.citations : [])
+    .map(citation => typeof citation?.text === 'string' ? citation.text.replace(/\s+/g, ' ').trim() : '')
+    .filter((text, index, all) => text.length >= 8 && all.indexOf(text) === index);
+  const wasAsked = text => asked.some(question => question.includes(normalizeQuestion(text)));
+  cited.filter(text => !wasAsked(shortText(text, 90))).slice(0, 2)
+    .forEach((text, index) => push(citedPassageItem(text, index, result)));
+  const coveredByCitation = excerpt => cited.some(text => normalizeQuestion(text).includes(normalizeQuestion(excerpt)));
+  for (const topic of selectTopics(collectTopics(result), limit + 4, topic => wasAsked(topic.excerpt) || coveredByCitation(topic.excerpt))) {
+    push(topicItem(topic, result));
+  }
+  return items;
+}
+
 
 export function buildChatPayload({ question, meetingId, model, isDemo, result, semantic = false, embeddingModel = 'embeddinggemma' }) {
   const retrieval = { semantic: Boolean(semantic), ...(semantic ? { embedding_model: embeddingModel.trim() || 'embeddinggemma' } : {}) };

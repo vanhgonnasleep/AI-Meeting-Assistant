@@ -61,6 +61,60 @@ test('plain attributed transcripts exclude only their speaker headers', () => {
   assert.ok(prompts.every(prompt => !prompt.includes('[00:01') && !prompt.includes('Alice:')));
 });
 
+test('suggestion items pair a short readable label with the full grounded question', () => {
+  const items = session.getSuggestionItems?.({
+    transcript: 'We agreed to postpone the database migration until the certificate rotation is finished next quarter.',
+  }) ?? [];
+  assert.ok(items.length > 0);
+  for (const item of items) {
+    assert.ok(item.label.length <= 48, item.label);
+    assert.ok(item.question.includes('database migration'));
+  }
+  assert.deepEqual(session.getSuggestedPrompts({ transcript: 'We agreed to postpone the database migration until the certificate rotation is finished next quarter.' }),
+    items.map(item => item.question));
+});
+
+const followUpMeeting = {
+  transcript: 'We agreed to postpone the database migration. Alice will run the rollback rehearsal on Friday. The release risk is an expired certificate. The event support needs support from GTM teams.',
+};
+
+test('follow-up questions never repeat a question already asked', () => {
+  const asked = session.getSuggestedPrompts(followUpMeeting)[0];
+  const followUps = session.getFollowUpPrompts?.({ result: followUpMeeting, chatMessages: [
+    { role: 'user', content: asked },
+    { role: 'assistant', content: 'Answer', citations: [] },
+  ] }) ?? [];
+  assert.ok(followUps.length > 0 && followUps.length <= 3);
+  assert.ok(followUps.every(item => item.question !== asked));
+});
+
+test('follow-up questions build on the passage the latest answer cited', () => {
+  const followUps = session.getFollowUpPrompts?.({ result: followUpMeeting, chatMessages: [
+    { role: 'user', content: 'Who supports the event?' },
+    { role: 'assistant', content: 'GTM teams.', citations: [{ timestamp: '[01:34]', speaker: 'Speaker 1', text: 'The event support needs support from GTM teams.' }] },
+  ] }) ?? [];
+  assert.ok(followUps[0]?.question.includes('needs support from GTM teams'));
+  assert.ok(followUps.every(item => item.label.length <= 48));
+  assert.equal(new Set(followUps.map(item => item.question)).size, followUps.length);
+});
+
+test('follow-up questions stay empty without a meeting or answer and ignore generated content', () => {
+  assert.deepEqual(session.getFollowUpPrompts({ result: null, chatMessages: [] }), []);
+  assert.deepEqual(session.getFollowUpPrompts({ result: followUpMeeting, chatMessages: [] }), []);
+  const followUps = session.getFollowUpPrompts({ result: { ...followUpMeeting, action_items: [{ task: 'Submit financial report', assignee: 'John' }] },
+    chatMessages: [{ role: 'assistant', content: 'Hi', citations: [] }] });
+  assert.ok(followUps.every(item => !/financial report|John/.test(item.question)));
+});
+
+test('Vietnamese meetings receive Vietnamese follow-up questions', () => {
+  const result = { language: 'vi', segments: [{ speaker: 'Lan', text: 'Nhóm cần kiểm tra cảm biến nhiệt độ trước khi bàn giao.' }] };
+  const followUps = session.getFollowUpPrompts({ result, chatMessages: [
+    { role: 'user', content: 'Cảm biến?' },
+    { role: 'assistant', content: 'Có.', citations: [{ timestamp: '[00:05]', text: 'Nhóm cần kiểm tra cảm biến nhiệt độ trước khi bàn giao.' }] },
+  ] });
+  assert.ok(followUps[0]?.question.startsWith('Ai phụ trách'));
+});
+
 test('saved-meeting chat requests do not resend oversized or stale browser context', () => {
   const payload = session.buildChatPayload?.({
     question: 'When is the migration?', meetingId: 17, model: 'llama3.2:1b', isDemo: false,

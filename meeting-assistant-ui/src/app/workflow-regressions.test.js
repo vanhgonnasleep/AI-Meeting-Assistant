@@ -81,6 +81,30 @@ test('closing the floating assistant restores focus to its launcher and makes no
   } finally { await view.close(); }
 });
 
+test('the assistant uses one Clarion identity and offers related questions under the latest answer', async () => {
+  const sent = [];
+  const view = await mount(CommandCenter, {
+    isMeetingLoaded: true,
+    onSendChatMessage: question => sent.push(question),
+    chatMessages: [
+      { role: 'user', content: 'Who supports the event?' },
+      { role: 'assistant', content: 'GTM teams.', mode: 'rag_llm', citations: [] },
+    ],
+    followUpPrompts: [{ label: 'Owner & deadline: GTM support', question: 'Who is responsible for “GTM support”, and by when?' }],
+  });
+  try {
+    await click(view.container.querySelector('button[aria-label="Open AI assistant chat bubble"]'));
+    const panel = view.container.querySelector('#clarion-assistant-panel');
+    assert.match(panel.textContent, /Clarion Assistant/);
+    assert.doesNotMatch(panel.textContent, /rag_llm|Meeting Assistant AI|AI Meeting Assistant/);
+    assert.match(panel.textContent, /From transcript/);
+    const related = view.container.querySelector('[aria-label="Related questions"]');
+    assert.ok(related, 'Related questions should follow the latest answer');
+    await click([...related.querySelectorAll('button')].find(button => button.textContent.includes('Owner & deadline')));
+    assert.deepEqual(sent, ['Who is responsible for “GTM support”, and by when?']);
+  } finally { await view.close(); }
+});
+
 test('speech correction drafts follow their source passage and reset for another review session', async () => {
   const segment = text => ({ text, start: 2, end: 5, quality: { status: 'needs_review' } });
   let segments = [segment('ni '.repeat(40)), segment('yes '.repeat(40))];

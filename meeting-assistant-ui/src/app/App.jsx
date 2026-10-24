@@ -28,6 +28,8 @@ import {
   resultFromMeeting,
   editSpeakerAttribution,
   getSuggestedPrompts,
+  getSuggestionItems,
+  getFollowUpPrompts,
   buildChatPayload,
   getExportTasks
 } from '../features/meetings/session.js';
@@ -154,6 +156,11 @@ function App({ account, onLogout, onAccountUpdated, signingOut = false, accountE
   // ─── 6. Chat & Assistant State ─────────────────────────────────────────────
   const [chatMessages, setChatMessages] = useState([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const suggestionItems = useMemo(() => getSuggestionItems(result), [result]);
+  const followUpPrompts = useMemo(
+    () => getFollowUpPrompts({ result, chatMessages }),
+    [result, chatMessages]
+  );
   const suggestedPrompts = useMemo(() => getSuggestedPrompts(result), [result]);
 
   // ─── 7. Concurrency Gates & Mutation Locks ─────────────────────────────────
@@ -1238,6 +1245,8 @@ ${result.transcript || ""}
             notify('Audio recorded successfully. Click Start Processing to analyze!');
           }}
           suggestedPrompts={suggestedPrompts}
+          suggestionItems={suggestionItems}
+          followUpPrompts={followUpPrompts}
           audioUrl={audioUrl}
           onSeekAudio={handleSeekAudio}
           isMeetingLoaded={Boolean(result)}
