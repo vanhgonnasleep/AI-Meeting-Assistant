@@ -214,7 +214,7 @@ export default function DocumentWorkspace({
           </div>
 
           <div className="flex items-center gap-3 text-xs text-slate-700">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-300 font-mono text-xs text-indigo-700">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-300 font-mono tabular-nums text-xs text-indigo-700">
               <Clock className="w-3 h-3" /> Elapsed: {elapsedTime}s
             </span>
             <div className="flex items-center gap-1 h-3" aria-hidden="true">
@@ -485,7 +485,7 @@ export default function DocumentWorkspace({
           <button
             type="button"
             onClick={handleDemoSample}
-            className="px-3.5 py-1.5 rounded-xl bg-[#eef1fc] hover:bg-[#e2e7fb] text-[#4854b8] border border-[#d9dff8] font-medium transition-all active:scale-95 cursor-pointer shadow-xs"
+            className="px-3.5 py-1.5 rounded-xl bg-[#eef1fc] hover:bg-[#e2e7fb] text-[#4854b8] border border-[#d9dff8] font-medium transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer shadow-xs"
           >
             Load Sample Audio
           </button>
@@ -652,7 +652,7 @@ export default function DocumentWorkspace({
                         type="button"
                         disabled={!audioUrl || normalizeCitation(dec).seconds === null}
                         onClick={() => onSeekAudio(normalizeCitation(dec).seconds)}
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-sm bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-700 border border-emerald-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-sm bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-700 border border-emerald-500/30 font-mono transition-all cursor-pointer active:scale-[0.96] transition-all duration-150 ease-out disabled:opacity-40"
                         title={`Jump audio to ${dec.timestamp}`}
                       >
                         <Play className="w-2 h-2 fill-emerald-300" />
@@ -673,7 +673,7 @@ export default function DocumentWorkspace({
               <AlertTriangle className="w-3.5 h-3.5" />
               <span>Risks & Blockers</span>
             </div>
-            <span className="text-xs font-mono text-slate-600 font-bold">
+            <span className="text-xs font-mono tabular-nums text-slate-600 font-bold">
               {(result?.insights?.risks || []).length}
             </span>
           </div>
@@ -695,7 +695,7 @@ export default function DocumentWorkspace({
                         type="button"
                         disabled={!audioUrl || normalizeCitation(risk).seconds === null}
                         onClick={() => onSeekAudio(normalizeCitation(risk).seconds)}
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-sm bg-amber-500/15 hover:bg-amber-500/30 text-amber-700 border border-amber-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-sm bg-amber-500/15 hover:bg-amber-500/30 text-amber-700 border border-amber-500/30 font-mono transition-all cursor-pointer active:scale-[0.96] transition-all duration-150 ease-out disabled:opacity-40"
                         title={`Jump audio to ${risk.timestamp}`}
                       >
                         <Play className="w-2 h-2 fill-amber-300" />
@@ -716,7 +716,7 @@ export default function DocumentWorkspace({
               <HelpCircle className="w-3.5 h-3.5" />
               <span>Open Questions</span>
             </div>
-            <span className="text-xs font-mono text-slate-600 font-bold">
+            <span className="text-xs font-mono tabular-nums text-slate-600 font-bold">
               {(result?.insights?.open_questions || []).length}
             </span>
           </div>
@@ -738,7 +738,7 @@ export default function DocumentWorkspace({
                         type="button"
                         disabled={!audioUrl || normalizeCitation(q).seconds === null}
                         onClick={() => onSeekAudio(normalizeCitation(q).seconds)}
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-sm bg-blue-500/15 hover:bg-blue-500/30 text-blue-700 border border-blue-500/30 font-mono transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-sm bg-blue-500/15 hover:bg-blue-500/30 text-blue-700 border border-blue-500/30 font-mono transition-all cursor-pointer active:scale-[0.96] transition-all duration-150 ease-out disabled:opacity-40"
                         title={`Jump audio to ${q.timestamp}`}
                       >
                         <Play className="w-2 h-2 fill-blue-300" />
@@ -943,7 +943,7 @@ export default function DocumentWorkspace({
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 font-mono">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 font-mono tabular-nums">
               <span className="flex items-center gap-1 text-slate-700">
                 <Clock className="w-3.5 h-3.5 text-indigo-700" />
                 {formatMeetingDuration(result?.duration)}
@@ -1025,7 +1025,7 @@ export default function DocumentWorkspace({
             <button
               type="button"
               onClick={() => setShowConnectorsModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-linear-to-r from-sky-500/20 via-indigo-500/20 to-purple-500/20 hover:from-sky-500/30 hover:to-purple-500/30 border border-sky-500/40 text-sky-700 hover:text-slate-900 text-xs font-semibold shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#eef1fc] hover:bg-[#e2e7fb] text-[#3c4999] border border-[#d5dcf8] text-xs font-semibold shadow-xs transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer"
               title="Preview a GitHub issue or Gmail draft"
             >
               <GitHubMark size={14} /><GmailMark size={16} />
@@ -1037,7 +1037,7 @@ export default function DocumentWorkspace({
                 type="button"
                 onClick={onSaveMeeting}
                 disabled={isContentSaving || !canSaveMeeting}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all duration-150 ease-out cursor-pointer"
               >
                 {isSavingMeeting ? 'Saving…' : 'Save this meeting'}
               </button>
@@ -1048,7 +1048,7 @@ export default function DocumentWorkspace({
                 type="button"
                 onClick={onShowEditor}
                 disabled={isContentSaving}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-700 text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-700 text-xs font-medium transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer"
               >
                 Edit & Review
               </button>
@@ -1058,7 +1058,7 @@ export default function DocumentWorkspace({
             <button
               type="button"
               onClick={onCopyAll}
-              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-95 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer"
               title="Copy full document text"
               aria-label="Copy full document text"
             >
@@ -1069,7 +1069,7 @@ export default function DocumentWorkspace({
             <button
               type="button"
               onClick={onDownloadMarkdown}
-              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-95 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer"
               title="Export as Markdown (.MD)"
               aria-label="Export Markdown file"
             >
@@ -1088,7 +1088,7 @@ export default function DocumentWorkspace({
             <button
               type="button"
               onClick={() => window.print()}
-              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-95 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer"
               title="Print or Save as PDF"
               aria-label="Print or Save as PDF"
             >

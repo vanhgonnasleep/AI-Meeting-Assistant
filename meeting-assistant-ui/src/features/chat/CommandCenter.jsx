@@ -370,7 +370,7 @@ export default function CommandCenter({
                   onClick={stopRecording}
                   disabled={recordingStatus === 'stopping'}
                   aria-label="Stop recording audio"
-                  className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-600/30 active:scale-95 transition-all cursor-pointer shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-600/30 active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer shrink-0"
                   title="Click to stop recording"
                 >
                   <Square className="w-3 h-3 fill-white" />
@@ -379,7 +379,7 @@ export default function CommandCenter({
                     <span className="w-0.5 bg-white rounded-full eq-bar-2" />
                     <span className="w-0.5 bg-white rounded-full eq-bar-3" />
                   </div>
-                  <span className="font-mono text-xs">{formatRecordingTime(recordingDuration)}</span>
+                  <span className="font-mono tabular-nums text-xs">{formatRecordingTime(recordingDuration)}</span>
                 </button>
               )}
 
@@ -414,7 +414,7 @@ export default function CommandCenter({
                 onClick={() => handleSend()}
                 disabled={!chatInput.trim() || isChatLoading || isRecording || isBusy || !isMeetingLoaded}
                 aria-label="Send question to AI"
-                className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all shrink-0 cursor-pointer shadow-xs"
+                className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all duration-150 ease-out shrink-0 cursor-pointer shadow-xs"
                 title="Send question"
               >
                 {isChatLoading ? (
@@ -444,7 +444,7 @@ export default function CommandCenter({
             aria-expanded={isOpen}
             aria-controls="clarion-assistant-panel"
             aria-label={isOpen ? "Close AI assistant" : "Open AI assistant chat bubble"}
-            className={`clarion-chat-head w-14 h-14 sm:w-15 sm:h-15 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border-2 border-white/50 relative ${
+            className={`clarion-chat-head w-14 h-14 sm:w-15 sm:h-15 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer border-2 border-white/50 relative ${
               isRecording 
                 ? 'bg-gradient-to-tr from-rose-600 to-rose-500 shadow-rose-600/40 ring-4 ring-rose-500/20' 
                 : 'bg-gradient-to-tr from-[#4654c6] via-[#5c6be2] to-[#7a88ef] shadow-indigo-600/35 ring-4 ring-indigo-500/10'
@@ -465,7 +465,7 @@ export default function CommandCenter({
             ) : isRecording ? (
               <div className="flex flex-col items-center">
                 <Square className="w-4 h-4 fill-white animate-pulse" />
-                <span className="text-[9px] font-mono font-bold mt-0.5">{formatRecordingTime(recordingDuration)}</span>
+                <span className="text-[9px] font-mono tabular-nums font-bold mt-0.5">{formatRecordingTime(recordingDuration)}</span>
               </div>
             ) : (
               <div className="relative">
@@ -481,7 +481,7 @@ export default function CommandCenter({
 
             {/* Unread message count badge */}
             {!isOpen && chatMessages.length > 0 && !isRecording && (
-              <span className="absolute -top-1 -left-1 min-w-5 h-5 px-1 bg-rose-500 text-white text-[11px] font-bold rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+              <span className="absolute -top-1 -left-1 min-w-5 h-5 px-1 bg-rose-500 text-white text-[11px] font-mono tabular-nums font-bold rounded-full border-2 border-white flex items-center justify-center shadow-xs">
                 {chatMessages.length}
               </span>
             )}

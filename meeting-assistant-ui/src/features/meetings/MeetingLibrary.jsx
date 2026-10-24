@@ -11,13 +11,13 @@ import { workspaceRequest } from '../workspace/workspace.js';
  */
 export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = false }) {
   return (
-    <div className={`group relative flex items-center rounded-2xl bg-white/40 hover:bg-white/75 border border-slate-200/80 hover:border-slate-300/80 transition-all ${compact ? 'p-3' : 'p-4'}`}>
+    <div className={`group relative flex items-center rounded-2xl bg-white/40 hover:bg-white/75 border border-slate-200/80 hover:border-slate-300/80 transition-all duration-200 ease-out ${compact ? 'p-3' : 'p-4'}`}>
       <button
         type="button"
         onClick={() => onOpen(meeting)}
         disabled={disabled}
         aria-label={`Open meeting ${meeting.filename}`}
-        className="flex items-center gap-3.5 flex-1 min-w-0 text-left cursor-pointer"
+        className="flex items-center gap-3.5 flex-1 min-w-0 text-left cursor-pointer active:scale-[0.99] transition-all duration-150 ease-out"
       >
         <span className={`rounded-xl bg-slate-100/80 border border-slate-300/60 flex items-center justify-center text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-all shrink-0 ${compact ? 'w-8 h-8' : 'w-10 h-10'}`}>
           <AudioLines size={compact ? 16 : 20} strokeWidth={1.7} />
@@ -34,7 +34,7 @@ export function MeetingRow({ meeting, onOpen, onDelete, disabled, compact = fals
             </span>
           )}
 
-          <span className="flex flex-wrap items-center gap-2.5 mt-1.5 text-xs text-slate-500 font-mono">
+          <span className="flex flex-wrap items-center gap-2.5 mt-1.5 text-xs text-slate-500 font-mono tabular-nums">
             <span>{meeting.created_at && Number.isFinite(new Date(meeting.created_at).getTime()) ? new Date(meeting.created_at).toLocaleDateString() : 'Saved meeting'}</span>
             <span>•</span>
             <span className="flex items-center gap-1">
@@ -120,7 +120,7 @@ export default function MeetingLibrary({
           disabled={!canOpen}
           aria-label="Start new meeting"
           title="Start new meeting"
-          className="px-4 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-95 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer"
+          className="px-4 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-[0.98] disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-2 shadow-xs transition-all duration-150 ease-out shrink-0 cursor-pointer"
         >
           <Plus size={16} />
           <span>New Meeting</span>
@@ -151,7 +151,7 @@ export default function MeetingLibrary({
             </button>
           )}
         </div>
-        <span className="text-xs text-slate-600 font-mono">
+        <span className="text-xs text-slate-600 font-mono tabular-nums">
           {error ? 'Meetings unavailable' : <>{total} matching {total === 1 ? 'meeting' : 'meetings'}</>}
         </span>
       </div>
@@ -242,13 +242,13 @@ export default function MeetingLibrary({
       {/* Pagination */}
       {total > 0 && (
         <div className="flex items-center justify-between pt-4 border-t border-slate-200/80 text-xs text-slate-600">
-          <span>{total ? `${offset + 1}–${Math.min(offset + 20, total)} of ${total}` : '0 meetings'}</span>
+          <span className="font-mono tabular-nums">{total ? `${offset + 1}–${Math.min(offset + 20, total)} of ${total}` : '0 meetings'}</span>
           <div className="flex gap-2">
             <button
               type="button"
               disabled={loading || offset === 0}
               onClick={() => onPage(Math.max(0, offset - 20))}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-medium transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] disabled:opacity-40 text-slate-800 text-xs font-medium transition-all duration-150 ease-out cursor-pointer"
             >
               Previous
             </button>
@@ -256,7 +256,7 @@ export default function MeetingLibrary({
               type="button"
               disabled={loading || offset + 20 >= total}
               onClick={() => onPage(offset + 20)}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-medium transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] disabled:opacity-40 text-slate-800 text-xs font-medium transition-all duration-150 ease-out cursor-pointer"
             >
               Next
             </button>

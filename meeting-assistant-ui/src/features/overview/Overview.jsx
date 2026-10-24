@@ -35,7 +35,7 @@ function RedlineMeetingCard({ meeting, onOpen, disabled }) {
   return (
     <motion.div
       whileHover={{ y: -3, scale: 1.005 }}
-      whileTap={{ scale: 0.995 }}
+      whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
       className="h-full"
     >
@@ -45,7 +45,7 @@ function RedlineMeetingCard({ meeting, onOpen, disabled }) {
         disabled={disabled}
         aria-label={`Open meeting ${preview.title}`}
         title={preview.title}
-        className="w-full h-full p-5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/90 border-t-4 border-t-[#3c4999] shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between text-left cursor-pointer group relative"
+        className="w-full h-full p-5 rounded-2xl bg-white hover:bg-slate-50/80 active:scale-[0.985] border border-slate-200/90 border-t-4 border-t-[#3c4999] shadow-xs hover:shadow-md transition-all duration-200 ease-out flex flex-col justify-between text-left cursor-pointer group relative"
       >
         <div className="space-y-3 w-full">
           {/* Header Row: Initials Avatar + Title & Time */}
@@ -60,7 +60,7 @@ function RedlineMeetingCard({ meeting, onOpen, disabled }) {
               >
                 {preview.title}
               </h3>
-              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+              <p className="text-[11px] text-slate-500 font-mono tabular-nums mt-0.5">
                 {preview.dateText}
               </p>
             </div>
@@ -80,11 +80,11 @@ function RedlineMeetingCard({ meeting, onOpen, disabled }) {
         {/* Footer: Duration, Task Count & Open Action */}
         <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 w-full">
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1 font-mono text-[11px]">
+            <span className="inline-flex items-center gap-1 font-mono tabular-nums text-[11px]">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               {preview.durationText}
             </span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono tabular-nums text-[11px] font-medium">
               {preview.taskCount} {preview.taskCount === 1 ? 'task' : 'tasks'}
             </span>
           </div>
@@ -219,14 +219,15 @@ export default function Overview({
         {/* Card 1: Saved Meetings */}
         <motion.div
           whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all duration-200 ease-out"
         >
           <div className="w-12 h-12 rounded-xl bg-[#e8ecfe] border border-[#d5dcf8] flex items-center justify-center shrink-0 text-[#3c4999]">
             <AudioLines className="w-6 h-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xl font-bold text-slate-900 tracking-tight">
+            <p className="text-2xl font-bold text-slate-900 tracking-tight tabular-nums font-mono">
               {metric(analytics?.total_meetings ?? meetings.length)}
             </p>
             <p className="text-xs font-medium text-slate-500 mt-0.5">
@@ -238,14 +239,15 @@ export default function Overview({
         {/* Card 2: Pending Tasks */}
         <motion.div
           whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all duration-200 ease-out"
         >
           <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center shrink-0 text-amber-600">
             <Clock className="w-6 h-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xl font-bold text-amber-700 tracking-tight">
+            <p className="text-2xl font-bold text-amber-700 tracking-tight tabular-nums font-mono">
               {metric(analytics?.pending_action_items ?? 0)}
             </p>
             <p className="text-xs font-medium text-slate-500 mt-0.5">
@@ -257,18 +259,19 @@ export default function Overview({
         {/* Card 3: Completed Tasks */}
         <motion.div
           whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all duration-200 ease-out"
         >
           <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center shrink-0 text-emerald-600">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-1.5">
-              <p className="text-2xl font-bold text-emerald-700 tracking-tight">
+              <p className="text-2xl font-bold text-emerald-700 tracking-tight tabular-nums font-mono">
                 {metric(analytics?.completed_action_items ?? 0)}
               </p>
-              <span className="text-xs font-semibold text-emerald-700 font-mono">
+              <span className="text-xs font-semibold text-emerald-700 font-mono tabular-nums">
                 ({completionRate}%)
               </span>
             </div>
@@ -285,7 +288,7 @@ export default function Overview({
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">
             Meeting List
           </h2>
-          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-mono">
+          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-mono tabular-nums">
             {filteredMeetings.length}{' '}
             {filteredMeetings.length === 1 ? 'record' : 'records'}
           </span>
@@ -293,7 +296,7 @@ export default function Overview({
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Inline Meeting Search */}
-          <div className="relative flex items-center bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 text-xs text-slate-800 shadow-2xs focus-within:border-indigo-500 transition-all w-48 sm:w-60">
+          <div className="relative flex items-center bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 text-xs text-slate-800 shadow-2xs focus-within:ring-2 focus-within:ring-[#3c4999]/20 focus-within:border-[#3c4999] transition-all duration-200 ease-out w-48 sm:w-60">
             <Search className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
             <input
               type="text"
@@ -307,7 +310,7 @@ export default function Overview({
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="text-slate-400 hover:text-slate-600 ml-1"
+                className="text-slate-400 hover:text-slate-600 ml-1 transition-colors"
                 aria-label="Clear meeting search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -320,7 +323,7 @@ export default function Overview({
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`p-1.5 rounded-lg active:scale-[0.96] transition-all duration-150 ease-out cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[#3c4999] text-white shadow-2xs'
                   : 'hover:text-slate-900'
@@ -333,7 +336,7 @@ export default function Overview({
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`p-1.5 rounded-lg active:scale-[0.96] transition-all duration-150 ease-out cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[#3c4999] text-white shadow-2xs'
                   : 'hover:text-slate-900'
@@ -352,7 +355,7 @@ export default function Overview({
             disabled={!canOpen}
             aria-label="Start new meeting"
             title="Start new meeting"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] text-white text-xs font-semibold shadow-xs transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] text-white text-xs font-semibold shadow-xs transition-all duration-150 ease-out active:scale-[0.98] disabled:opacity-40 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>New Meeting</span>

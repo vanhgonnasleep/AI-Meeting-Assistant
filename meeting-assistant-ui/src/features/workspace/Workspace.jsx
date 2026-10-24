@@ -4,8 +4,8 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createRequestGate } from '../../shared/lib/request-gate.js';
 import { buildTaskQuery, workspaceRequest } from './workspace.js';
 
-const inputStyle = 'w-full rounded-xl bg-slate-50 border border-slate-200 p-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-indigo-500 transition-all';
-const buttonStyle = 'rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors cursor-pointer';
+const inputStyle = 'w-full rounded-xl bg-slate-50 border border-slate-200 p-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-150 ease-out';
+const buttonStyle = 'rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 active:scale-[0.98] disabled:opacity-40 transition-all duration-150 ease-out cursor-pointer';
 
 export function WorkspaceDialog({ title, onClose, children, maxWidth = 'max-w-4xl' }) {
   const dialog = useRef(null);
@@ -215,7 +215,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
             </label>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] text-white text-xs font-semibold shadow-xs disabled:opacity-40 transition-all shrink-0 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] text-white text-xs font-semibold shadow-xs disabled:opacity-40 transition-all duration-150 ease-out active:scale-[0.98] shrink-0 cursor-pointer"
               disabled={creating || !name.trim()}
             >
               {creating ? 'Creating…' : 'Create project'}
@@ -294,13 +294,13 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
                 key={`${row.meeting_id}-${tab === 'tasks' ? row.task_idx : row.decision_idx}`}
                 disabled={opening || !canOpenMeeting}
                 onClick={() => openMeeting(row.meeting_id)}
-                className="group block w-full text-left p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-indigo-400 hover:shadow-xs transition-all disabled:opacity-40 cursor-pointer space-y-2.5"
+                className="group block w-full text-left p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-indigo-400 hover:shadow-xs active:scale-[0.99] transition-all duration-150 ease-out disabled:opacity-40 cursor-pointer space-y-2.5"
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-900 group-hover:text-indigo-900 transition-colors leading-relaxed">
                     {tab === 'tasks' ? row.task : row.text}
                   </p>
-                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider shrink-0 font-mono ${badgeClass}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider shrink-0 font-mono tabular-nums ${badgeClass}`}>
                     {status.replace('_', ' ')}
                   </span>
                 </div>
@@ -354,7 +354,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
         >
           Previous page
         </button>
-        <span className="text-slate-500 font-mono">
+        <span className="text-slate-500 font-mono tabular-nums">
           {error && !rows.length ? 'Records unavailable' : page.total ? `${offset + 1}–${Math.min(offset + 50, page.total)} of ${page.total}` : '0 records'}
         </span>
         <button

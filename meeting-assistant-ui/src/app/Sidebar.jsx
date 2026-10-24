@@ -298,7 +298,7 @@ export default function Sidebar({
                       event.preventDefault();
                       onNavigate(id);
                     }}
-                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] font-medium transition-all ${
+                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 ease-out active:scale-[0.98] ${
                       isCurrent
                         ? 'bg-[#e8ecfe] text-[#3c4999] font-semibold shadow-[inset_0_0_0_1px_#d5dcf8]'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
@@ -321,13 +321,13 @@ export default function Sidebar({
                 onClick={() => setHistoryOpen((prev) => !prev)}
                 aria-expanded={historyOpen}
                 aria-label="Search past meetings"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50/90 hover:bg-slate-100 border border-slate-200/90 text-slate-600 hover:text-slate-900 text-xs font-medium transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50/90 hover:bg-slate-100 border border-slate-200/90 text-slate-600 hover:text-slate-900 text-xs font-medium transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer"
                 title="Search and jump to past meetings"
               >
                 <Search className="w-3.5 h-3.5 text-slate-500" />
                 <span className="hidden sm:inline">Search meetings</span>
                 {meetings.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-md bg-slate-200/75 text-slate-700 font-mono text-[10px]">
+                  <span className="px-1.5 py-0.2 rounded-md bg-slate-200/75 text-slate-700 font-mono tabular-nums text-[10px]">
                     {meetings.length}
                   </span>
                 )}
@@ -422,7 +422,7 @@ export default function Sidebar({
                 disabled={
                   Boolean(uploadError) || isProcessing || isContentSaving
                 }
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all duration-150 ease-out cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-white" />
                 <span>Start Processing</span>
@@ -436,7 +436,7 @@ export default function Sidebar({
                 onClick={onNewMeeting}
                 disabled={!canStartNew}
                 aria-label="Start new meeting"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-[0.98] disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] active:scale-[0.98] disabled:opacity-40 text-white text-xs font-semibold shadow-xs transition-all duration-150 ease-out cursor-pointer"
                 title="Start a new meeting"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -452,7 +452,7 @@ export default function Sidebar({
                 aria-expanded={userMenuOpen}
                 aria-haspopup="menu"
                 aria-label="Open account menu"
-                className="inline-flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200/75 border border-slate-200/90 text-slate-800 text-xs font-medium transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200/75 border border-slate-200/90 text-slate-800 text-xs font-medium transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer"
               >
                 <span className="w-7 h-7 rounded-full bg-[#303c63] text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs">
                   {userInitial}
