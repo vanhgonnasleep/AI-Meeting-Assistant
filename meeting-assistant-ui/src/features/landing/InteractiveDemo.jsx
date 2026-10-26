@@ -30,6 +30,7 @@ function AudioArtwork({ animated }) {
 export default function InteractiveDemo({ compact = false }) {
   const [step, setStep] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
   const [visible, setVisible] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -40,10 +41,11 @@ export default function InteractiveDemo({ compact = false }) {
   const id = useId();
   const turn = DEMO_SAMPLE.turns[sampleTurnAt(seconds)];
   const animate = autoPlay && visible && !reduceMotion && !playing;
+  const canAutoAdvance = autoPlay && visible && !playing && !isHovered;
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting && !document.hidden), { threshold: .15 });
-    observer.observe(container.current);
+    if (container.current) observer.observe(container.current);
     const visibility = () => {
       const bounds = container.current?.getBoundingClientRect();
       setVisible(!document.hidden && Boolean(bounds && bounds.bottom > 0 && bounds.top < window.innerHeight));
@@ -52,36 +54,53 @@ export default function InteractiveDemo({ compact = false }) {
     document.addEventListener('visibilitychange', visibility);
     return () => { observer.disconnect(); document.removeEventListener('visibilitychange', visibility); };
   }, []);
+
   useEffect(() => {
-    if (!animate) return;
-    const timer = setInterval(() => setStep(value => (value + 1) % STEPS.length), 5200);
+    if (!canAutoAdvance) return;
+    const timer = setInterval(() => {
+      setStep(value => (value + 1) % STEPS.length);
+    }, 4500);
     return () => clearInterval(timer);
-  }, [animate]);
+  }, [canAutoAdvance, step]);
+
   useEffect(() => {
     const element = audio.current;
     return () => element?.pause();
   }, []);
 
-  const chooseStep = value => { audio.current?.pause(); setStep(value); setAutoPlay(false); };
+  const chooseStep = value => {
+    audio.current?.pause();
+    setStep(value);
+  };
+
   const toggleAudio = async () => {
-    setAutoPlay(false); setAudioError('');
+    setAudioError('');
     if (playing) { audio.current.pause(); return; }
     try { await audio.current.play(); }
     catch { setAudioError('Audio could not play. You can still explore the notes and follow-ups.'); }
   };
 
-  return <section className={`interactive-demo ${compact ? 'demo-compact' : ''}`} ref={container} aria-label="Interactive meeting sample" onFocusCapture={event => {
-    if (!event.target.closest('[data-autoplay-toggle]')) setAutoPlay(false);
-  }}>
+  return <section className={`interactive-demo ${compact ? 'demo-compact' : ''}`} ref={container} aria-label="Interactive meeting sample">
     <audio ref={audio} src={DEMO_SAMPLE.audio} preload="none" onTimeUpdate={event => setSeconds(event.currentTarget.currentTime)}
       onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
-    <div className="demo-frame">
+    <div
+      className="demo-frame"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <div className="demo-frame-header"><span className="demo-mini-brand"><ClarionMark size={16} />clarion<span>/</span><span>Q3 budget review</span></span>
-        <div><span className="sample-badge">Sample</span>{!reduceMotion && <button type="button" data-autoplay-toggle onClick={() => setAutoPlay(value => !value)} aria-label={autoPlay ? 'Pause demo animation' : 'Play demo animation'} aria-pressed={autoPlay}>
-          {autoPlay ? <Pause size={13} /> : <Play size={13} />}</button>}</div></div>
+        <div><span className="sample-badge">Sample</span><button type="button" data-autoplay-toggle onClick={() => setAutoPlay(value => !value)} aria-label={autoPlay ? 'Pause demo animation' : 'Play demo animation'} aria-pressed={autoPlay}>
+          {autoPlay ? <Pause size={13} /> : <Play size={13} />}</button></div></div>
       <div className="demo-stage" id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-step-${step}`}>
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={step} className={`demo-scene demo-scene-${step}`} initial={{ opacity: 0, y: reduceMotion ? 0 : 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -7 }} transition={{ duration: .24 }}>
+          <motion.div
+            key={step}
+            className={`demo-scene demo-scene-${step}`}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }}
+            transition={{ duration: .2 }}
+          >
             {step === 0 && <>
               <AudioArtwork animated={animate || playing} />
               <div className="demo-transcript-snippet"><span className={`demo-avatar ${turn.accent}`}>{turn.initial}</span><div><small>{turn.speaker}<span>{clock(seconds)}</span></small><p>“{turn.text}”</p></div></div>
