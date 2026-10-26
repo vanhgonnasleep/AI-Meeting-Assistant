@@ -115,7 +115,7 @@
 .studio-heading .studio-settings { justify-content: flex-start; gap: 9px; margin-top: 20px; }
 .studio-heading .studio-process { margin-left: auto; }
 .studio-filename { max-width: min(70vw, 650px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-page { max-width: 1200px; }.workspace-page .workspace-data-panel { max-height: none; min-height: 240px; }
+.workspace-page { max-width: 1400px; }.workspace-page .workspace-data-panel { max-height: none; min-height: 240px; }
 .workspace-page .workspace-data-panel > button { padding: 20px; border-radius: 10px; }
 .app-shell dialog[open] { animation: dialog-enter .18s ease-out; }
 .app-shell dialog::backdrop { backdrop-filter: blur(5px); }

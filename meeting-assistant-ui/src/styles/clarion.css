@@ -117,7 +117,7 @@ dialog::backdrop { background: rgb(44 57 91 / .24); backdrop-filter: blur(6px); 
 .clarion-chat-head {
   box-shadow: 0 12px 30px -6px rgba(79, 91, 213, 0.42), 0 4px 10px -2px rgba(79, 91, 213, 0.25);
 }
-.clarion-app .workspace-page { padding: 26px; background: rgb(255 255 255 / .78); border: 1px solid var(--line); border-radius: 22px; }
+.clarion-app .workspace-page { padding: 0; background: transparent; border: none; border-radius: 0; }
 .clarion-app .workspace-data-panel > button { box-shadow: 0 2px 6px rgb(65 81 135 / .03); }
 .clarion-app .shell-hint { color: var(--muted); }
 .clarion-landing { background: radial-gradient(ellipse at 50% 4%, #e9edff 0%, transparent 42%), #f7f9fe; }

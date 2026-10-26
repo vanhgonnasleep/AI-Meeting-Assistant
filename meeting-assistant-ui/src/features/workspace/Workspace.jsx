@@ -1,11 +1,12 @@
 import FeedbackNotice from '../../shared/ui/FeedbackNotice.jsx';
 import { userMessage } from '../../shared/lib/user-errors.js';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
 import { createRequestGate } from '../../shared/lib/request-gate.js';
 import { buildTaskQuery, workspaceRequest } from './workspace.js';
 
-const inputStyle = 'w-full rounded-xl bg-slate-50 border border-slate-200 p-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-150 ease-out';
-const buttonStyle = 'rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 active:scale-[0.98] disabled:opacity-40 transition-all duration-150 ease-out cursor-pointer';
+const inputStyle = 'w-full rounded-xl bg-white border border-slate-200/90 px-3 py-2 text-xs sm:text-sm text-slate-800 shadow-2xs focus:bg-white focus:outline-hidden focus:border-[#3c4999] focus:ring-2 focus:ring-[#3c4999]/20 transition-all duration-150 ease-out';
+const buttonStyle = 'rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98] disabled:opacity-40 shadow-2xs transition-all duration-150 ease-out cursor-pointer';
 
 export function WorkspaceDialog({ title, onClose, children, maxWidth = 'max-w-4xl' }) {
   const dialog = useRef(null);
@@ -104,7 +105,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
 
   const contents = <>
     {presentation === 'page' && (
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
             {tab === 'tasks' ? 'Action items' : 'Projects & decisions'}
@@ -118,7 +119,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
       </div>
     )}
 
-    <div className="space-y-4 pt-2">
+    <div className="space-y-6 pt-1">
       {/* Sub-tab switcher only in modal dialog */}
       {presentation !== 'page' && (
         <div className="flex gap-2" role="tablist" aria-label="Workspace sections">
@@ -151,8 +152,8 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
       )}
 
       {tab === 'tasks' ? (
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <label className="text-xs text-slate-600 flex flex-col gap-1">
+        <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <label className="text-xs text-slate-600 flex flex-col gap-1.5">
             <span className="font-medium text-slate-700">Search tasks</span>
             <input
               className={inputStyle}
@@ -162,7 +163,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
               onChange={event => changeFilter('q', event.target.value)}
             />
           </label>
-          <label className="text-xs text-slate-600 flex flex-col gap-1">
+          <label className="text-xs text-slate-600 flex flex-col gap-1.5">
             <span className="font-medium text-slate-700">Assignee</span>
             <input
               className={inputStyle}
@@ -172,7 +173,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
               onChange={event => changeFilter('assignee', event.target.value)}
             />
           </label>
-          <label className="text-xs text-slate-600 flex flex-col gap-1">
+          <label className="text-xs text-slate-600 flex flex-col gap-1.5">
             <span className="font-medium text-slate-700">Task status</span>
             <select
               className={inputStyle}
@@ -185,7 +186,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
               ))}
             </select>
           </label>
-          <label className="text-xs text-slate-600 flex flex-col gap-1">
+          <label className="text-xs text-slate-600 flex flex-col gap-1.5">
             <span className="font-medium text-slate-700">Project filter</span>
             <select
               className={inputStyle}
@@ -200,9 +201,9 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
           </label>
         </div>
       ) : (
-        <div className="space-y-3">
-          <form onSubmit={createProject} className="flex flex-col sm:flex-row sm:items-end gap-3 p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs">
-            <label className="flex-1 text-xs text-slate-600 flex flex-col gap-1">
+        <div className="space-y-4">
+          <form onSubmit={createProject} className="flex flex-col sm:flex-row sm:items-end gap-3 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs">
+            <label className="flex-1 text-xs text-slate-600 flex flex-col gap-1.5">
               <span className="font-medium text-slate-700">New project name</span>
               <input
                 className={inputStyle}
@@ -222,11 +223,11 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
             </button>
           </form>
 
-          <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-1">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-1.5">
             <label className="block text-xs text-slate-600">
               <span className="font-medium text-slate-700">Project timeline</span>
               <select
-                className="mt-1 w-full rounded-xl bg-slate-50 border border-slate-200 p-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-indigo-500 transition-all"
+                className="mt-1.5 w-full rounded-xl bg-white border border-slate-200/90 p-2.5 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-hidden focus:border-[#3c4999] focus:ring-2 focus:ring-[#3c4999]/20 transition-all cursor-pointer"
                 value={projectId}
                 onChange={event => { resetPage(); setOffset(0); setProjectId(event.target.value); }}
               >
@@ -236,7 +237,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
                 ))}
               </select>
             </label>
-            <p className="text-[11px] text-slate-500">Decision history keeps each meeting's source and human-selected status.</p>
+            <p className="text-[11px] text-slate-500 font-mono">Decision history keeps each meeting's source and human-selected status.</p>
           </div>
         </div>
       )}
@@ -247,8 +248,8 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
         </FeedbackNotice>
       )}
 
-      {opening && <p role="status" className="text-indigo-700 text-xs">Opening source meeting…</p>}
-      {!canOpenMeeting && <p className="shell-hint">Open a source meeting after the current processing or save finishes.</p>}
+      {opening && <p role="status" className="text-indigo-700 text-xs sm:text-sm font-medium">Opening source meeting…</p>}
+      {!canOpenMeeting && <p className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs sm:text-sm text-amber-700">Open a source meeting after the current processing or save finishes.</p>}
 
       <div
         id="workspace-panel"
@@ -259,22 +260,22 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
         aria-busy={busy}
       >
         {busy ? (
-          <p role="status" className="p-6 text-center text-xs text-slate-500">Loading…</p>
+          <p role="status" className="p-10 text-center text-xs text-slate-500">Loading…</p>
         ) : error && rows.length === 0 ? (
           <div className="library-recovery p-6 text-center bg-white rounded-2xl border border-slate-200">
-            <p className="text-xs text-slate-600 mb-2">
+            <p className="text-sm text-slate-700 mb-3">
               {tab === 'tasks' ? 'Your action items haven’t loaded yet.' : 'Project decisions haven’t loaded yet.'}
             </p>
             <button
               type="button"
-              className="px-3.5 py-1.5 rounded-xl bg-[#3c4999] text-white text-xs font-semibold"
+              className="px-4 py-2 rounded-xl bg-[#3c4999] hover:bg-[#303c7e] text-white text-xs font-semibold"
               onClick={() => { resetPage(); setReload(value => value + 1); }}
             >
               {tab === 'tasks' ? 'Reload action items' : 'Reload project decisions'}
             </button>
           </div>
         ) : rows.length === 0 ? (
-          <p className="p-6 text-center text-xs text-slate-500 bg-white/60 rounded-2xl border border-slate-200/80">
+          <p className="p-8 text-center text-xs sm:text-sm text-slate-500 bg-white/60 rounded-2xl border border-slate-200/80">
             {tab === 'projects' && !projectId ? 'Choose or create a project to see its decisions.' : 'No matching records.'}
           </p>
         ) : (
@@ -294,18 +295,18 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
                 key={`${row.meeting_id}-${tab === 'tasks' ? row.task_idx : row.decision_idx}`}
                 disabled={opening || !canOpenMeeting}
                 onClick={() => openMeeting(row.meeting_id)}
-                className="group block w-full text-left p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-indigo-400 hover:shadow-xs active:scale-[0.99] transition-all duration-150 ease-out disabled:opacity-40 cursor-pointer space-y-2.5"
+                className="group block w-full text-left p-5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-md active:scale-[0.99] transition-all duration-200 ease-out disabled:opacity-40 cursor-pointer space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900 group-hover:text-indigo-900 transition-colors leading-relaxed">
+                  <p className="text-sm sm:text-base font-semibold text-slate-900 group-hover:text-[#3c4999] transition-colors leading-relaxed">
                     {tab === 'tasks' ? row.task : row.text}
                   </p>
-                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider shrink-0 font-mono tabular-nums ${badgeClass}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold uppercase tracking-wider shrink-0 font-mono tabular-nums ${badgeClass}`}>
                     {status.replace('_', ' ')}
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100 text-xs text-slate-500">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="font-semibold text-slate-800">{row.filename}</span>
                     {row.timestamp && <span className="font-mono text-[11px] text-slate-400">{row.timestamp}</span>}
@@ -335,8 +336,9 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
                     )}
                   </div>
 
-                  <span className="text-[#3c4999] group-hover:translate-x-0.5 transition-transform font-medium inline-flex items-center gap-1 text-[11px]">
-                    Open source meeting #{row.meeting_id} →
+                  <span className="text-[#3c4999] group-hover:translate-x-0.5 transition-transform font-semibold inline-flex items-center gap-1 text-[11px]">
+                    <span>Open source meeting #{row.meeting_id}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
               </button>
@@ -345,7 +347,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-slate-200/80 pt-3 text-xs">
+      <div className="flex items-center justify-between gap-3 border-t border-slate-200/80 pt-4 text-xs font-mono tabular-nums">
         <button
           type="button"
           className={buttonStyle}
@@ -354,7 +356,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
         >
           Previous page
         </button>
-        <span className="text-slate-500 font-mono tabular-nums">
+        <span className="text-slate-500">
           {error && !rows.length ? 'Records unavailable' : page.total ? `${offset + 1}–${Math.min(offset + 50, page.total)} of ${page.total}` : '0 records'}
         </span>
         <button
@@ -370,7 +372,7 @@ export default function Workspace({ apiBase, onClose, onOpenMeeting, presentatio
   </>;
 
   return presentation === 'page' ? (
-    <div className="workspace-page max-w-[1400px] mx-auto py-2 space-y-6">{contents}</div>
+    <div className="space-y-7 max-w-[1400px] mx-auto py-2">{contents}</div>
   ) : (
     <WorkspaceDialog title="Meeting workspace" onClose={onClose}>{contents}</WorkspaceDialog>
   );

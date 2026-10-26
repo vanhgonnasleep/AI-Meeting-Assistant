@@ -194,7 +194,7 @@ export default function DocumentWorkspace({
   // ─── 3. State 1: Skeletal Shimmer Loading (AI Processing) ───────────────────
   if (isProcessing) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto py-8">
+      <div className="space-y-7 max-w-[1400px] mx-auto py-8">
         {/* Processing Banner */}
         <div className="bg-white/80 backdrop-blur-xl border border-indigo-500/30 rounded-3xl p-8 shadow-glass flex flex-col items-center justify-center text-center space-y-4">
           <div className="relative">
@@ -262,19 +262,19 @@ export default function DocumentWorkspace({
   // ─── 4. State 2: Upload Dropzone & AI Configuration Hero ────────────────────
   if (!result) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto pt-2 pb-6">
+      <div className="space-y-7 max-w-[1400px] mx-auto pt-2 pb-6">
         {/* Page Heading */}
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
             Meeting Studio
           </h1>
-          <p className="text-xs text-slate-600">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Upload an audio or video recording to transcribe, summarize, and extract actionable deliverables.
           </p>
         </div>
 
         {/* Configuration Bar */}
-        <div className="flex flex-wrap items-center gap-2.5 p-3 rounded-2xl bg-white/70 backdrop-blur-xl border border-slate-200/90 text-xs shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2.5 p-4 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm shadow-xs">
           {/* Model Switcher */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/80 border border-slate-200 text-slate-800">
             <span className="text-[#6370ce] font-semibold text-xs tracking-tight">AI Model:</span>
@@ -375,7 +375,7 @@ export default function DocumentWorkspace({
               onChange={event => setSaveToLibrary(event.target.checked)} className="accent-indigo-500" />
             Save results to library
           </label>
-          <p className="text-xs text-slate-600">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {selectedModel === 'instant_demo' ? 'Demo results are not added to the meeting library.'
               : saveToLibrary ? 'Keep the transcript, notes and action items for later. The original recording is not stored.'
                 : 'Session only. Save or export the results before reloading or starting another meeting.'}
@@ -401,7 +401,7 @@ export default function DocumentWorkspace({
               onChange={(e) => setMmrLambda(parseFloat(e.target.value))}
               className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-500"
             />
-            <p className="text-xs text-slate-600">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Higher λ preserves sentences closest to the central theme; lower λ penalizes repetition and extracts broader conversational variety.
             </p>
           </div>
@@ -415,7 +415,7 @@ export default function DocumentWorkspace({
               ? 'border-[#6370ce] bg-[#eef1fc]/40'
               : file 
                 ? 'border-[#dce2f4] bg-white/80 shadow-xs'
-                : 'border-slate-200 hover:border-[#6370ce]/50 bg-white/40 hover:bg-[#fafbff]/80'
+                : 'border-slate-200/90 hover:border-[#3c4999]/50 bg-white shadow-xs hover:bg-slate-50/50'
           }`}
         >
           <input {...getInputProps()} />
@@ -451,7 +451,7 @@ export default function DocumentWorkspace({
                   <UploadCloud className="w-10 h-10" />
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-[#2b3559]">
+                  <p className="text-base sm:text-lg font-semibold text-slate-900">
                     Drag and drop your meeting audio or video here
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
@@ -472,7 +472,7 @@ export default function DocumentWorkspace({
         </div>
 
         {/* Sample Meeting Card */}
-        <div className="p-4 rounded-2xl bg-white/70 border border-slate-200/90 flex items-center justify-between text-xs shadow-2xs">
+        <div className="p-5 rounded-2xl bg-white border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm shadow-xs">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-[#eef1fc] border border-[#d9dff8] text-[#5867ce]">
               <Play className="w-4 h-4 fill-current" />
@@ -485,7 +485,7 @@ export default function DocumentWorkspace({
           <button
             type="button"
             onClick={handleDemoSample}
-            className="px-3.5 py-1.5 rounded-xl bg-[#eef1fc] hover:bg-[#e2e7fb] text-[#4854b8] border border-[#d9dff8] font-medium transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer shadow-xs"
+            className="px-3.5 py-2 rounded-xl bg-[#eef1fc] hover:bg-[#e2e7fb] text-[#3c4999] border border-[#d5dcf8] text-xs font-semibold transition-all active:scale-[0.98] cursor-pointer shadow-xs shrink-0"
           >
             Load Sample Audio
           </button>
@@ -497,13 +497,13 @@ export default function DocumentWorkspace({
 
   // ─── 5. Executive Document Sub-Section Renderers ───────────────────────────
   const renderSummarySection = () => (
-    <article className="p-6 rounded-3xl bg-white/40 backdrop-blur-md border border-slate-200/80 shadow-xs space-y-4">
+    <article className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-700">
             <Sparkles className="w-4 h-4" />
           </div>
-          <h2 className="text-sm font-bold text-slate-900 tracking-tight">Executive Summary</h2>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Executive Summary</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -528,13 +528,13 @@ export default function DocumentWorkspace({
   );
 
   const renderTasksSection = () => (
-    <article className="p-6 rounded-3xl bg-white/40 backdrop-blur-md border border-slate-200/80 shadow-xs space-y-4">
+    <article className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-700">
             <ListTodo className="w-4 h-4" />
           </div>
-          <h2 className="text-sm font-bold text-slate-900 tracking-tight">Extracted Action Deliverables</h2>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Extracted Action Deliverables</h2>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono">
           <span className="text-slate-600">{completedCount} of {totalTasks} completed</span>
@@ -567,10 +567,10 @@ export default function DocumentWorkspace({
                 onClick={() => onToggleTask(idx)}
                 disabled={isUpdating || isContentSaving}
                 aria-pressed={Boolean(isDone)}
-                className={`w-full text-left p-3.5 rounded-2xl border transition-all duration-200 flex items-start gap-3 cursor-pointer group hover:translate-x-1 hover:shadow-md ${
+                className={`w-full text-left p-4 rounded-xl border transition-all duration-200 flex items-start gap-3.5 cursor-pointer group hover:translate-x-0.5 hover:shadow-xs ${
                   isDone 
                     ? 'bg-emerald-50/20 border-emerald-500/30 text-slate-600'
-                    : 'bg-slate-50/50 hover:bg-slate-100/60 border-slate-200 text-slate-800'
+                    : 'bg-white hover:bg-slate-50/80 border-slate-200/90 text-slate-900 shadow-xs'
                 }`}
               >
                 <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all duration-150 ${
@@ -582,7 +582,7 @@ export default function DocumentWorkspace({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium leading-snug ${isDone ? 'line-through text-slate-500' : 'text-slate-900'}`}>
+                  <p className={`text-sm sm:text-base font-medium leading-relaxed ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                     {typeof item === 'object' ? item.task : String(item)}
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
@@ -606,15 +606,15 @@ export default function DocumentWorkspace({
   );
 
   const renderInsightsSection = () => (
-    <article className="p-6 rounded-3xl bg-white/40 backdrop-blur-md border border-slate-200/80 shadow-xs space-y-4">
+    <article className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-700">
             <Target className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-900 tracking-tight">Key Decisions & Risk Matrix</h2>
-            <p className="text-xs text-slate-600">3-pillar governance intelligence with click-to-seek audio evidence</p>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Key Decisions & Risk Matrix</h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">3-pillar governance intelligence with click-to-seek audio evidence</p>
           </div>
         </div>
         <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
@@ -756,13 +756,13 @@ export default function DocumentWorkspace({
   );
 
   const renderTranscriptSection = () => (
-    <article className="p-6 rounded-3xl bg-white/40 backdrop-blur-md border border-slate-200/80 shadow-xs space-y-4">
+    <article className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-3">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-teal-500/15 text-teal-700">
             <FileText className="w-4 h-4" />
           </div>
-          <h2 className="text-sm font-bold text-slate-900 tracking-tight">Attributed Dialogue Transcript</h2>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Attributed Dialogue Transcript</h2>
         </div>
 
         {/* View Sub-Toggle (Raw / Segments / MMR) */}
@@ -857,17 +857,17 @@ export default function DocumentWorkspace({
             .map(({ seg, originalIdx }, displayIdx) => (
               <div 
                 key={originalIdx} 
-                className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 border border-slate-200/80 hover:border-indigo-500/30 transition-all duration-200 group"
+                className="flex items-start gap-3.5 p-4 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/90 hover:border-slate-300 shadow-xs transition-all duration-200 group"
               >
                 {/* Notta-style circular speaker avatar */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-md ${getSpeakerAvatarStyle(seg.speaker)}`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${getSpeakerAvatarStyle(seg.speaker)}`}>
                   {getSpeakerInitial(seg.speaker)}
                 </div>
 
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-900 tracking-tight">{seg.speaker || 'Speaker'}</span>
+                      <span className="font-semibold text-slate-900 text-xs sm:text-sm tracking-tight">{seg.speaker || 'Speaker'}</span>
                       <button
                         type="button"
                         disabled={!audioUrl || normalizeCitation(seg).seconds === null}
@@ -895,7 +895,7 @@ export default function DocumentWorkspace({
                   </div>
 
                   <p 
-                    className="text-sm text-slate-800 leading-relaxed font-sans cursor-pointer hover:text-slate-900 transition-colors"
+                    className="text-sm sm:text-base text-slate-800 leading-relaxed font-sans cursor-pointer hover:text-slate-900 transition-colors"
                     onClick={() => {
                       const secs = normalizeCitation(seg).seconds;
                       if (audioUrl && secs !== null) onSeekAudio(secs);
@@ -922,14 +922,14 @@ export default function DocumentWorkspace({
 
   // ─── 6. State 3: Main Workspace Composition & Multi-View Studio ────────────
   return (
-    <div className={`space-y-6 ${viewMode === 'split' ? 'max-w-7xl' : 'max-w-4xl'} mx-auto pt-2 pb-6 select-text transition-all duration-300`}>
+    <div className={`space-y-7 ${viewMode === 'split' ? 'max-w-7xl' : 'max-w-[1400px]'} mx-auto pt-2 pb-6 select-text transition-all duration-300`}>
       
       {/* Document Header & Metadata */}
       <header className="pb-6 border-b border-slate-200/80 space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5 min-w-0">
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 truncate" title={file?.name || meetingTitle}>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 truncate" title={file?.name || meetingTitle}>
                 {file?.name || meetingTitle || (isDemoResult ? 'Q3 Product & Budget Review' : 'Executive Meeting Document')}
               </h1>
               <span className={`px-2 py-0.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider border ${
@@ -943,7 +943,7 @@ export default function DocumentWorkspace({
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 font-mono tabular-nums">
+            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-slate-500 font-mono tabular-nums">
               <span className="flex items-center gap-1 text-slate-700">
                 <Clock className="w-3.5 h-3.5 text-indigo-700" />
                 {formatMeetingDuration(result?.duration)}
@@ -1116,7 +1116,7 @@ export default function DocumentWorkspace({
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-900">Audio Sync Player</p>
-                <p className="text-xs text-slate-600">Click any dialogue or citation to jump audio position</p>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">Click any dialogue or citation to jump audio position</p>
               </div>
             </div>
 
