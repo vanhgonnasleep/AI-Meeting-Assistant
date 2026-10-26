@@ -25,9 +25,9 @@
 
 **Submission freeze:** Read the English [project report](docs/submission/PROJECT_REPORT.md) and [speech review validation](docs/releases/speech-review/README.md). Uncertain passages retain original recognition for human correction and are excluded from new AI notes/answers until resolved.
 
-**Explore before signing in.** Clarion includes a public product tour and an interactive workspace with prepared meeting, task and project samples. Your private library still requires Google/GitHub sign-in. [See the interface and validation notes](docs/ui/public-preview/README.md).
+**Explore before signing in.** Clarion includes an interactive workspace for meeting recording, diarized transcript review, executive summarization, action deliverables, and source-grounded AI chat. [See the interface and validation notes](docs/ui/public-preview/README.md).
 
-![Clarion public workspace preview](docs/ui/public-preview/overview.png)
+![AI Meeting Assistant — Multi-Agent Intelligence Workspace](docs/ui/public-preview/overview.png)
 
 > 📖 **TECHNICAL DEFENSE PREPARATION:** Check out the complete [TECHNICAL_DEFENSE_GUIDE.md](docs/defense/TECHNICAL_DEFENSE_GUIDE.md) for step-by-step live coding cheatsheets (adding fields, endpoints, algorithms, and bug fixes) tailored for instructor defense questions.
 
