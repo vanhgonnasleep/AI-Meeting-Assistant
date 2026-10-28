@@ -1,6 +1,12 @@
+import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from database.crud import create_meeting
+
+try:
+    import docx
+except ImportError:
+    docx = None
 
 
 def test_speaker_profiles_api():
@@ -12,6 +18,7 @@ def test_speaker_profiles_api():
     assert isinstance(data["profiles"], list)
 
 
+@pytest.mark.skipif(docx is None, reason="python-docx not installed")
 def test_docx_export_api():
     meeting_id = create_meeting(
         filename="Docx_Export_API_Test.mp3",

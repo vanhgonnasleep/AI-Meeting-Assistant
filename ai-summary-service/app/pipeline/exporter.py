@@ -6,12 +6,17 @@ bulleted executive summary, structured action deliverables table, and signature 
 import io
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import docx
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-from docx.oxml import parse_xml, OxmlElement
-from docx.oxml.ns import nsdecls, qn
+try:
+    import docx
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.oxml import parse_xml
+    from docx.oxml.ns import nsdecls
+    DOCX_AVAILABLE = True
+except ImportError:
+    docx = None
+    DOCX_AVAILABLE = False
 
 
 def _set_cell_background(cell, fill_hex: str) -> None:
@@ -42,6 +47,8 @@ def generate_meeting_docx(meeting: Any) -> io.BytesIO:
     """
     Compiles a meeting record into a high-polish Microsoft Word (.docx) document.
     """
+    if not DOCX_AVAILABLE or docx is None:
+        raise RuntimeError("python-docx is not installed on the system.")
     doc = docx.Document()
 
     # 1. Page Margins (Standard 1 inch)

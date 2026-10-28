@@ -1,9 +1,15 @@
 import io
-import docx
+import pytest
 from database.models import MeetingRecord, ActionItem
 from app.pipeline.exporter import generate_meeting_docx
 
+try:
+    import docx
+except ImportError:
+    docx = None
 
+
+@pytest.mark.skipif(docx is None, reason="python-docx not installed")
 def test_generate_meeting_docx_structure():
     record = MeetingRecord(
         filename="Q3_Executive_Strategy.mp3",
