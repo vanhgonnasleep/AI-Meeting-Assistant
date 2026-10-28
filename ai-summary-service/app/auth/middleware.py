@@ -54,7 +54,7 @@ class PrivateWorkspaceMiddleware:
         session = await run_in_threadpool(find_session, request.cookies.get(SESSION_COOKIE))
         scope.setdefault('state', {})['account'] = session
         path = scope['path']
-        public = path in PUBLIC_PATHS or path in LOGIN_PATHS or scope['method'] == 'OPTIONS'
+        public = path in PUBLIC_PATHS or path in LOGIN_PATHS or path.startswith('/api/share/') or scope['method'] == 'OPTIONS'
         if not public and not session:
             return await JSONResponse({'detail': 'Sign in to access your private workspace.'}, status_code=401)(scope, receive, send)
         if session and path not in {'/api/auth/login', '/api/auth/register'} and scope['method'] not in {'GET', 'HEAD', 'OPTIONS'}:

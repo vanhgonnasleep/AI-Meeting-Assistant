@@ -29,12 +29,14 @@ import {
   Columns,
   RotateCcw,
   RotateCw,
-  FolderOpen
+  FolderOpen,
+  Radio
 } from 'lucide-react';
 import { formatMeetingDuration } from '../../app/navigation.js';
 import { normalizeCitation } from './session.js';
 import { formatUploadLimits } from '../recording/upload.js';
 import ConnectorsModal from '../connectors/ConnectorsModal.jsx';
+import ShareModal from './ShareModal.jsx';
 import { GitHubMark, GmailMark } from '../../shared/ui/BrandMarks.jsx';
 
 const loadPresentationDeck = () => import('./PresentationDeck.jsx');
@@ -168,6 +170,8 @@ export default function DocumentWorkspace({
   const [activeDocTab, setActiveDocTab] = useState('doc'); // 'doc' | 'summary' | 'tasks' | 'insights' | 'transcript'
   const [viewMode, setViewMode] = useState('studio'); // 'studio' | 'split' | 'zen'
   const [showConnectorsModal, setShowConnectorsModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [activeHighlightStart, setActiveHighlightStart] = useState(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
 
   const handleSkipAudio = (seconds) => {
@@ -639,7 +643,15 @@ export default function DocumentWorkspace({
               <p className="text-xs text-slate-500 italic py-2">No key decisions extracted.</p>
             ) : (
               result.insights.decisions.map((dec, idx) => (
-                <div key={idx} className="p-2.5 rounded-xl bg-white/60 border border-slate-200/80 space-y-1.5 group">
+                <div
+                  key={idx}
+                  onMouseEnter={() => {
+                    const sec = normalizeCitation(dec).seconds;
+                    if (sec !== null) setActiveHighlightStart(sec);
+                  }}
+                  onMouseLeave={() => setActiveHighlightStart(null)}
+                  className="p-2.5 rounded-xl bg-white/60 hover:bg-emerald-50/50 hover:border-emerald-300 border border-slate-200/80 space-y-1.5 group transition-colors"
+                >
                   <p className="text-xs text-slate-800 leading-snug">{dec.text}</p>
                   <div className="flex flex-wrap items-center gap-1 pt-0.5 text-xs">
                     {dec.speaker && (
@@ -682,7 +694,15 @@ export default function DocumentWorkspace({
               <p className="text-xs text-slate-500 italic py-2">No critical delivery risks detected.</p>
             ) : (
               result.insights.risks.map((risk, idx) => (
-                <div key={idx} className="p-2.5 rounded-xl bg-white/60 border border-slate-200/80 space-y-1.5 group">
+                <div
+                  key={idx}
+                  onMouseEnter={() => {
+                    const sec = normalizeCitation(risk).seconds;
+                    if (sec !== null) setActiveHighlightStart(sec);
+                  }}
+                  onMouseLeave={() => setActiveHighlightStart(null)}
+                  className="p-2.5 rounded-xl bg-white/60 hover:bg-emerald-50/50 hover:border-emerald-300 border border-slate-200/80 space-y-1.5 group transition-colors"
+                >
                   <p className="text-xs text-slate-800 leading-snug">{risk.text}</p>
                   <div className="flex flex-wrap items-center gap-1 pt-0.5 text-xs">
                     {risk.speaker && (
@@ -725,7 +745,15 @@ export default function DocumentWorkspace({
               <p className="text-xs text-slate-500 italic py-2">No open questions recorded.</p>
             ) : (
               result.insights.open_questions.map((q, idx) => (
-                <div key={idx} className="p-2.5 rounded-xl bg-white/60 border border-slate-200/80 space-y-1.5 group">
+                <div
+                  key={idx}
+                  onMouseEnter={() => {
+                    const sec = normalizeCitation(q).seconds;
+                    if (sec !== null) setActiveHighlightStart(sec);
+                  }}
+                  onMouseLeave={() => setActiveHighlightStart(null)}
+                  className="p-2.5 rounded-xl bg-white/60 hover:bg-emerald-50/50 hover:border-emerald-300 border border-slate-200/80 space-y-1.5 group transition-colors"
+                >
                   <p className="text-xs text-slate-800 leading-snug">{q.text}</p>
                   <div className="flex flex-wrap items-center gap-1 pt-0.5 text-xs">
                     {q.speaker && (
@@ -857,7 +885,12 @@ export default function DocumentWorkspace({
             .map(({ seg, originalIdx }, displayIdx) => (
               <div 
                 key={originalIdx} 
-                className="flex items-start gap-3.5 p-4 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/90 hover:border-slate-300 shadow-xs transition-all duration-200 group"
+                id={`segment-${originalIdx}`}
+                className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all duration-200 group ${
+                  activeHighlightStart !== null && Math.abs(Number(seg.start || 0) - Number(activeHighlightStart)) < 0.6
+                    ? 'ring-2 ring-amber-400 bg-amber-50/80 border-amber-300 shadow-sm scale-[1.005]'
+                    : 'bg-white hover:bg-slate-50/80 border-slate-200/90 hover:border-slate-300 shadow-xs'
+                }`}
               >
                 {/* Notta-style circular speaker avatar */}
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${getSpeakerAvatarStyle(seg.speaker)}`}>
@@ -868,6 +901,26 @@ export default function DocumentWorkspace({
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-900 text-xs sm:text-sm tracking-tight">{seg.speaker || 'Speaker'}</span>
+
+                      {seg.speaker_auto_identified && (
+
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200" title={`Cross-meeting voiceprint recognized (${Math.round((seg.speaker_confidence || 0.82) * 100)}% match)`}>
+
+                          🎯 Auto-ID {Math.round((seg.speaker_confidence || 0.82) * 100)}%
+
+                        </span>
+
+                      )}
+
+                      {seg.glossary_corrections && seg.glossary_corrections.length > 0 && (
+
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200" title={seg.glossary_corrections.map(c => `${c.canonical} (${c.category})`).join(', ')}>
+
+                          ✨ Glossary ({seg.glossary_corrections.length})
+
+                        </span>
+
+                      )}
                       <button
                         type="button"
                         disabled={!audioUrl || normalizeCitation(seg).seconds === null}
@@ -1065,6 +1118,34 @@ export default function DocumentWorkspace({
               {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
 
+            {/* Export DOCX */}
+            {currentMeetingId && (
+              <button
+                type="button"
+                onClick={() => window.open(`/api/meetings/${currentMeetingId}/export/docx`, '_blank')}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
+                title="Export Corporate Meeting Minutes (.DOCX)"
+                aria-label="Export Word DOCX file"
+              >
+                <FileText className="w-3.5 h-3.5 text-blue-700" />
+                <span>.DOCX</span>
+              </button>
+            )}
+
+            {/* Share to Local Network */}
+            {currentMeetingId && (
+              <button
+                type="button"
+                onClick={() => setShowShareModal(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
+                title="Share to Local Network (Wi-Fi/LAN)"
+                aria-label="Share meeting to LAN"
+              >
+                <Radio className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Share LAN</span>
+              </button>
+            )}
+
             {/* Export Markdown */}
             <button
               type="button"
@@ -1261,6 +1342,15 @@ export default function DocumentWorkspace({
           onExit={() => setViewMode('studio')}
         />}
         </LazyPanel>
+      )}
+
+      {/* Local Share Modal */}
+      {showShareModal && currentMeetingId && (
+        <ShareModal
+          meetingId={currentMeetingId}
+          meetingTitle={file?.name || meetingTitle || 'Meeting Document'}
+          onClose={() => setShowShareModal(false)}
+        />
       )}
 
       {/* Connectors Hub Modal Sheet */}

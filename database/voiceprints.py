@@ -74,7 +74,7 @@ def get_speaker_profiles():
         connection.close()
 
 
-def match_speaker_profile(embedding, threshold=0.82):
+def match_speaker_profile_with_score(embedding, threshold=0.82):
     vector = normalized_embedding(embedding)
     best, score = None, threshold
     for profile in get_speaker_profiles():
@@ -83,4 +83,21 @@ def match_speaker_profile(embedding, threshold=0.82):
         similarity = sum(a * b for a, b in zip(vector, profile['embedding']))
         if similarity > score:
             best, score = profile['name'], similarity
+    return best, (round(score, 3) if best else 0.0)
+
+
+def match_speaker_profile(embedding, threshold=0.82):
+    best, _ = match_speaker_profile_with_score(embedding, threshold=threshold)
     return best
+
+
+def delete_speaker_profile(profile_id):
+    connection = get_connection()
+    try:
+        connection.execute('BEGIN IMMEDIATE')
+        cursor = connection.execute('DELETE FROM speaker_profiles WHERE id = ?', (profile_id,))
+        deleted = cursor.rowcount > 0
+        connection.commit()
+        return deleted
+    finally:
+        connection.close()

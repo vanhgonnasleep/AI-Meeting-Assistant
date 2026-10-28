@@ -1,5 +1,8 @@
 export function normalizeCitation(citation) {
-  const label = typeof citation === 'string' ? citation : String(citation?.timestamp || 'Transcript excerpt');
+  let label = typeof citation === 'string' ? citation : String(citation?.timestamp || 'Transcript excerpt');
+  if (citation && typeof citation === 'object' && citation.meeting_title) {
+    label = `${citation.meeting_title} · ${label}`;
+  }
   if (citation && typeof citation === 'object') {
     return { label, seconds: Number.isFinite(citation.start) && citation.start >= 0 ? citation.start : null };
   }

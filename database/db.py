@@ -83,6 +83,11 @@ def initialize_schema(connection):
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_meetings_save_key ON meetings(save_key) WHERE save_key IS NOT NULL")
     connection.execute("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_meetings_project ON meetings(project_id, created_at DESC, id DESC)")
+    connection.execute('''CREATE TABLE IF NOT EXISTS meeting_shares (
+        token TEXT PRIMARY KEY, meeting_id INTEGER NOT NULL,
+        expires_at TIMESTAMP NOT NULL, revoked INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     connection.execute('''CREATE TABLE IF NOT EXISTS speaker_profiles (
         id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, embedding TEXT NOT NULL,
         sample_count INTEGER NOT NULL DEFAULT 1, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

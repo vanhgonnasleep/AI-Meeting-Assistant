@@ -1,0 +1,110 @@
+{
+  "version": "1.0.0",
+  "terms": [
+    {
+      "canonical": "Jira",
+      "category": "Project Management",
+      "aliases": ["zi ra", "gi ra", "di ra"]
+    },
+    {
+      "canonical": "Bubble",
+      "category": "NoCode Platform",
+      "aliases": ["ba bồ", "ba bô", "bơ bồ"]
+    },
+    {
+      "canonical": "Kubernetes",
+      "category": "Infrastructure",
+      "aliases": ["ku bơ nét", "cu bơ nét", "k8s", "cụm k8s"]
+    },
+    {
+      "canonical": "Frontend",
+      "category": "Software Engineering",
+      "aliases": ["phờ ron en", "phờ ron ten", "phông ten", "fron ten", "phờ rôn en"]
+    },
+    {
+      "canonical": "Backend",
+      "category": "Software Engineering",
+      "aliases": ["bách en", "bác ken", "bách ken", "bát ken"]
+    },
+    {
+      "canonical": "Tester",
+      "category": "Software Engineering",
+      "aliases": ["tét xơ", "téc xơ", "tét tơ"]
+    },
+    {
+      "canonical": "Sprint",
+      "category": "Agile",
+      "aliases": ["sờ prin", "sơ prin", "xịt prin"]
+    },
+    {
+      "canonical": "Deploy",
+      "category": "DevOps",
+      "aliases": ["đi poi", "đê poi", "đì poi"]
+    },
+    {
+      "canonical": "Scrum",
+      "category": "Agile",
+      "aliases": ["sờ căm", "sơ căm", "sờ cram"]
+    },
+    {
+      "canonical": "Database",
+      "category": "Data",
+      "aliases": ["đa ta bây", "đa ta bas", "đây ta bây", "đát ta bây"]
+    },
+    {
+      "canonical": "API",
+      "category": "Software Engineering",
+      "aliases": ["a pi ai", "ây pi ai", "ê pi ai"]
+    },
+    {
+      "canonical": "Pipeline",
+      "category": "DevOps",
+      "aliases": ["pai lai", "bóp lai", "bai lai"]
+    },
+    {
+      "canonical": "Docker",
+      "category": "DevOps",
+      "aliases": ["đốc cơ", "đóp cơ"]
+    },
+    {
+      "canonical": "Server",
+      "category": "Infrastructure",
+      "aliases": ["xơ vơ", "sơ vơ", "sớt vơ"]
+    },
+    {
+      "canonical": "Meeting",
+      "category": "General",
+      "aliases": ["mít tinh", "mít ting"]
+    },
+    {
+      "canonical": "Release",
+      "category": "DevOps",
+      "aliases": ["ri lít", "ri li"]
+    },
+    {
+      "canonical": "Hotfix",
+      "category": "Software Engineering",
+      "aliases": ["hót phích", "hót fix"]
+    },
+    {
+      "canonical": "Microservices",
+      "category": "Software Engineering",
+      "aliases": ["mai cờ rô xơ vít", "mai crô sơ vít", "mai cờ rô sơ vít"]
+    },
+    {
+      "canonical": "Product Owner (PO)",
+      "category": "Roles",
+      "aliases": ["pi ô"]
+    },
+    {
+      "canonical": "Project Manager (PM)",
+      "category": "Roles",
+      "aliases": ["pi em"]
+    },
+    {
+      "canonical": "Pull Request (PR)",
+      "category": "DevOps",
+      "aliases": ["pi a", "bi a"]
+    }
+  ]
+}

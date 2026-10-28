@@ -18,7 +18,7 @@ from typing import Union, Optional, Dict, Any, List, BinaryIO, Tuple
 from fastapi import UploadFile
 from app.pipeline.audio_preparation import PreparedAudio, MediaLimitError, SAMPLE_RATE, ffmpeg_executable, MEDIA_FORMAT_WHITELIST
 from app.core.runtime_config import MAX_AUDIO_DURATION_SECONDS, AUDIO_CHUNK_SECONDS
-from database.voiceprints import match_speaker_profile
+from database.voiceprints import match_speaker_profile, match_speaker_profile_with_score
 from database.transcript_quality import mark_recognition, display_text, transcript_from_segments
 
 CHUNK_OVERLAP_SECONDS = 3.0
@@ -470,11 +470,13 @@ def diarize_segments(
             centroid = torch.stack(selected).mean(dim=0)
             centroid = centroid / torch.norm(centroid).clamp_min(1e-8)
             vector = centroid.detach().cpu().tolist()
-            name = match_speaker_profile(vector) if any(abs(v) > 1e-8 for v in vector) else None
+            name, score = match_speaker_profile_with_score(vector) if any(abs(v) > 1e-8 for v in vector) else (None, 0.0)
             for segment, label in zip(segments, speaker_indices):
                 if label == index:
                     if name:
                         segment['speaker'] = name
+                        segment['speaker_confidence'] = score
+                        segment['speaker_auto_identified'] = True
 
         unique_speakers = list(dict.fromkeys(seg["speaker"] for seg in segments if seg.get("speaker")))
         return segments, unique_speakers

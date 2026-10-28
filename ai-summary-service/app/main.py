@@ -15,6 +15,7 @@ import sys
 import subprocess
 import shutil
 import os
+import re
 from threading import BoundedSemaphore
 from pathlib import Path
 from typing import List, Optional, Tuple, Literal
@@ -577,6 +578,21 @@ def process_audio(
                 detail="No clear speech could be transcribed from the uploaded audio file. Please check the file audio."
             )
 
+        # 1.1. AGENT 4: Glossary & Acronym Resolver
+        glossary_corrections = []
+        try:
+            from app.pipeline.glossary import resolve_glossary_terms
+            if segments:
+                segments, glossary_corrections = resolve_glossary_terms(segments)
+                lines = [f"{seg.get('speaker', 'Speaker')}: {seg['text']}" if seg.get('speaker') else seg['text'] for seg in segments]
+                transcript = "\n".join(lines) if diarize else " ".join(seg.get('text', '') for seg in segments)
+            else:
+                transcript, glossary_corrections = resolve_glossary_terms(transcript)
+            if glossary_corrections:
+                print(f"[Agent 4 Glossary] Resolved {sum(c['count'] for c in glossary_corrections)} vertical term occurrences.")
+        except Exception as exc:
+            print(f"[Agent 4 Glossary Warning] Glossary resolution failed: {exc}")
+
         # Recognition evidence stays available for review, while generated
         # outputs use only source passages that do not require review.
         analysis_transcript = trusted_transcript(transcript, segments)
@@ -706,7 +722,8 @@ def process_audio(
                 "duration": duration,
                 "language": detected_language,
                 "speakers": speakers,
-                "segments": segments
+                "segments": segments,
+                "glossary_corrections": glossary_corrections
             }
         }
 
@@ -820,6 +837,103 @@ def delete_meeting_by_id(meeting_id: StoredId):
     if not deleted:
         raise HTTPException(status_code=404, detail="Meeting not found.")
     return {"status": "success", "deleted": True}
+
+# ==========================================
+# ENTERPRISE V2: SPEAKER PROFILES, EXPORTS & LAN SHARE
+# ==========================================
+
+from database.voiceprints import get_speaker_profiles, delete_speaker_profile
+from database.share import create_share_token, get_shared_meeting, revoke_share_token
+from app.pipeline.exporter import generate_meeting_docx
+from app.pipeline.cross_meeting_rag import answer_global_library_question
+
+
+def get_lan_ip() -> str:
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+@app.get("/api/speaker-profiles")
+def list_speaker_profiles():
+    profiles = get_speaker_profiles()
+    sanitized = [
+        {
+            "id": p.get("id"),
+            "name": p.get("name"),
+            "sample_count": p.get("sample_count", 1),
+            "updated_at": str(p.get("updated_at", "")),
+            "embedding_dim": len(p.get("embedding", []))
+        }
+        for p in profiles
+    ]
+    return {"status": "success", "profiles": sanitized}
+
+
+@app.delete("/api/speaker-profiles/{profile_id}")
+def remove_speaker_profile(profile_id: int):
+    deleted = delete_speaker_profile(profile_id)
+    if not deleted:
+        raise HTTPException(404, "Speaker profile not found.")
+    return {"status": "success", "deleted": True}
+
+
+@app.get("/api/meetings/{meeting_id}/export/docx")
+def export_meeting_docx(meeting_id: StoredId):
+    if crud is None:
+        raise HTTPException(503, "Database module not available.")
+    record = crud.get_meeting(meeting_id)
+    if not record:
+        raise HTTPException(404, "Meeting not found.")
+    buffer = generate_meeting_docx(record)
+    safe_name = re.sub(r'[^a-zA-Z0-9_\-.]', '_', record.filename or f"Meeting_{record.id}")
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.docx"'}
+    )
+
+
+@app.post("/api/meetings/{meeting_id}/share")
+def share_meeting_lan(meeting_id: StoredId, payload: dict = Body(default={})):
+    if crud is None:
+        raise HTTPException(503, "Database module not available.")
+    record = crud.get_meeting(meeting_id)
+    if not record:
+        raise HTTPException(404, "Meeting not found.")
+    hours = payload.get("hours", 24)
+    share_info = create_share_token(int(meeting_id), hours_valid=hours)
+    lan_ip = get_lan_ip()
+    share_url = f"http://{lan_ip}:8002/share/{share_info['token']}"
+    return {
+        "status": "success",
+        "token": share_info["token"],
+        "expires_at": share_info["expires_at"],
+        "lan_ip": lan_ip,
+        "share_url": share_url
+    }
+
+
+@app.get("/api/share/{token}")
+def get_shared_meeting_endpoint(token: str):
+    record = get_shared_meeting(token)
+    if not record:
+        raise HTTPException(404, "Shared meeting link is invalid, expired, or revoked.")
+    return {"status": "success", "meeting": jsonable_encoder(record)}
+
+
+@app.delete("/api/share/{token}")
+def revoke_share_endpoint(token: str):
+    revoked = revoke_share_token(token)
+    if not revoked:
+        raise HTTPException(404, "Share token not found.")
+    return {"status": "success", "revoked": True}
 
 # ==========================================
 # AGENT 6 - INTERACTIVE MEETING CHAT (Lite-RAG)
@@ -954,6 +1068,20 @@ def standalone_chat_endpoint(payload: ChatMessageRequest):
         "mode": result.get("mode", "rag_llm"),
         "retrieval_warning": result.get("retrieval_warning"),
     }
+
+@app.post("/api/chat/global")
+def global_chat_endpoint(payload: ChatMessageRequest):
+    """Answers queries across all meetings in user's library using SQLite FTS5."""
+    gpu_desc, has_gpu = get_gpu_info()
+    selected_model = resolve_model(payload.model or "auto", has_gpu=has_gpu)
+    result = answer_global_library_question(
+        question=payload.question,
+        model_name=selected_model,
+        has_gpu=has_gpu,
+        language=payload.language or "vi"
+    )
+    return result
+
 
 @app.post('/api/chat/stream')
 def stream_chat_endpoint(payload: ChatMessageRequest):
