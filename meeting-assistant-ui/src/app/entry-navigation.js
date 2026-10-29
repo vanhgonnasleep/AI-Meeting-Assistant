@@ -1,5 +1,5 @@
 // Public entry routes are separate from the authenticated application's page list.
-export const PREVIEW_PAGES = ['overview', 'meetings', 'tasks', 'projects'];
+export const PREVIEW_PAGES = ['overview', 'studio', 'meetings', 'tasks', 'projects'];
 export function getEntryRoute() {
   const path = globalThis.location?.hash?.split('?')[0] || '';
   const callbackError = new URLSearchParams(globalThis.location?.search).get('auth_error');
