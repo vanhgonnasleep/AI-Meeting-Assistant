@@ -60,7 +60,7 @@ export default function LandingPage({ account = null, isLoggedIn = Boolean(accou
         <div className="handoff-footnote"><span>Sample drafts above. Your meeting supplies the real content.</span><button type="button" onClick={onLaunchApp}>{isLoggedIn ? 'Open your workspace' : 'Use with your meeting'}<ArrowRight size={14} /></button></div>
       </section>
 
-      <section className="visual-local-panel" aria-labelledby="local-panel-title">
+      <section id="security-privacy" className="visual-local-panel" aria-labelledby="local-panel-title">
         <div className="local-device-art" aria-hidden="true"><div className="local-device-orbit" /><span className="local-file-chip"><AudioLines size={18} /><i /><i /><i /></span><div className="local-device"><div><ClarionMark size={36} /><span>Working locally</span><i /></div><span /></div><span className="local-note-chip"><CircleNote /><Check size={14} /></span><span className="local-lock"><LockKeyhole size={17} /></span></div>
         <div>
           <span className="visual-eyebrow">Room to think. Space to keep it yours.</span>
