@@ -49,12 +49,10 @@ export default function AudioSyncBar({
           className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-mono font-semibold transition-all cursor-pointer active:scale-95"
           title="Cycle playback speed"
         >
-          {playbackSpeed.toFixed(2).replace(/\.00$/, '.0')}x
+          {playbackSpeed}x
         </button>
-      </div>
 
-      <div className="w-full sm:w-auto flex-1 max-w-sm">
-        <audio ref={audioRef} src={src} controls className="w-full h-8 rounded-lg outline-hidden" />
+        <audio ref={audioRef} controls src={src} className="h-8 max-w-[200px] sm:max-w-xs accent-indigo-600" />
       </div>
     </div>
   );

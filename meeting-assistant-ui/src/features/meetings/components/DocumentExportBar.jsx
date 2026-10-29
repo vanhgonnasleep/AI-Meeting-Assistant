@@ -1,5 +1,5 @@
 import { Download, FileCode, FileText, Printer } from 'lucide-react';
-import { downloadSrt, downloadVtt } from './subtitles.js';
+import { downloadSrt, downloadVtt } from '../subtitles.js';
 
 /**
  * Clean, unified document export controls.
