@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import TranscriptReview from './TranscriptReview.jsx';
 import VideoSubtitlesPlayer from './VideoSubtitlesPlayer.jsx';
-import { downloadSrt, downloadVtt } from './subtitles.js';
+import DocumentExportBar from './DocumentExportBar.jsx';
+import AudioSyncBar from './AudioSyncBar.jsx';
 import { speechDisplayText } from './session.js';
 import LazyPanel from '../../shared/ui/LazyPanel.jsx';
 import { 
@@ -10,17 +11,15 @@ import {
   Sparkles, 
   ListTodo, 
   Check, 
-  Copy, 
-  Download, 
-  Printer, 
-  FileCode, 
+  Copy,
+ 
   Users, 
   Edit2, 
   CheckCircle2, 
   AlertTriangle, 
   HelpCircle, 
-  Play, 
-  Volume2, 
+  Play,
+ 
   Clock, 
   UploadCloud, 
   FileAudio, 
@@ -29,8 +28,6 @@ import {
   Loader2, 
   Target,
   Columns,
-  RotateCcw,
-  RotateCw,
   FolderOpen,
   Radio
 } from 'lucide-react';
@@ -1131,87 +1128,30 @@ export default function DocumentWorkspace({
               {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
 
-            {/* Export DOCX */}
-            {currentMeetingId && (
-              <button
-                type="button"
-                onClick={() => window.open(`/api/meetings/${currentMeetingId}/export/docx`, '_blank')}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
-                title="Export Corporate Meeting Minutes (.DOCX)"
-                aria-label="Export Word DOCX file"
-              >
-                <FileText className="w-3.5 h-3.5 text-blue-700" />
-                <span>.DOCX</span>
-              </button>
-            )}
-
             {/* Share to Local Network */}
             {currentMeetingId && (
               <button
                 type="button"
                 onClick={() => setShowShareModal(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
                 title="Share to Local Network (Wi-Fi/LAN)"
                 aria-label="Share meeting to LAN"
               >
-                <Radio className="w-3.5 h-3.5 text-emerald-700" />
+                <Radio className="w-3.5 h-3.5 text-slate-600" />
                 <span>Share LAN</span>
               </button>
             )}
 
-            {/* Export Subtitles (.SRT / .VTT) */}
-            {result?.segments && result.segments.length > 0 && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => downloadSrt(result.segments, file?.name || meetingTitle)}
-                  className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 hover:text-purple-900 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
-                  title="Export AI Subtitles (.SRT)"
-                  aria-label="Export Subtitles SRT"
-                >
-                  .SRT
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadVtt(result.segments, file?.name || meetingTitle)}
-                  className="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 hover:text-teal-900 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
-                  title="Export WebVTT Subtitles (.VTT)"
-                  aria-label="Export Subtitles VTT"
-                >
-                  .VTT
-                </button>
-              </>
-            )}
-
-            {/* Export Markdown */}
-            <button
-              type="button"
-              onClick={onDownloadMarkdown}
-              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer"
-              title="Export as Markdown (.MD)"
-              aria-label="Export Markdown file"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Print / PDF */}
-            <button type="button" onClick={onDownloadJson} aria-label="Export JSON file"
-              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700" title="Export JSON file">
-              <FileCode className="w-3.5 h-3.5" />
-            </button>
-            <button type="button" onClick={onDownloadTxt} aria-label="Export text file"
-              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700" title="Export text file">
-              <FileText className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-300/60 text-slate-700 hover:text-slate-900 transition-all active:scale-[0.98] transition-all duration-150 ease-out cursor-pointer"
-              title="Print or Save as PDF"
-              aria-label="Print or Save as PDF"
-            >
-              <Printer className="w-3.5 h-3.5" />
-            </button>
+            {/* Consolidated Document Export Group */}
+            <DocumentExportBar
+              currentMeetingId={currentMeetingId}
+              segments={result?.segments}
+              fileName={file?.name}
+              meetingTitle={meetingTitle}
+              onDownloadMarkdown={onDownloadMarkdown}
+              onDownloadJson={onDownloadJson}
+              onDownloadTxt={onDownloadTxt}
+            />
           </div>
         </div>
 
@@ -1226,62 +1166,25 @@ export default function DocumentWorkspace({
         {/* Interactive Audio Sync Player */}
         <TranscriptReview key={reviewSession} segments={result?.segments} audioUrl={audioUrl} onSeekAudio={onSeekAudio}
           onReviewPassage={onReviewPassage} onAttachReviewAudio={onAttachReviewAudio} busy={isContentSaving} />
-        {isVideoMedia && audioUrl ? (
-          <VideoSubtitlesPlayer
-            mediaRef={audioRef}
-            src={audioUrl}
-            segments={result?.segments || []}
-            title={file?.name || meetingTitle || 'Meeting Video'}
-            onSeek={onSeekAudio}
-          />
-        ) : audioUrl ? (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 px-4 rounded-2xl bg-white/60 backdrop-blur-xl border border-slate-200 shadow-xs">
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
-              <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-700 shrink-0">
-                <Volume2 className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-900">Audio Sync Player</p>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">Click any dialogue or citation to jump audio position</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleSkipAudio(-5)}
-                className="p-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all flex items-center gap-1 text-xs font-mono cursor-pointer active:scale-95"
-                title="Rewind 5 seconds"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>-5s</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSkipAudio(5)}
-                className="p-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300/60 transition-all flex items-center gap-1 text-xs font-mono cursor-pointer active:scale-95"
-                title="Forward 5 seconds"
-              >
-                <RotateCw className="w-3 h-3" />
-                <span>+5s</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTogglePlaybackSpeed}
-                className="px-2.5 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-700 hover:text-slate-900 border border-indigo-500/40 text-xs font-mono font-semibold transition-all cursor-pointer active:scale-95"
-                title="Cycle playback speed (1.0x, 1.25x, 1.5x, 2.0x)"
-              >
-                {playbackSpeed.toFixed(2).replace(/\.00$/, '.0')}x
-              </button>
-            </div>
-
-            <div className="w-full sm:w-auto flex-1 max-w-sm">
-              <audio ref={audioRef} src={audioUrl} controls className="w-full h-8 rounded-lg outline-hidden" />
-            </div>
-          </div>
-        ) : null}
+        {audioUrl && (
+          isVideoMedia ? (
+            <VideoSubtitlesPlayer
+              ref={audioRef}
+              src={audioUrl}
+              segments={result?.segments || []}
+              title={file?.name || meetingTitle || 'Meeting Video'}
+              onSeek={onSeekAudio}
+            />
+          ) : (
+            <AudioSyncBar
+              audioRef={audioRef}
+              src={audioUrl}
+              playbackSpeed={playbackSpeed}
+              onSkip={handleSkipAudio}
+              onToggleSpeed={handleTogglePlaybackSpeed}
+            />
+          )
+        )}
       </header>
       {!isDemoResult && <p className="text-xs text-slate-600">
         {currentMeetingId ? 'Saved to library' : 'Session only — save or export before reloading or starting another meeting.'}
