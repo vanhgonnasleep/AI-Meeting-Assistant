@@ -171,10 +171,10 @@ export default function PreviewWorkspace({
             </nav>
           </div>
 
-          {/* Right: Search, User Profile Pill, Sample Data badge, Your Workspace button */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Right: Search, User Profile Pill, Your Workspace CTA */}
+          <div className="flex items-center gap-3 shrink-0">
             {/* Quick Search meetings input */}
-            <div className="relative hidden sm:flex items-center bg-slate-50/90 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-1.5 text-xs text-slate-600 transition-colors">
+            <div className="relative hidden xl:flex items-center bg-slate-50/90 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-1.5 text-xs text-slate-600 transition-colors">
               <Search className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
               <input
                 type="text"
@@ -182,39 +182,33 @@ export default function PreviewWorkspace({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search meetings"
                 aria-label="Search meetings in preview"
-                className="w-28 sm:w-36 bg-transparent outline-hidden text-xs text-slate-800 placeholder-slate-400"
+                className="w-24 lg:w-32 bg-transparent outline-hidden text-xs text-slate-800 placeholder-slate-400"
               />
             </div>
 
-            {/* User Profile Pill matching Screenshot 2 */}
+            {/* Anonymous Demo User Profile Pill */}
             <div className="relative">
               <button
                 type="button"
                 onClick={onOpenWorkspace}
                 aria-label="Account profile menu"
                 className="inline-flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200/75 border border-slate-200/90 text-slate-800 text-xs font-medium transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer"
-                title="Guest profile (Click to sign in to real workspace)"
+                title="Demo User account (Click to sign in to real workspace)"
               >
                 <span className="w-7 h-7 rounded-full bg-[#303c63] text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                  V
+                  D
                 </span>
-                <span className="hidden md:inline max-w-[140px] truncate font-semibold text-slate-800">
-                  Việt Anh Lương
+                <span className="hidden sm:inline max-w-[120px] truncate font-semibold text-slate-800">
+                  Demo User
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
               </button>
             </div>
 
-            {/* Sample Data Badge */}
-            <span className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Sample data
-            </span>
-
             {/* Back to landing */}
             <a
               href="#/landing"
-              className="hidden md:inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 px-2 py-1"
+              className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 px-2 py-1"
             >
               Back to landing
             </a>

@@ -133,7 +133,7 @@ export function PreviewOverview({ meetings, tasks, onBrowse, onOpenWorkspace }) 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Good morning, <span className="text-[#3c4999]">Việt Anh Lương</span>
+            Good morning, <span className="text-[#3c4999]">Demo User</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             <span className="sr-only">Workspace overview - </span>
