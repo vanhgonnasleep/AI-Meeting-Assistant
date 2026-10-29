@@ -153,13 +153,13 @@ export default function PresentationDeck({
   const ActiveIcon = activeSlide.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-between bg-slate-50/95 text-slate-900 p-6 sm:p-10 backdrop-blur-3xl overflow-hidden select-none">
+    <div className="fixed inset-0 z-50 flex flex-col justify-between bg-slate-50/95 text-slate-900 p-4 sm:p-6 md:p-8 backdrop-blur-3xl overflow-y-auto">
       {/* Background ambient lighting blur-sm spheres */}
       <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-sky-500/10 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-purple-500/10 blur-[120px]" />
 
       {/* Top Header Navigation */}
-      <div className="relative z-10 flex items-center justify-between pb-4 border-b border-slate-200/80">
+      <div className="relative z-10 flex shrink-0 items-center justify-between pb-3 sm:pb-4 border-b border-slate-200/80">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 border border-slate-200/80 backdrop-blur-xl">
             <ActiveIcon className="h-5 w-5 text-sky-700" />
@@ -206,7 +206,7 @@ export default function PresentationDeck({
       </div>
 
       {/* Main Slide Stage */}
-      <div className="relative z-10 my-auto flex items-center justify-center w-full max-w-5xl mx-auto px-4 py-8">
+      <div className="relative z-10 flex-1 min-h-0 my-auto flex items-center justify-center w-full max-w-5xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={currentSlide}
@@ -215,7 +215,7 @@ export default function PresentationDeck({
             initial="enter"
             animate="center"
             exit="exit"
-            className="w-full rounded-3xl border border-slate-200/80 bg-white/60 p-8 sm:p-12 shadow-glass backdrop-blur-xl"
+            className="w-full max-h-[calc(100vh-170px)] flex flex-col rounded-3xl border border-slate-200/80 bg-white/70 p-6 sm:p-10 shadow-glass backdrop-blur-xl overflow-y-auto"
           >
             {/* Slide Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-slate-200/80 text-xs font-medium text-sky-700 mb-6">
@@ -227,7 +227,7 @@ export default function PresentationDeck({
             {activeSlide.id === 'briefing' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">
+                  <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-2 break-words">
                     {activeSlide.title}
                   </h2>
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
@@ -242,7 +242,7 @@ export default function PresentationDeck({
                   </div>
                 </div>
 
-                <div className="p-6 rounded-2xl bg-white/80 border border-slate-200/80 text-slate-800 text-base sm:text-lg leading-relaxed font-normal">
+                <div className="p-5 sm:p-6 rounded-2xl bg-white/85 border border-slate-200/80 text-slate-800 text-sm sm:text-base leading-relaxed font-normal max-h-[48vh] overflow-y-auto pr-3 whitespace-pre-line shadow-inner/5">
                   {activeSlide.summary}
                 </div>
 
@@ -370,7 +370,7 @@ export default function PresentationDeck({
       </div>
 
       {/* Bottom Floating Navigation Dock (Apple Dynamic Island style) */}
-      <div className="relative z-10 flex items-center justify-center">
+      <div className="relative z-10 flex shrink-0 items-center justify-center pt-3 pb-1">
         <div className="flex items-center gap-4 px-6 py-3 rounded-full bg-white/80 border border-slate-200/80 backdrop-blur-xl shadow-glass">
           <button
             onClick={handlePrev}
