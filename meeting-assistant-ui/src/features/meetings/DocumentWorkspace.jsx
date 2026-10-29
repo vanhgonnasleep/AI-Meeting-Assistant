@@ -1,6 +1,8 @@
 // ─── 1. Imports & Style Constants ──────────────────────────────────────────
 import { useState } from 'react';
 import TranscriptReview from './TranscriptReview.jsx';
+import VideoSubtitlesPlayer from './VideoSubtitlesPlayer.jsx';
+import { downloadSrt, downloadVtt } from './subtitles.js';
 import { speechDisplayText } from './session.js';
 import LazyPanel from '../../shared/ui/LazyPanel.jsx';
 import { 
@@ -173,6 +175,13 @@ export default function DocumentWorkspace({
   const [showShareModal, setShowShareModal] = useState(false);
   const [activeHighlightStart, setActiveHighlightStart] = useState(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+
+  const isVideoMedia = Boolean(
+    file?.type?.startsWith('video/') ||
+    /\.(mp4|webm|mkv|mov)$/i.test(file?.name || '') ||
+    /\.(mp4|webm|mkv|mov)$/i.test(result?.filename || '') ||
+    (typeof audioUrl === 'string' && /\.(mp4|webm|mkv|mov)($|\?)/i.test(audioUrl))
+  );
 
   const handleSkipAudio = (seconds) => {
     if (audioRef?.current) {
@@ -437,7 +446,11 @@ export default function DocumentWorkspace({
 
                 {audioUrl && (
                   <div className="w-full pt-2" onClick={(e) => e.stopPropagation()}>
-                    <audio ref={audioRef} controls src={audioUrl} className="w-full h-8 rounded-lg accent-[#6370ce]" />
+                    {isVideoMedia ? (
+                      <video controls src={audioUrl} className="w-full max-h-48 rounded-lg bg-black object-contain" />
+                    ) : (
+                      <audio ref={audioRef} controls src={audioUrl} className="w-full h-8 rounded-lg accent-[#6370ce]" />
+                    )}
                   </div>
                 )}
 
@@ -1146,6 +1159,30 @@ export default function DocumentWorkspace({
               </button>
             )}
 
+            {/* Export Subtitles (.SRT / .VTT) */}
+            {result?.segments && result.segments.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => downloadSrt(result.segments, file?.name || meetingTitle)}
+                  className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 hover:text-purple-900 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
+                  title="Export AI Subtitles (.SRT)"
+                  aria-label="Export Subtitles SRT"
+                >
+                  .SRT
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadVtt(result.segments, file?.name || meetingTitle)}
+                  className="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 hover:text-teal-900 text-xs font-semibold cursor-pointer transition-all active:scale-[0.98]"
+                  title="Export WebVTT Subtitles (.VTT)"
+                  aria-label="Export Subtitles VTT"
+                >
+                  .VTT
+                </button>
+              </>
+            )}
+
             {/* Export Markdown */}
             <button
               type="button"
@@ -1189,7 +1226,15 @@ export default function DocumentWorkspace({
         {/* Interactive Audio Sync Player */}
         <TranscriptReview key={reviewSession} segments={result?.segments} audioUrl={audioUrl} onSeekAudio={onSeekAudio}
           onReviewPassage={onReviewPassage} onAttachReviewAudio={onAttachReviewAudio} busy={isContentSaving} />
-        {audioUrl && (
+        {isVideoMedia && audioUrl ? (
+          <VideoSubtitlesPlayer
+            mediaRef={audioRef}
+            src={audioUrl}
+            segments={result?.segments || []}
+            title={file?.name || meetingTitle || 'Meeting Video'}
+            onSeek={onSeekAudio}
+          />
+        ) : audioUrl ? (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 px-4 rounded-2xl bg-white/60 backdrop-blur-xl border border-slate-200 shadow-xs">
             <div className="flex items-center gap-2.5 w-full sm:w-auto">
               <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-700 shrink-0">
@@ -1236,7 +1281,7 @@ export default function DocumentWorkspace({
               <audio ref={audioRef} src={audioUrl} controls className="w-full h-8 rounded-lg outline-hidden" />
             </div>
           </div>
-        )}
+        ) : null}
       </header>
       {!isDemoResult && <p className="text-xs text-slate-600">
         {currentMeetingId ? 'Saved to library' : 'Session only — save or export before reloading or starting another meeting.'}
