@@ -1,22 +1,27 @@
 import { useState, useRef } from 'react';
 import {
   ArrowUpRight,
+  AudioLines,
   Check,
   CheckCircle2,
+  Clock,
   Copy,
   FileAudio,
   FileText,
-  FolderOpen,
+  LayoutGrid,
+  List,
   ListTodo,
   Play,
   Pause,
+  Plus,
   Quote,
+  Radio,
   Search,
   Share2,
   Sparkles,
   Users,
   Volume2,
-  Radio,
+  X,
 } from 'lucide-react';
 
 const SPEAKER_AVATARS = {
@@ -28,6 +33,305 @@ const SPEAKER_AVATARS = {
   'Linh': { bg: 'bg-pink-600 text-white shadow-pink-500/25', label: 'Linh' },
 };
 
+/**
+ * 1:1 Redline Meeting Card (matching Screenshot 2 & Overview.jsx)
+ */
+export function RedlinePreviewCard({ meeting, onOpen }) {
+  const initials = (meeting.title || 'ME')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 2)
+    .toUpperCase() || 'ME';
+
+  const taskCount = Array.isArray(meeting.action_items) ? meeting.action_items.length : 1;
+  const summaryText = Array.isArray(meeting.summary) ? meeting.summary[0] : (meeting.summary || '');
+
+  return (
+    <div className="h-full">
+      <button
+        type="button"
+        onClick={() => onOpen(meeting.id)}
+        aria-label={`Open meeting ${meeting.title}`}
+        title={meeting.title}
+        className="w-full h-full p-5 rounded-2xl bg-white hover:bg-slate-50/80 active:scale-[0.985] border border-slate-200/90 border-t-4 border-t-[#3c4999] shadow-xs hover:shadow-md transition-all duration-200 ease-out flex flex-col justify-between text-left cursor-pointer group relative"
+      >
+        <div className="space-y-3 w-full">
+          {/* Header Row: Initials Avatar + Title & Time */}
+          <div className="flex items-start gap-3">
+            <span className="w-9 h-9 rounded-xl bg-[#e8ecfe] text-[#3c4999] font-bold text-xs flex items-center justify-center shrink-0 border border-[#d5dcf8]">
+              {initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3
+                className="text-sm font-semibold text-slate-900 group-hover:text-[#3c4999] transition-colors truncate tracking-tight"
+                title={meeting.title}
+              >
+                {meeting.title}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-mono tabular-nums mt-0.5">
+                {meeting.date || 'Saved meeting'}
+              </p>
+            </div>
+            {meeting.language && (
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px] font-bold uppercase tracking-wider shrink-0">
+                {meeting.language}
+              </span>
+            )}
+          </div>
+
+          {/* Executive Summary Snippet */}
+          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+            {summaryText}
+          </p>
+        </div>
+
+        {/* Footer: Duration, Task Count & Open Action */}
+        <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 w-full">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1 font-mono tabular-nums text-[11px]">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              {meeting.duration}
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono tabular-nums text-[11px] font-medium">
+              {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+            </span>
+          </div>
+
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3c4999] group-hover:translate-x-0.5 transition-all">
+            <span>Open</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </span>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+/**
+ * 1:1 Overview Page Layout (matching Screenshot 2 & Overview.jsx)
+ */
+export function PreviewOverview({ meetings, tasks, onBrowse, onOpenWorkspace }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('grid');
+
+  const done = tasks.filter((t) => t.done).length;
+  const pending = tasks.length - done;
+  const completionRate = Math.round((done / (tasks.length || 1)) * 100);
+
+  const filteredMeetings = meetings.filter((m) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const titleMatch = (m.title && m.title.toLowerCase().includes(q));
+    const summaryMatch = (Array.isArray(m.summary) ? m.summary.join(' ') : (m.summary || '')).toLowerCase().includes(q);
+    return titleMatch || summaryMatch;
+  });
+
+  return (
+    <div className="clarion-overview relative space-y-7 max-w-[1400px] mx-auto pb-16">
+      <span className="sr-only">Workspace overview - Sample data</span>
+
+      {/* 1. Header Greeting (EXACT 1:1 MATCH to Screenshot 2) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            Good morning, <span className="text-[#3c4999]">Việt Anh Lương</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            <span className="sr-only">Workspace overview - </span>
+            You have <strong className="text-slate-800">{meetings.length}</strong> saved meetings and{' '}
+            <strong className="text-slate-800">{pending}</strong> pending action items in your workspace.
+            <span className="ml-2 text-slate-400 text-xs font-medium">· Sample data</span>
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenWorkspace}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-semibold text-[#3c4999] hover:bg-indigo-100 transition-colors shrink-0"
+        >
+          <span className="w-2 h-2 rounded-full bg-[#3c4999] animate-pulse" />
+          <span>Preview Mode (Click to Sign in)</span>
+        </button>
+      </div>
+
+      {/* 2. Three Horizontal KPI Cards (EXACT 1:1 MATCH to Screenshot 2) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Card 1: Saved Meetings */}
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all duration-200 ease-out">
+          <div className="w-12 h-12 rounded-xl bg-[#e8ecfe] border border-[#d5dcf8] flex items-center justify-center shrink-0 text-[#3c4999]">
+            <AudioLines className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-bold text-slate-900 tracking-tight tabular-nums font-mono">
+              {meetings.length}
+            </p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Saved Meetings</p>
+          </div>
+        </div>
+
+        {/* Card 2: Pending Tasks */}
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all duration-200 ease-out">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center shrink-0 text-amber-600">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-bold text-amber-700 tracking-tight tabular-nums font-mono">
+              {pending}
+            </p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Pending Tasks</p>
+          </div>
+        </div>
+
+        {/* Card 3: Completed Tasks */}
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all duration-200 ease-out">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center shrink-0 text-emerald-600">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-1.5">
+              <p className="text-2xl font-bold text-emerald-700 tracking-tight tabular-nums font-mono">
+                {done}
+              </p>
+              <span className="text-xs font-semibold text-emerald-700 font-mono tabular-nums">
+                ({completionRate}%)
+              </span>
+            </div>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Completed Tasks</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Section Toolbar (EXACT 1:1 MATCH to Screenshot 2) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Meeting List</h2>
+          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-mono tabular-nums">
+            {filteredMeetings.length} {filteredMeetings.length === 1 ? 'record' : 'records'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Inline Meeting Search */}
+          <div className="relative flex items-center bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 text-xs text-slate-800 shadow-2xs focus-within:ring-2 focus-within:ring-[#3c4999]/20 focus-within:border-[#3c4999] transition-all duration-200 ease-out w-48 sm:w-60">
+            <Search className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search meetings..."
+              className="w-full bg-transparent outline-hidden text-xs text-slate-800 placeholder-slate-400"
+              aria-label="Search meetings in list"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-slate-400 hover:text-slate-600 ml-1 transition-colors"
+                aria-label="Clear meeting search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* View Mode Toggle: Grid vs List */}
+          <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200 text-slate-600 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg active:scale-[0.96] transition-all duration-150 ease-out cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-[#3c4999] text-white shadow-2xs'
+                  : 'hover:text-slate-900'
+              }`}
+              title="Grid view"
+              aria-label="Grid view"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg active:scale-[0.96] transition-all duration-150 ease-out cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-[#3c4999] text-white shadow-2xs'
+                  : 'hover:text-slate-900'
+              }`}
+              title="List view"
+              aria-label="List view"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Primary CTA Button: + New Meeting */}
+          <button
+            type="button"
+            onClick={onOpenWorkspace}
+            aria-label="Start new meeting"
+            title="Start new meeting"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] text-white text-xs font-semibold shadow-xs transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>New Meeting</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 4. Main Meeting Cards / Empty State matching Screenshot 2 */}
+      {filteredMeetings.length === 0 ? (
+        <div className="py-14 text-center space-y-3 bg-white/60 border border-dashed border-slate-200 rounded-3xl p-8">
+          <FileAudio className="w-10 h-10 mx-auto text-slate-400" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-slate-800">
+              {searchQuery
+                ? 'No meetings match your search query.'
+                : 'No recorded meetings yet.'}
+            </p>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              {searchQuery
+                ? 'Try a different search term or clear the filter.'
+                : 'Click + New Meeting to record or upload an audio file and generate structured notes.'}
+            </p>
+          </div>
+          {!searchQuery && (
+            <button
+              type="button"
+              onClick={onOpenWorkspace}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3c4999] text-white text-xs font-semibold shadow-xs hover:bg-[#303c7e] transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Record or Upload Audio</span>
+            </button>
+          )}
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredMeetings.map((meeting) => (
+            <RedlinePreviewCard
+              key={meeting.id}
+              meeting={meeting}
+              onOpen={onBrowse}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredMeetings.map((meeting) => (
+            <RedlinePreviewCard
+              key={meeting.id}
+              meeting={meeting}
+              onOpen={onBrowse}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 1:1 Meeting Studio Component (matching DocumentWorkspace.jsx)
+ */
 export function MeetingStudioPreview({
   meeting,
   tasks,
@@ -99,7 +403,7 @@ export function MeetingStudioPreview({
   });
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-16" aria-label="Sample meeting detail">
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-16" aria-label="Sample meeting detail">
       {meeting.audio && (
         <audio
           ref={audioRef}
@@ -110,8 +414,8 @@ export function MeetingStudioPreview({
         />
       )}
 
-      {/* 1. Header Toolbar (Apple & Linear Slate Aesthetic) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* 1. Header Toolbar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
@@ -152,7 +456,7 @@ export function MeetingStudioPreview({
           <button
             type="button"
             onClick={onOpenWorkspace}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#303c63] hover:bg-[#40507b] text-white shadow-xs transition-colors"
           >
             <span>Open in App</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -167,7 +471,7 @@ export function MeetingStudioPreview({
             type="button"
             onClick={handlePlayPause}
             aria-label={isPlaying ? 'Pause sample audio' : 'Play sample audio'}
-            className="w-10 h-10 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md shadow-indigo-500/20"
+            className="w-10 h-10 rounded-xl bg-[#3c4999] hover:bg-[#4a5ab8] text-white flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md shadow-[#3c4999]/20 cursor-pointer"
           >
             {isPlaying ? <Pause className="w-4 h-4 fill-white" /> : <Play className="w-4 h-4 fill-white ml-0.5" />}
           </button>
@@ -185,7 +489,7 @@ export function MeetingStudioPreview({
               value={currentTime}
               aria-label="Sample audio seeker"
               onChange={(e) => handleSeek(Number(e.target.value))}
-              className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-400"
+              className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#6370ce]"
             />
           </div>
 
@@ -201,10 +505,10 @@ export function MeetingStudioPreview({
         {/* Left Column: Executive Synthesis, Decisions, Action Items, Speakers */}
         <div className="lg:col-span-7 space-y-6">
           {/* Executive Summary with Bi-Directional Linking */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+                <span className="p-2 rounded-lg bg-[#e8ecfe] text-[#3c4999]">
                   <Sparkles className="w-4 h-4" />
                 </span>
                 <h3 className="text-base font-bold text-slate-900 tracking-tight">Executive Summary</h3>
@@ -226,7 +530,7 @@ export function MeetingStudioPreview({
                   }`}
                 >
                   <div className="flex items-start gap-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#3c4999] mt-2 shrink-0" />
                     <span>{bullet}</span>
                   </div>
                 </li>
@@ -235,7 +539,7 @@ export function MeetingStudioPreview({
           </div>
 
           {/* Key Decisions Tracker */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-3">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 space-y-3">
             <div className="flex items-center gap-2">
               <span className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
                 <Quote className="w-4 h-4" />
@@ -255,7 +559,7 @@ export function MeetingStudioPreview({
           </div>
 
           {/* Action Deliverables Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="p-2 rounded-lg bg-blue-50 text-blue-600">
@@ -281,7 +585,7 @@ export function MeetingStudioPreview({
                       type="checkbox"
                       checked={task.done}
                       onChange={() => onToggleTask(task.id)}
-                      className="w-4 h-4 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      className="w-4 h-4 rounded-md border-slate-300 text-[#3c4999] focus:ring-[#3c4999] cursor-pointer"
                     />
                     <div className="min-w-0">
                       <p className={`font-medium truncate ${task.done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
@@ -310,7 +614,7 @@ export function MeetingStudioPreview({
           </div>
 
           {/* Speaker Profiles & Voiceprint Confidence */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-3">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 space-y-3">
             <div className="flex items-center gap-2">
               <span className="p-2 rounded-lg bg-purple-50 text-purple-600">
                 <Users className="w-4 h-4" />
@@ -340,7 +644,7 @@ export function MeetingStudioPreview({
 
         {/* Right Column: Searchable Transcript with Time-seeking */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4 flex flex-col h-full min-h-[500px]">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 space-y-4 flex flex-col h-full min-h-[500px]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="p-2 rounded-lg bg-slate-100 text-slate-700">
@@ -360,7 +664,7 @@ export function MeetingStudioPreview({
                   placeholder="Filter spoken words…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 outline-hidden focus:border-indigo-500 bg-slate-50/60"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 outline-hidden focus:border-[#3c4999] bg-slate-50/60"
                 />
               </div>
 
@@ -396,7 +700,7 @@ export function MeetingStudioPreview({
                     onClick={() => handleSeek(turn.start)}
                     className={`p-3.5 rounded-xl border transition-all cursor-pointer text-xs space-y-1.5 ${
                       isActive
-                        ? 'bg-indigo-50/90 border-indigo-300 shadow-xs ring-1 ring-indigo-400'
+                        ? 'bg-indigo-50/90 border-[#3c4999] shadow-xs ring-1 ring-[#3c4999]'
                         : isHovered
                         ? 'bg-amber-50/80 border-amber-300 shadow-xs ring-1 ring-amber-300'
                         : 'bg-slate-50/40 border-slate-200/80 hover:bg-slate-50'
@@ -476,7 +780,7 @@ export function MeetingStudioPreview({
                   navigator.clipboard?.writeText('http://192.168.1.50:8000/share/sample_token_8a92f1b4c92e7d');
                   setShowShareModal(false);
                 }}
-                className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-500"
+                className="px-4 py-2 rounded-xl bg-[#303c63] text-white font-semibold hover:bg-[#40507b]"
               >
                 Copy Link
               </button>
@@ -484,142 +788,6 @@ export function MeetingStudioPreview({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-export function PreviewOverview({ meetings, tasks, onBrowse, onTasks, onOpenWorkspace }) {
-  const done = tasks.filter((t) => t.done).length;
-  const completionRate = Math.round((done / (tasks.length || 1)) * 100);
-
-  return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-16">
-      {/* 1. Header Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 border-t-4 border-t-indigo-600">
-        <div className="space-y-2 max-w-2xl">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200">
-            MAKE ROOM FOR THE NEXT IDEA
-          </span>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Workspace overview
-          </h2>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            A little perspective on what comes next. Explore a prepared sample library running 100% on-device with zero cloud telemetry.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={onOpenWorkspace}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
-        >
-          <span>Open your workspace</span>
-          <ArrowUpRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* 2. KPI Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium text-slate-500">In the sample library</span>
-            <FileAudio className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {meetings.length} <span className="text-xs text-slate-500 font-sans font-normal">meetings</span>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium text-slate-500">Next steps to explore</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {tasks.length - done} <span className="text-xs text-slate-500 font-sans font-normal">open tasks</span>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium text-slate-500">Organized projects</span>
-            <FolderOpen className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {new Set(meetings.map((m) => m.project)).size} <span className="text-xs text-slate-500 font-sans font-normal">projects</span>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium text-slate-500">Completion rate</span>
-            <Sparkles className="w-4 h-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {completionRate}% <span className="text-xs text-slate-500 font-sans font-normal">of tasks</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Redline Meeting Cards Grid */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900 tracking-tight">Pick up the conversation</h3>
-          <div className="flex items-center gap-3">
-            {onTasks && (
-              <button
-                type="button"
-                onClick={onTasks}
-                className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-              >
-                Explore tasks
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onBrowse}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-            >
-              <span>View all meetings</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {meetings.map((m) => (
-            <button
-              type="button"
-              key={m.id}
-              onClick={() => onBrowse(m.id)}
-              className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all text-left flex flex-col justify-between space-y-4 group cursor-pointer border-t-4 border-t-indigo-600"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase bg-slate-100 text-slate-600">
-                    {m.kind}
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono">{m.duration}</span>
-                </div>
-                <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                  {m.title}
-                </h4>
-                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                  {Array.isArray(m.summary) ? m.summary[0] : m.summary}
-                </p>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span className="truncate max-w-[150px]">{m.project}</span>
-                <span className="font-semibold text-indigo-600 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                  <span>Open Studio</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -638,9 +806,9 @@ export function PreviewLibrary({
   );
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-16">
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-16">
       {/* Search Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Meeting library</h2>
           <p className="text-xs text-slate-500">Q3 budget review and sample enterprise meetings.</p>
@@ -653,7 +821,7 @@ export function PreviewLibrary({
             placeholder="Search meetings or projects…"
             value={query}
             onChange={(e) => onQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 outline-hidden focus:border-indigo-500 bg-slate-50/50"
+            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 outline-hidden focus:border-[#3c4999] bg-slate-50/50"
           />
         </div>
       </div>
@@ -667,13 +835,13 @@ export function PreviewLibrary({
             onClick={() => onSelect(m.id)}
             className={`p-4 rounded-xl border text-left transition-all cursor-pointer space-y-2 ${
               selected.id === m.id
-                ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-400 shadow-xs'
+                ? 'bg-indigo-50/80 border-[#3c4999] ring-2 ring-[#3c4999] shadow-xs'
                 : 'bg-white border-slate-200 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
               <span>{m.duration}</span>
-              <span className="font-semibold text-indigo-600">{m.project}</span>
+              <span className="font-semibold text-[#3c4999]">{m.project}</span>
             </div>
             <strong className="text-sm font-bold text-slate-900 block truncate">
               {m.title}
@@ -709,7 +877,7 @@ export function PreviewTasks({ tasks, onToggle }) {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Action items</h2>
           <p className="text-xs text-slate-500">
@@ -748,7 +916,7 @@ export function PreviewTasks({ tasks, onToggle }) {
                 type="checkbox"
                 checked={task.done}
                 onChange={() => onToggle(task.id)}
-                className="w-4 h-4 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="w-4 h-4 rounded-md border-slate-300 text-[#3c4999] focus:ring-[#3c4999] cursor-pointer"
               />
               <div className="min-w-0">
                 <span className={`text-sm font-semibold block truncate ${task.done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
@@ -781,7 +949,7 @@ export function PreviewProjects({ meetings, tasks, onBrowse }) {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs">
         <h2 className="text-xl font-bold text-slate-900 tracking-tight">Projects</h2>
         <p className="text-xs text-slate-500 mt-1">
           Keep the bigger picture in view. All meetings grouped by project initiative.
@@ -799,11 +967,11 @@ export function PreviewProjects({ meetings, tasks, onBrowse }) {
           return (
             <div
               key={name}
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 border-t-4 border-t-indigo-600 flex flex-col justify-between"
+              className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4 border-t-4 border-t-[#3c4999] flex flex-col justify-between"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#e8ecfe] text-[#3c4999] border border-[#d5dcf8] uppercase">
                     Sample Project
                   </span>
                   <span className="text-xs font-mono text-slate-500">
@@ -823,7 +991,7 @@ export function PreviewProjects({ meetings, tasks, onBrowse }) {
                 </div>
                 <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                    className="h-full bg-[#3c4999] rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
