@@ -1,0 +1,97 @@
+================================================================================
+BỘ MÔN: CÔNG NGHỆ THÔNG TIN & CÁC CHỦ ĐỀ MỚI TRONG CNTT (FIT / HANU)
+ĐỒ ÁN TỐT NGHIỆP / CUỐI KỲ: AI MEETING ASSISTANT
+================================================================================
+
+TÊN ĐỀ TÀI:
+  CLARION — NỀN TẢNG TRỢ LÝ CUỘC HỌP AI ĐA TÁC TỬ CỤC BỘ (AIR-GAPPED & PRIVACY-FIRST)
+  (AI Meeting Assistant: Local Speech Recognition, MMR Summarization & Action Extraction)
+
+NHÓM SINH VIÊN THỰC HIỆN (4 THÀNH VIÊN):
+  1. Lương Việt Anh   (Nhóm trưởng / Lead) - MSSV: 2301040004
+     Phụ trách: Kiến trúc hệ thống, Pipeline Orchestrator, Thuật toán MMR & Llama 3 Map-Reduce, Frontend React
+  2. Triệu Quang Thiện (Thành viên)
+     Phụ trách: Speech-to-Text (Whisper STT), Xử lý âm thanh FFmpeg, Phân cụm người nói (Diarization)
+  3. Nguyễn Quang Minh (Thành viên)
+     Phụ trách: Bóc tách việc (Action Items JSON), Ma trận Quyết định & Rủi ro, Hỏi-Đáp RAG trích dẫn
+  4. Đoàn Hoàng Long  (Thành viên)
+     Phụ trách: Cơ sở dữ liệu SQLite WAL, Quản trị phân quyền OAuth / Local, Động cơ xuất biên bản (.docx/.md)
+
+MÃ NGUỒN GITHUB:
+  https://github.com/vanhgonnasleep/AI-Meeting-Assistant
+
+================================================================================
+1. HƯỚNG DẪN KHỞI CHẠY 1-CLICK (QUICK START)
+================================================================================
+
+YÊU CẦU HỆ THỐNG:
+  - Hệ điều hành: Windows 10/11, macOS hoặc Linux
+  - Đã cài đặt: Node.js 18+ (khuyên dùng Node.js 20 hoặc 24 LTS)
+  - Đã cài đặt: Python 3.10+ (đã tích hợp sẵn virtualenv hoặc chạy python hệ thống)
+
+CÁCH 1: KHỞI CHẠY 1 CÚ NHẤP CHUỘT TRÊN WINDOWS (KHUYÊN DÙNG)
+  1. Nháy đúp vào file `run_all.bat` (hoặc `run_clarion.bat`) ở thư mục gốc.
+  2. Script sẽ tự động:
+     - Kiểm tra môi trường Node.js và Python
+     - Tự động cài đặt dependencies frontend nếu chưa có (`npm install`)
+     - Khởi chạy Backend FastAPI tại: http://localhost:8002
+     - Khởi chạy Frontend React Studio tại: http://localhost:5173
+     - Tự động mở trình duyệt web đến giao diện làm việc.
+
+CÁCH 2: CHẠY QUA DOCKER (CONTAINERIZED)
+  - Chạy lệnh:
+      docker-compose up --build
+  - Truy cập ngay: http://localhost:5173
+
+CÁCH 3: TRẢI NGHIỆM TỨC THÌ (KHÔNG CẦN CÀI MODEL NẶNG)
+  - Clarion tích hợp sẵn chế độ "Instant Demo (Zero Compute)" và nút "Load Sample Audio".
+  - Thầy/Cô chỉ cần bấm "Load Sample Audio" để trải nghiệm trọn vẹn toàn bộ quy trình:
+    + Xem văn bản bóc băng gán nhãn người nói
+    + Nghe và đồng bộ tua audio thời gian thực
+    + Đọc bản tóm tắt điều hành (Executive Summary)
+    + Kiểm tra danh sách công việc (Action Deliverables)
+    + Xem ma trận 3 cột (Quyết định, Rủi ro, Câu hỏi mở)
+    + Trình chiếu slide thuyết trình Zen Deck
+
+================================================================================
+2. CẤU TRÚC MÃ NGUỒN (MODULAR CLEAN ARCHITECTURE)
+================================================================================
+
+  AI-Meeting-Assistant/
+  ├── ai-summary-service/       -> Backend Python (FastAPI, Whisper STT, MMR, LLM, RAG)
+  │   ├── main.py               -> Điểm vào API server chính
+  │   ├── transcription.py      -> Module nhận dạng giọng nói Whisper & căn chỉnh mốc giờ
+  │   ├── mmr.py                -> Thuật toán Maximal Marginal Relevance lọc nén câu thừa
+  │   ├── summarization.py      -> Động cơ tóm tắt Map-Reduce hỗ trợ cuộc họp dài
+  │   ├── action_items.py       -> Bóc tách công việc kèm người nhận và hạn chót ISO
+  │   ├── insights.py           -> Bóc tách Quyết định, Rủi ro và Câu hỏi mở
+  │   ├── exporter.py           -> Xuất tài liệu Word (.docx), Markdown (.md), Subtitles (.srt/.vtt)
+  │   └── tests/                -> Bộ 446 test cases kiểm thử tự động toàn diện
+  ├── meeting-assistant-ui/     -> Frontend React 19 + Vite (Linear/Notta editorial UI)
+  │   ├── src/features/meetings/-> Module quản trị cuộc họp, workspace, trình phát video/sub
+  │   ├── src/features/overview/-> Thống kê năng suất, biểu đồ KPI, tiến độ công việc
+  │   ├── src/features/chat/    -> Hỏi đáp RAG thông minh trích dẫn mốc thời gian audio
+  │   └── src/features/auth/    -> Xác thực tài khoản Google/GitHub OAuth và Local Mode
+  ├── database/                 -> Cơ sở dữ liệu SQLite cấu hình chế độ ghi đồng thời WAL
+  ├── docs/                     -> Toàn bộ tài liệu kỹ thuật, báo cáo giữa kỳ và hướng dẫn bảo vệ
+  │   ├── reports/              -> Chứa file PDF báo cáo tiến độ chính thức
+  │   └── submission/           -> Tài liệu nghiệm thu và bàn giao hệ thống
+  ├── samples/                  -> File âm thanh cuộc họp mẫu chuẩn để kiểm thử
+  ├── CLARION_Final_Technical_Report.md -> Chuyên khảo kỹ thuật toàn diện 350+ trang
+  ├── run_all.bat               -> Script kích hoạt hệ thống tự động 1-Click
+  └── docker-compose.yml        -> Cấu hình đóng gói container chuẩn production
+
+================================================================================
+3. KẾT QUẢ KIỂM THỬ VÀ CHẤT LƯỢNG MÃ NGUỒN (QUALITY GATES)
+================================================================================
+
+Toàn bộ dự án đã vượt qua 100% các bài kiểm tra tự động trước khi đóng gói nộp bài:
+  - Backend Test Suite (Pytest):   439 / 439 tests PASSED (100%)
+  - Frontend Test Suite (Node):    173 / 173 tests PASSED (100%)
+  - Mã nguồn tuân thủ Linter:      0 errors, 0 warnings (ESLint)
+  - Build Bundle tối ưu hóa:       Biên dịch thành công trong 560ms (Vite)
+  - Bảo mật dữ liệu:               100% xử lý On-Device, không gửi dữ liệu ra cloud
+
+================================================================================
+Nhóm sinh viên xin trân trọng cảm ơn Quý Thầy/Cô trong Hội đồng chấm đồ án!
+================================================================================
