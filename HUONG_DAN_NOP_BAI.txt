@@ -58,6 +58,9 @@ CÁCH 3: TRẢI NGHIỆM TỨC THÌ (KHÔNG CẦN CÀI MODEL NẶNG)
 ================================================================================
 
   AI-Meeting-Assistant/
+  ├── Bao_Cao/                  -> Thư mục chứa Báo cáo Đồ án chính thức (.docx & .pdf)
+  │   ├── Bao_Cao_Do_An_AI_Meeting_Assistant.docx -> Báo cáo tổng kết đồ án chi tiết (Word)
+  │   └── Bao_Cao_Tien_Do_Giua_Ky.pdf             -> Báo cáo tiến độ giữa kỳ (PDF)
   ├── ai-summary-service/       -> Backend Python (FastAPI, Whisper STT, MMR, LLM, RAG)
   │   ├── main.py               -> Điểm vào API server chính
   │   ├── transcription.py      -> Module nhận dạng giọng nói Whisper & căn chỉnh mốc giờ
@@ -73,12 +76,10 @@ CÁCH 3: TRẢI NGHIỆM TỨC THÌ (KHÔNG CẦN CÀI MODEL NẶNG)
   │   ├── src/features/chat/    -> Hỏi đáp RAG thông minh trích dẫn mốc thời gian audio
   │   └── src/features/auth/    -> Xác thực tài khoản Google/GitHub OAuth và Local Mode
   ├── database/                 -> Cơ sở dữ liệu SQLite cấu hình chế độ ghi đồng thời WAL
-  ├── docs/                     -> Toàn bộ tài liệu kỹ thuật, báo cáo giữa kỳ và hướng dẫn bảo vệ
-  │   ├── reports/              -> Chứa file PDF báo cáo tiến độ chính thức
-  │   └── submission/           -> Tài liệu nghiệm thu và bàn giao hệ thống
+  ├── docs/                     -> Tài liệu kỹ thuật, hướng dẫn cài đặt và cấu trúc hệ thống
   ├── samples/                  -> File âm thanh cuộc họp mẫu chuẩn để kiểm thử
-  ├── CLARION_Final_Technical_Report.md -> Chuyên khảo kỹ thuật toàn diện 350+ trang
   ├── run_all.bat               -> Script kích hoạt hệ thống tự động 1-Click
+  ├── README.md                 -> Giới thiệu tổng quan hệ thống (Open Source GitHub standard)
   └── docker-compose.yml        -> Cấu hình đóng gói container chuẩn production
 
 ================================================================================
