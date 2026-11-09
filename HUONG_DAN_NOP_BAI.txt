@@ -1,35 +1,36 @@
 ================================================================================
-BỘ MÔN: CÔNG NGHỆ THÔNG TIN & CÁC CHỦ ĐỀ MỚI TRONG CNTT (FIT / HANU)
-ĐỒ ÁN TỐT NGHIỆP / CUỐI KỲ: AI MEETING ASSISTANT
+HANOI UNIVERSITY (HANU) - FACULTY OF INFORMATION TECHNOLOGY
+DEPARTMENT: EMERGING TOPICS IN IT (ATI / AIN) - FALL SEMESTER 2026
+FINAL CAPSTONE PROJECT: AI MEETING ASSISTANT
 ================================================================================
 
-TÊN ĐỀ TÀI:
-  CLARION — NỀN TẢNG TRỢ LÝ CUỘC HỌP AI ĐA TÁC TỬ CỤC BỘ (AIR-GAPPED & PRIVACY-FIRST)
-  (AI Meeting Assistant: Local Speech Recognition, MMR Summarization & Action Extraction)
+TÊN ĐỀ TÀI / PROJECT TITLE:
+  CLARION: PRIVATE ON-DEVICE AI MEETING INTELLIGENCE PLATFORM
+  (Trợ lý Cuộc họp AI Đa tác tử Cục bộ Bảo mật Cao — Zero Cloud Egress)
 
-NHÓM SINH VIÊN THỰC HIỆN (4 THÀNH VIÊN):
-  1. Lương Việt Anh   (Nhóm trưởng / Lead) - MSSV: 2301040004
-     Phụ trách: Kiến trúc hệ thống, Pipeline Orchestrator, Thuật toán MMR & Llama 3 Map-Reduce, Frontend React
-  2. Triệu Quang Thiện (Thành viên)
-     Phụ trách: Speech-to-Text (Whisper STT), Xử lý âm thanh FFmpeg, Phân cụm người nói (Diarization)
-  3. Nguyễn Quang Minh (Thành viên)
-     Phụ trách: Bóc tách việc (Action Items JSON), Ma trận Quyết định & Rủi ro, Hỏi-Đáp RAG trích dẫn
-  4. Đoàn Hoàng Long  (Thành viên)
-     Phụ trách: Cơ sở dữ liệu SQLite WAL, Quản trị phân quyền OAuth / Local, Động cơ xuất biên bản (.docx/.md)
+NHÓM SINH VIÊN THỰC HIỆN / PROJECT GROUP 16 (4 MEMBERS):
+  1. Lương Việt Anh   (Team Leader / System Architect) — Student ID: 2301040004
+     Phụ trách: System Architecture, Pipeline Orchestration, MMR Algorithm, React Studio UI
+  2. Đoàn Hoàng Long  (Backend & Database Engineer)    — Student ID: 2301040108
+     Phụ trách: Backend Architecture, SQLite WAL Storage, OAuth / Local Auth, Minutes Exporter
+  3. Nguyễn Quang Minh (NLP & Extraction Engineer)     — Student ID: 2301040121
+     Phụ trách: Action Items JSON Extraction, Decision & Risk Matrix, Cited Cross-Meeting RAG
+  4. Triệu Quang Thiện (Audio & STT Engineer)          — Student ID: 2301040173
+     Phụ trách: Audio Ingestion, Whisper ASR Engineering, Diarization, Speech Review Quality
 
-MÃ NGUỒN GITHUB:
+KHO MÃ NGUỒN CHÍNH THỨC / GITHUB REPOSITORY:
   https://github.com/vanhgonnasleep/AI-Meeting-Assistant
 
 ================================================================================
-1. HƯỚNG DẪN KHỞI CHẠY 1-CLICK (QUICK START)
+1. HƯỚNG DẪN KHỞI CHẠY 1-CLICK (QUICK START GUIDE)
 ================================================================================
 
-YÊU CẦU HỆ THỐNG:
+YÊU CẦU HỆ THỐNG / PREREQUISITES:
   - Hệ điều hành: Windows 10/11, macOS hoặc Linux
   - Đã cài đặt: Node.js 18+ (khuyên dùng Node.js 20 hoặc 24 LTS)
   - Đã cài đặt: Python 3.10+ (đã tích hợp sẵn virtualenv hoặc chạy python hệ thống)
 
-CÁCH 1: KHỞI CHẠY 1 CÚ NHẤP CHUỘT TRÊN WINDOWS (KHUYÊN DÙNG)
+CÁCH 1: KHỞI CHẠY 1 CÚ NHẤP CHUỘT TRÊN WINDOWS (RECOMMENDED)
   1. Nháy đúp vào file `run_all.bat` (hoặc `run_clarion.bat`) ở thư mục gốc.
   2. Script sẽ tự động:
      - Kiểm tra môi trường Node.js và Python
@@ -43,12 +44,12 @@ CÁCH 2: CHẠY QUA DOCKER (CONTAINERIZED)
       docker-compose up --build
   - Truy cập ngay: http://localhost:5173
 
-CÁCH 3: TRẢI NGHIỆM TỨC THÌ (KHÔNG CẦN CÀI MODEL NẶNG)
+CÁCH 3: TRẢI NGHIỆM TỨC THÌ (DEMO SAMPLE MODE)
   - Clarion tích hợp sẵn chế độ "Instant Demo (Zero Compute)" và nút "Load Sample Audio".
   - Thầy/Cô chỉ cần bấm "Load Sample Audio" để trải nghiệm trọn vẹn toàn bộ quy trình:
-    + Xem văn bản bóc băng gán nhãn người nói
-    + Nghe và đồng bộ tua audio thời gian thực
-    + Đọc bản tóm tắt điều hành (Executive Summary)
+    + Xem văn bản bóc băng gán nhãn người nói và mốc thời gian
+    + Nghe và đồng bộ tua audio thời gian thực theo từng câu
+    + Xem bản tóm tắt điều hành (Executive Summary)
     + Kiểm tra danh sách công việc (Action Deliverables)
     + Xem ma trận 3 cột (Quyết định, Rủi ro, Câu hỏi mở)
     + Trình chiếu slide thuyết trình Zen Deck
@@ -58,9 +59,10 @@ CÁCH 3: TRẢI NGHIỆM TỨC THÌ (KHÔNG CẦN CÀI MODEL NẶNG)
 ================================================================================
 
   AI-Meeting-Assistant/
-  ├── Bao_Cao/                  -> Thư mục chứa Báo cáo Đồ án chính thức (.docx & .pdf)
-  │   ├── Bao_Cao_Do_An_AI_Meeting_Assistant.docx -> Báo cáo tổng kết đồ án chi tiết (Word)
-  │   └── Bao_Cao_Tien_Do_Giua_Ky.pdf             -> Báo cáo tiến độ giữa kỳ (PDF)
+  ├── Bao_Cao/                  -> Thư mục chứa Báo cáo Đồ án chính thức
+  │   ├── Clarion_Final_Project_Report.docx       -> Báo cáo tổng kết đồ án bằng Tiếng Anh (English)
+  │   ├── Bao_Cao_Do_An_AI_Meeting_Assistant.docx -> Bản sao lưu báo cáo Word
+  │   └── Bao_Cao_Tien_Do_Giua_Ky.pdf             -> Báo cáo tiến độ giữa kỳ (PDF English)
   ├── ai-summary-service/       -> Backend Python (FastAPI, Whisper STT, MMR, LLM, RAG)
   │   ├── main.py               -> Điểm vào API server chính
   │   ├── transcription.py      -> Module nhận dạng giọng nói Whisper & căn chỉnh mốc giờ
@@ -90,9 +92,10 @@ Toàn bộ dự án đã vượt qua 100% các bài kiểm tra tự động trư
   - Backend Test Suite (Pytest):   439 / 439 tests PASSED (100%)
   - Frontend Test Suite (Node):    173 / 173 tests PASSED (100%)
   - Mã nguồn tuân thủ Linter:      0 errors, 0 warnings (ESLint)
-  - Build Bundle tối ưu hóa:       Biên dịch thành công trong 560ms (Vite)
+  - Bảo mật phụ thuộc npm audit:   0 vulnerabilities (Clean lockfile)
+  - Build Bundle tối ưu hóa:       Biên dịch thành công trong 538ms (Vite)
   - Bảo mật dữ liệu:               100% xử lý On-Device, không gửi dữ liệu ra cloud
 
 ================================================================================
-Nhóm sinh viên xin trân trọng cảm ơn Quý Thầy/Cô trong Hội đồng chấm đồ án!
+Project Group 16 respectfully thanks the Faculty of Information Technology!
 ================================================================================
